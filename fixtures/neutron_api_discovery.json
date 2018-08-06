@@ -1,0 +1,14 @@
+{
+  "versions": [
+    {
+      "status": "CURRENT",
+      "id": "v2.0",
+      "links": [
+        {
+          "href": "http://test.cloud:9696/v2.0",
+          "rel": "self"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+go:
+    # Whenever the Go version is updated here, .circle/config.yml should also
+    # be updated.
+    version: 1.11
+repository:
+    path: github.com/niedbalski/openstack-exporter
+build:
+    flags: -mod=vendor
+tarball:
+    files:
+        - LICENSE
+crossbuild:
+    platforms:
+        - linux/amd64
+        - linux/arm64

@@ -1,0 +1,125 @@
+{
+  "agents": [
+    {
+      "binary": "neutron-openvswitch-agent",
+      "description": null,
+      "availability_zone": null,
+      "heartbeat_timestamp": "2017-09-12 19:40:08",
+      "admin_state_up": true,
+      "alive": true,
+      "id":" 04c62b91-b799-48b7-9cd5-2982db6df9c6",
+      "topic": "N/A",
+      "host": "agenthost1",
+      "agent_type": "Open vSwitch agent",
+      "started_at": "2017-09-12 19:35:38",
+      "created_at": "2017-09-12 19:35:38",
+      "configurations": {
+        "ovs_hybrid_plug": true,
+        "in_distributed_mode": false,
+        "datapath_type": "system",
+        "vhostuser_socket_dir": "/var/run/openvswitch",
+        "tunneling_ip": "172.16.78.191",
+        "arp_responder_enabled": false,
+        "devices": 0,
+        "ovs_capabilities": {
+          "datapath_types": [
+            "netdev",
+            "system"
+          ],
+          "iface_types": [
+            "geneve",
+            "gre",
+            "internal",
+            "ipsec_gre",
+            "lisp",
+            "patch",
+            "stt",
+            "system",
+            "tap",
+            "vxlan"
+          ]
+        },
+        "log_agent_heartbeats": false,
+        "l2_population": false,
+        "tunnel_types": [
+          "vxlan"
+        ],
+        "extensions": [
+
+        ],
+        "enable_distributed_routing": false,
+        "bridge_mappings": {
+          "public": "br-ex"
+        }
+      }
+    },
+    {
+      "binary": "neutron-dhcp-agent",
+      "description": null,
+      "availability_zone": "nova",
+      "heartbeat_timestamp": "2017-09-12 19:39:56",
+      "admin_state_up": true,
+      "alive": true,
+      "id": "840d5d68-5759-4e9e-812f-f3bd19214c7f",
+      "topic": "dhcp_agent",
+      "host": "agenthost1",
+      "agent_type" :"DHCP agent",
+      "started_at": "2017-09-12 19:35:36",
+      "created_at": "2017-09-12 19:35:36",
+      "configurations": {
+        "subnets": 2,
+        "dhcp_lease_duration": 86400,
+        "dhcp_driver": "neutron.agent.linux.dhcp.Dnsmasq",
+        "networks": 1,
+        "log_agent_heartbeats": false,
+        "ports": 3
+      }
+    },
+    {
+      "binary": "neutron-l3-agent",
+      "description": null,
+      "availability_zone": "nova",
+      "heartbeat_timestamp": "2017-09-12 19:40:08",
+      "admin_state_up": true,
+      "alive": true,
+      "id": "a09b81fc-5a42-46d3-a306-1a5d122a7787",
+      "topic": "l3_agent",
+      "host": "agenthost1",
+      "agent_type": "L3 agent",
+      "started_at": "2017-09-12 19:35:38",
+      "created_at": "2017-09-12 19:35:38",
+      "configurations": {
+        "agent_mode": "legacy",
+        "gateway_external_network_id": "",
+        "handle_internal_only_routers": true,
+        "routers": 1,
+        "interfaces": 2,
+        "floating_ips": 0,
+        "interface_driver": "openvswitch",
+        "log_agent_heartbeats": false,
+        "external_network_bridge": "",
+        "ex_gw_ports": 1
+      }
+    },
+    {
+      "binary": "neutron-metadata-agent",
+      "description": null,
+      "availability_zone": null,
+      "heartbeat_timestamp": "2017-09-12 19:40:09",
+      "admin_state_up": true,
+      "alive": true,
+      "id": "c876c9f7-1058-4b9b-90ed-20fb3f905ec4",
+      "topic": "N/A",
+      "host": "agenthost1",
+      "agent_type": "Metadata agent",
+      "started_at": "2017-09-12 19:35:39",
+      "created_at": "2017-09-12 19:35:39",
+      "configurations": {
+        "log_agent_heartbeats": false,
+        "nova_metadata_host": "172.16.78.191",
+        "nova_metadata_port": 8775,
+        "metadata_proxy_socket": "/opt/stack/data/neutron/metadata_proxy"
+      }
+    }
+  ]
+}

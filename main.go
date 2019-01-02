@@ -23,7 +23,7 @@ func main() {
 	var (
 		bind           = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 		metrics        = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default("/home/niedbalski/.config/openstack/clouds.yml").String()
+		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default("/etc/openstack/clouds.yml").String()
 		cloud          = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
 

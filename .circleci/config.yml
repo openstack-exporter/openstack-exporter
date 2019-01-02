@@ -66,7 +66,7 @@ jobs:
     - run: docker login -u $QUAY_LOGIN -p $QUAY_PASSWORD quay.io
     - run: make docker-publish DOCKER_REPO=quay.io/niedbalski
 
-  docker_tags:
+  docker_tag:
     executor: golang
 
     steps:

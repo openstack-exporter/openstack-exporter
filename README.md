@@ -1,4 +1,4 @@
-# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci]
+# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci] [![Docker Repository on Quay](https://quay.io/repository/niedbalski/openstack-exporter/status "Docker Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter)
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang.
 
@@ -19,7 +19,7 @@ make
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
 ```
 
-Alternatively a Dockerfile is supplied
+Alternatively a Dockerfile and image are supplied
 
 ```sh
 docker run -p 9180:9180 quay.io/niedbalski/openstack-exporter:v0.0.1

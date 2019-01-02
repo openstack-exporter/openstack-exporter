@@ -54,7 +54,6 @@ jobs:
 
   docker_master:
     executor: golang
-
     steps:
     - checkout
     - setup_remote_docker
@@ -68,7 +67,6 @@ jobs:
 
   docker_tag:
     executor: golang
-
     steps:
     - checkout
     - setup_remote_docker
@@ -85,7 +83,6 @@ jobs:
 
   docker_tag_arm64:
     executor: golang
-
     steps:
     - checkout
     - setup_remote_docker

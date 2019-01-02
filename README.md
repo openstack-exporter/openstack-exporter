@@ -16,7 +16,7 @@ By default the openstack\_exporter serves on port `0.0.0.0:9180` at `/metrics`
 
 ```sh
 make
-./openstack_exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
+./openstack-exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
 ```
 
 Alternatively a Dockerfile is supplied

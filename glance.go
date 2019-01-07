@@ -35,6 +35,7 @@ func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
+	log.Infoln("Fetching images list")
 	images, err := exporter.Client.ListImagesV2()
 	if err != nil {
 		log.Errorf("%s", err)

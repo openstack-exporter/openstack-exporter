@@ -48,6 +48,7 @@ func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
+	log.Infoln("Fetching list of services")
 	services, err := exporter.Client.ListServices()
 	if err != nil {
 		log.Errorf(err.Error())
@@ -62,6 +63,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
 
+	log.Infoln("Fetching list of hypervisors")
 	hypervisors, err := exporter.Client.ListHypervisors()
 	if err != nil {
 		log.Errorf("%v", err)
@@ -90,6 +92,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue, float64(hypervisor.LocalGbUsed), hypervisor.HypervisorHostname, "")
 	}
 
+	log.Infoln("Fetching list of flavors")
 	flavors, err := exporter.Client.ListFlavors()
 	if err != nil {
 		log.Errorf("%s", err)
@@ -98,6 +101,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"],
 		prometheus.GaugeValue, float64(len(flavors)))
 
+	log.Infoln("Fetching list of availability zones")
 	azs, err := exporter.Client.ListAvailabilityZones()
 	if err != nil {
 		log.Errorf("%s", err)
@@ -106,6 +110,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["availability_zones"],
 		prometheus.GaugeValue, float64(len(azs)))
 
+	log.Infoln("Fetching list of security groups")
 	securtyGroups, err := exporter.Client.ListSecurityGroups()
 	if err != nil {
 		log.Errorf("%s", err)
@@ -117,6 +122,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	filter := nova.NewFilter()
 	filter.Set("all_tenants", "1")
 
+	log.Infoln("Fetching list of instances")
 	servers, err := exporter.Client.ListServers(filter)
 	if err != nil {
 		log.Errorf("%s", err)

@@ -40,11 +40,13 @@ func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
+	log.Infoln("Fetching floating ips list")
 	floatingips, err := exporter.Client.ListFloatingIPsV2()
 	if err != nil {
 		log.Errorf("%s", err)
 	}
 
+	log.Infoln("Fetching agents list")
 	agents, err := exporter.Client.ListAgentsV2()
 	if err != nil {
 		log.Errorf(err.Error())
@@ -64,16 +66,19 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 			prometheus.CounterValue, float64(state), agent.Host, agent.Binary, adminState)
 	}
 
+	log.Infoln("Fetching list of networks")
 	networks, err := exporter.Client.ListNetworksV2()
 	if err != nil {
 		log.Errorf("%s", err)
 	}
 
+	log.Infoln("Fetching list of security groups")
 	securityGroups, err := exporter.Client.ListSecurityGroupsV2()
 	if err != nil {
 		log.Errorf("%s", err)
 	}
 
+	log.Infoln("Fetching list of subnets")
 	subnets, err := exporter.Client.ListSubnetsV2()
 	if err != nil {
 		log.Errorf("%s", err)

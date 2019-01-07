@@ -22,7 +22,7 @@ make
 Alternatively a Dockerfile and image are supplied
 
 ```sh
-docker run -p 9180:9180 quay.io/niedbalski/openstack-exporter:v0.0.1
+docker run -p 9180:9180 quay.io/niedbalski/openstack-exporter:v0.0.2
 ```
 
 ## Metrics

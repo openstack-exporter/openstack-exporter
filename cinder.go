@@ -20,7 +20,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "service_state", Labels: []string{"hostname", "service", "status", "zone"}},
 }
 
-func NewCinderExporter(client client.AuthenticatingClient, config *Cloud) (*CinderExporter, error) {
+func NewCinderExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*CinderExporter, error) {
 	endpoint := client.EndpointsForRegion(config.Region)["volumev3"]
 	endpointUrl, err := url.Parse(endpoint)
 
@@ -30,6 +30,7 @@ func NewCinderExporter(client client.AuthenticatingClient, config *Cloud) (*Cind
 
 	exporter := CinderExporter{BaseOpenStackExporter{
 		Name:   "cinder",
+		Prefix: prefix,
 		Config: config,
 	}, cinder.NewClient(client.TenantId(), endpointUrl,
 		cinder.SetAuthHeaderFn(client.Token,

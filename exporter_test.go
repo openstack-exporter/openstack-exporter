@@ -35,6 +35,7 @@ type BaseOpenStackTestSuite struct {
 	suite.Suite
 	Config      *Cloud
 	ServiceName string
+	Prefix      string
 	Exporter    *OpenStackExporter
 }
 
@@ -65,6 +66,7 @@ func (suite *BaseOpenStackTestSuite) SetupSuite() {
 	cloudConfig, _ := config.GetByName(cloudName)
 
 	httpmock.Activate()
+	suite.Prefix = "openstack"
 	suite.Config = cloudConfig
 	suite.SetResponseFromFixture("POST", 201,
 		suite.MakeURL("/v3/auth/tokens", "35357"),
@@ -76,7 +78,7 @@ func (suite *BaseOpenStackTestSuite) TearDownSuite() {
 }
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {
-	exporter, _ := EnableExporter(suite.ServiceName, suite.Config)
+	exporter, _ := EnableExporter(suite.ServiceName, suite.Prefix, suite.Config)
 	suite.Exporter = exporter
 }
 
@@ -172,7 +174,6 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 	req, _ := http.NewRequest("GET", "/metrics", nil)
 	res := httptest.NewRecorder()
 	router.ServeHTTP(res, req)
-
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultNeutronMetrics {
 		suite.Contains(res.Body.String(), "neutron_"+metric.Name)

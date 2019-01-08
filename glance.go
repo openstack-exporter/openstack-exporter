@@ -16,9 +16,10 @@ var defaultGlanceMetrics = []Metric{
 	{Name: "images"},
 }
 
-func NewGlanceExporter(client client.AuthenticatingClient, config *Cloud) (*GlanceExporter, error) {
+func NewGlanceExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*GlanceExporter, error) {
 	exporter := GlanceExporter{BaseOpenStackExporter{
 		Name:   "glance",
+		Prefix: prefix,
 		Config: config,
 	}, glance.New(client)}
 

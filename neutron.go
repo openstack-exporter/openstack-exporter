@@ -20,9 +20,13 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}},
 }
 
-func NewNeutronExporter(client client.AuthenticatingClient, config *Cloud) (*NeutronExporter, error) {
+func NewNeutronExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
-		BaseOpenStackExporter{Name: "neutron", Config: config},
+		BaseOpenStackExporter{
+			Name:   "neutron",
+			Prefix: prefix,
+			Config: config,
+		},
 		neutron.New(client),
 	}
 

@@ -27,10 +27,11 @@ var defaultNovaMetrics = []Metric{
 	{Name: "service_state", Labels: []string{"hostname", "service", "status", "zone"}},
 }
 
-func NewNovaExporter(client client.AuthenticatingClient, config *Cloud) (*NovaExporter, error) {
+func NewNovaExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:   "nova",
+			Prefix: prefix,
 			Config: config,
 		}, nova.New(client)}
 

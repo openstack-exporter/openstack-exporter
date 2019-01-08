@@ -9,8 +9,8 @@ import (
 	"net/http"
 )
 
-func EnableExporter(service string, config *Cloud) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, config)
+func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, config)
 	if err != nil {
 		return nil, err
 	}
@@ -25,6 +25,7 @@ func main() {
 		bind           = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 		metrics        = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
 		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default("/etc/openstack/clouds.yml").String()
+		prefix         = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
 		cloud          = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
 
@@ -45,7 +46,7 @@ func main() {
 	}
 
 	for _, service := range enabledServices {
-		_, err := EnableExporter(service, cloudConfig)
+		_, err := EnableExporter(service, *prefix, cloudConfig)
 		if err != nil {
 			panic(err)
 		}

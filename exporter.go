@@ -23,12 +23,13 @@ type OpenStackExporter interface {
 
 type BaseOpenStackExporter struct {
 	Name    string
+	Prefix  string
 	Metrics map[string]*prometheus.Desc
 	Config  *Cloud
 }
 
 func (exporter *BaseOpenStackExporter) GetName() string {
-	return exporter.Name
+	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }
 
 func (exporter *BaseOpenStackExporter) GetMetrics() map[string]*prometheus.Desc {
@@ -53,7 +54,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, c
 	}
 }
 
-func NewExporter(name string, config *Cloud) (OpenStackExporter, error) {
+func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var credentials identity.Credentials
@@ -79,28 +80,28 @@ func NewExporter(name string, config *Cloud) (OpenStackExporter, error) {
 	switch name {
 	case "network":
 		{
-			exporter, err = NewNeutronExporter(newClient, config)
+			exporter, err = NewNeutronExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "compute":
 		{
-			exporter, err = NewNovaExporter(newClient, config)
+			exporter, err = NewNovaExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "image":
 		{
-			exporter, err = NewGlanceExporter(newClient, config)
+			exporter, err = NewGlanceExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "volume":
 		{
-			exporter, err = NewCinderExporter(newClient, config)
+			exporter, err = NewCinderExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}

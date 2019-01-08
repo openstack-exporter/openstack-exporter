@@ -37,7 +37,7 @@ by service/agent name.
 Name     | Sample Labels | Sample Value | Description
 ---------|---------------|--------------|------------
 openstack_neutron_agent_state|adminState="up",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"|1 or 0 (bool)
-openstack_region="RegionOne"|4.0 (float)
+openstack_neutron_floating_ips|region="RegionOne"|4.0 (float)
 openstack_neutron_networks|region="RegionOne"|25.0 (float)
 openstack_neutron_subnets|region="RegionOne"|4.0 (float)
 openstack_neutron_security_groups|region="RegionOne"|10.0 (float)

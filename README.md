@@ -219,6 +219,6 @@ openstack_identity_regions{region="London"} 1.0
 openstack_identity_users{region="London"} 39.0
 ```
 
-[buildstatus]: https://circleci.com/gh/niedbalski/openstack-exporter/tree/master.svg?style=shield
-[circleci]: https://circleci.com/gh/niedbalski/openstack-exporter
+[buildstatus]: https://circleci.com/gh/Linaro/openstack-exporter/tree/master.svg?style=shield
+[circleci]: https://circleci.com/gh/Linaro/openstack-exporter
 [hub]: https://hub.docker.com/r/niedbalski/openstack-exporter/

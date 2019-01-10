@@ -2,8 +2,8 @@ package identity
 
 import (
 	"fmt"
-
 	goosehttp "gopkg.in/niedbalski/goose.v3/http"
+
 )
 
 type endpoint struct {
@@ -76,6 +76,7 @@ func keystoneAuth(client *goosehttp.Client, auth_data interface{}, URL string) (
 	details.TenantId = respToken.Tenant.Id
 	details.UserId = access.User.Id
 	details.RegionServiceURLs = make(map[string]ServiceURLs, len(access.ServiceCatalog))
+
 	for _, service := range access.ServiceCatalog {
 		for i, e := range service.Endpoints {
 			endpointURLs, ok := details.RegionServiceURLs[e.Region]

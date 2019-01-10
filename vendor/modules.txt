@@ -57,11 +57,12 @@ golang.org/x/sys/unix
 gopkg.in/alecthomas/kingpin.v2
 # gopkg.in/goose.v2 v2.0.0-20180816040309-cf9b64132d71
 gopkg.in/goose.v2
-# gopkg.in/niedbalski/goose.v3 v3.0.0-20181228210652-470607850f06
+# gopkg.in/niedbalski/goose.v3 v3.0.0-20190110193706-ac6ec1edbdb1
 gopkg.in/niedbalski/goose.v3/cinder
 gopkg.in/niedbalski/goose.v3/client
 gopkg.in/niedbalski/goose.v3/glance
 gopkg.in/niedbalski/goose.v3/identity
+gopkg.in/niedbalski/goose.v3/keystone
 gopkg.in/niedbalski/goose.v3/neutron
 gopkg.in/niedbalski/goose.v3/nova
 gopkg.in/niedbalski/goose.v3/http

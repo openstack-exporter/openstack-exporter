@@ -54,7 +54,11 @@ openstack_nova_vcpus_used|region="RegionOne",hostname="compute-01"|32.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
-openstack_glance_images|region="RegionOne"|4.0 (float)
+openstack_identity_domains|region="RegionOne"|1.0 (float)
+openstack_identity_users|region="RegionOne"|30.0 (float)
+openstack_identity_projects|region="RegionOne"|33.0 (float)
+openstack_identity_groups|region="RegionOne"|1.0 (float)
+openstack_identity_regions|region="RegionOne"|1.0 (float)
 
 ## Example metrics
 ```
@@ -198,6 +202,21 @@ openstack_nova_vcpus_used{aggregate="",hostname="compute-04",region="RegionOne"}
 openstack_nova_vcpus_used{aggregate="",hostname="compute-05",region="RegionOne"} 8.0
 openstack_nova_vcpus_used{aggregate="",hostname="compute-06",region="RegionOne"} 24.0
 openstack_nova_vcpus_used{aggregate="",hostname="compute-07",region="RegionOne"} 41.0
+# HELP openstack_identity_domains domains
+# TYPE openstack_identity_domains gauge
+openstack_identity_domains{region="London"} 1.0
+# HELP openstack_identity_groups groups
+# TYPE openstack_identity_groups gauge
+openstack_identity_groups{region="London"} 0.0
+# HELP openstack_identity_projects projects
+# TYPE openstack_identity_projects gauge
+openstack_identity_projects{region="London"} 33.0
+# HELP openstack_identity_regions regions
+# TYPE openstack_identity_regions gauge
+openstack_identity_regions{region="London"} 1.0
+# HELP openstack_identity_users users
+# TYPE openstack_identity_users gauge
+openstack_identity_users{region="London"} 39.0
 ```
 
 [buildstatus]: https://circleci.com/gh/niedbalski/openstack-exporter/tree/master.svg?style=shield

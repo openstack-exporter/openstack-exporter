@@ -106,6 +106,13 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 				return nil, err
 			}
 		}
+	case "identity":
+		{
+			exporter, err = NewKeystoneExporter(newClient, prefix, config)
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		{
 			return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)

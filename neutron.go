@@ -38,7 +38,7 @@ func NewNeutronExporter(client client.AuthenticatingClient, prefix string, confi
 }
 
 func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.GetMetrics() {
+	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
 }
@@ -88,15 +88,15 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 		log.Errorf("%s", err)
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["subnets"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"],
 		prometheus.GaugeValue, float64(len(subnets)))
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["floating_ips"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"],
 		prometheus.GaugeValue, float64(len(floatingips)))
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["networks"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"],
 		prometheus.GaugeValue, float64(len(networks)))
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["security_groups"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
 		prometheus.GaugeValue, float64(len(securityGroups)))
 }

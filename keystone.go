@@ -36,7 +36,7 @@ func NewKeystoneExporter(client client.AuthenticatingClient, prefix string, conf
 }
 
 func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.GetMetrics() {
+	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
 }
@@ -47,7 +47,7 @@ func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["domains"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"],
 		prometheus.GaugeValue, float64(len(domains)))
 
 	log.Infoln("Fetching users information")
@@ -55,7 +55,7 @@ func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["users"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"],
 		prometheus.GaugeValue, float64(len(users)))
 
 	log.Infoln("Fetching projects information")
@@ -63,7 +63,7 @@ func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["projects"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"],
 		prometheus.GaugeValue, float64(len(projects)))
 
 	log.Infoln("Fetching groups information")
@@ -71,7 +71,7 @@ func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["groups"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"],
 		prometheus.GaugeValue, float64(len(groups)))
 
 	log.Infoln("Fetching regions information")
@@ -79,7 +79,7 @@ func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["regions"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"],
 		prometheus.GaugeValue, float64(len(regions)))
 
 }

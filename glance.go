@@ -31,7 +31,7 @@ func NewGlanceExporter(client client.AuthenticatingClient, prefix string, config
 }
 
 func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.GetMetrics() {
+	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
 }
@@ -42,6 +42,6 @@ func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
 		log.Errorf("%s", err)
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["images"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"],
 		prometheus.GaugeValue, float64(len(images)))
 }

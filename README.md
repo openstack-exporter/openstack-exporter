@@ -34,6 +34,9 @@ that might be missing.
 The neutron/nova metrics contains the *_state metrics, which are separated
 by service/agent name. 
 
+Please note that by convention resources metrics such as memory or storage are returned in bytes.
+
+
 Name     | Sample Labels | Sample Value | Description
 ---------|---------------|--------------|------------
 openstack_neutron_agent_state|adminState="up",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"|1 or 0 (bool)
@@ -43,15 +46,16 @@ openstack_neutron_subnets|region="RegionOne"|4.0 (float)
 openstack_neutron_security_groups|region="RegionOne"|10.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
-openstack_nova_local_gb|region="RegionOne",hostname="compute-01"|100.0 (float)
-openstack_nova_local_gb_used|region="RegionOne",hostname="compute-01"|30.0 (float)
-openstack_nova_memory_mb|region="RegionOne",hostname="compute-01"|40000.0 (float)
-openstack_nova_memory_mb_used|region="RegionOne",hostname="compute-01"|40000.0 (float)
+openstack_nova_total_vms|region="RegionOne"|12.0 (float)
 openstack_nova_running_vms|region="RegionOne",hostname="compute-01"|12.0 (float)
-openstack_nova_service_state|hostname="compute-01",region="RegionOne",service="nova-compute",status="enabled",zone="nova"|1.0 or 0 (bool)
-openstack_nova_vcpus|region="RegionOne",hostname="compute-01"|128.0 (float)
+openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01"|100.0 (float)
+openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01"|30.0 (float)
+openstack_nova_memory_used_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
+openstack_nova_memory_available_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
+openstack_nova_agent_state|hostname="compute-01",region="RegionOne",service="nova-compute",adminState="enabled",zone="nova"|1.0 or 0 (bool)
+openstack_nova_vcpus_available|region="RegionOne",hostname="compute-01"|128.0 (float)
 openstack_nova_vcpus_used|region="RegionOne",hostname="compute-01"|32.0 (float)
-openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"|1.0 or 0 (bool)
+openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
 openstack_identity_domains|region="RegionOne"|1.0 (float)
@@ -62,161 +66,595 @@ openstack_identity_regions|region="RegionOne"|1.0 (float)
 
 ## Example metrics
 ```
-# HELP openstack_cinder_service_state service_state
-# TYPE openstack_cinder_service_state counter
-openstack_cinder_service_state{hostname="compute-01",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-01",region="RegionOne",service="cinder-scheduler",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-01@rbd-1",region="RegionOne",service="cinder-volume",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-02",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-02",region="RegionOne",service="cinder-scheduler",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-02@rbd-1",region="RegionOne",service="cinder-volume",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-03",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-03",region="RegionOne",service="cinder-scheduler",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-03@rbd-1",region="RegionOne",service="cinder-volume",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-04",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-04@rbd-1",region="RegionOne",service="cinder-volume",status="enabled",zone="nova"} 1.0
-openstack_cinder_service_state{hostname="compute-05",region="RegionOne",service="cinder-backup",status="enabled",zone="nova"} 1.0
+# HELP openstack_cinder_agent_state agent_state
+# TYPE openstack_cinder_agent_state counter
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-scheduler",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="cinder-scheduler",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-02@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="cinder-scheduler",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-03@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-04",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-04@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-05",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-05@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-06",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-06@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-07",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-07@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-09",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-09@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-10",region="Region",service="cinder-backup",zone="nova"} 1.0
+openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-10@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
-openstack_cinder_snapshots{region="RegionOne"} 0.0
+openstack_cinder_snapshots{region="Region"} 0.0
 # HELP openstack_cinder_volumes volumes
 # TYPE openstack_cinder_volumes gauge
-openstack_cinder_volumes{region="RegionOne"} 8.0
+openstack_cinder_volumes{region="Region"} 8.0
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
-openstack_glance_images{region="RegionOne"} 18.0
-# HELP openstack_neutron_agent_state agent_state
-# TYPE openstack_neutron_agent_state counter
-openstack_neutron_agent_state{adminState="up",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-01",region="RegionOne",service="neutron-l3-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-01",region="RegionOne",service="neutron-metadata-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-01",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-02",region="RegionOne",service="neutron-dhcp-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-02",region="RegionOne",service="neutron-l3-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-02",region="RegionOne",service="neutron-metadata-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-02",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-03",region="RegionOne",service="neutron-dhcp-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-03",region="RegionOne",service="neutron-l3-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-03",region="RegionOne",service="neutron-metadata-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-03",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-04",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-05",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-06",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-07",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-09",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-10",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-openstack_neutron_agent_state{adminState="up",hostname="compute-01",region="RegionOne",service="neutron-openvswitch-agent"} 1.0
-# HELP openstack_neutron_floating_ips floating_ips
-# TYPE openstack_neutron_floating_ips gauge
-openstack_neutron_floating_ips{region="RegionOne"} 21.0
-# HELP openstack_neutron_networks networks
-# TYPE openstack_neutron_networks gauge
-openstack_neutron_networks{region="RegionOne"} 128.0
-# HELP openstack_neutron_security_groups security_groups
-# TYPE openstack_neutron_security_groups gauge
-openstack_neutron_security_groups{region="RegionOne"} 113.0
-# HELP openstack_neutron_subnets subnets
-# TYPE openstack_neutron_subnets gauge
-openstack_neutron_subnets{region="RegionOne"} 128.0
-# HELP openstack_nova_availability_zones availability_zones
-# TYPE openstack_nova_availability_zones gauge
-openstack_nova_availability_zones{region="RegionOne"} 1.0
-# HELP openstack_nova_flavors flavors
-# TYPE openstack_nova_flavors gauge
-openstack_nova_flavors{region="RegionOne"} 6.0
-# HELP openstack_nova_local_gb local_gb
-# TYPE openstack_nova_local_gb gauge
-openstack_nova_local_gb{aggregate="",hostname="compute-01",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-02",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-03",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-04",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-05",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-06",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-07",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-09",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-10",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-01",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-02",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-03",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-04",region="RegionOne"} 100418.0
-openstack_nova_local_gb{aggregate="",hostname="compute-05",region="RegionOne"} 100418.0
-# HELP openstack_nova_local_gb_used local_gb_used
-# TYPE openstack_nova_local_gb_used gauge
-openstack_nova_local_gb_used{aggregate="",hostname="compute-01",region="RegionOne"} 200.0
-openstack_nova_local_gb_used{aggregate="",hostname="compute-02",region="RegionOne"} 0.0
-openstack_nova_local_gb_used{aggregate="",hostname="compute-03",region="RegionOne"} 0.0
-openstack_nova_local_gb_used{aggregate="",hostname="compute-04",region="RegionOne"} 1160.0
-openstack_nova_local_gb_used{aggregate="",hostname="compute-05",region="RegionOne"} 160.0
-# HELP openstack_nova_memory_mb memory_mb
-# TYPE openstack_nova_memory_mb gauge
-openstack_nova_memory_mb{aggregate="",hostname="compute-01",region="RegionOne"} 64386.0
-openstack_nova_memory_mb{aggregate="",hostname="compute-02",region="RegionOne"} 64385.0
-openstack_nova_memory_mb{aggregate="",hostname="compute-03",region="RegionOne"} 64386.0
-openstack_nova_memory_mb{aggregate="",hostname="compute-04",region="RegionOne"} 64386.0
-openstack_nova_memory_mb{aggregate="",hostname="compute-05",region="RegionOne"} 64386.0
-openstack_nova_memory_mb{aggregate="",hostname="compute-06",region="RegionOne"} 64386.0
-# HELP openstack_nova_memory_mb_used memory_mb_used
-# TYPE openstack_nova_memory_mb_used gauge
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-01",region="RegionOne"} 8712.0
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-02",region="RegionOne"} 512.0
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-03",region="RegionOne"} 512.0
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-04",region="RegionOne"} 68712.0
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-05",region="RegionOne"} 8712.0
-openstack_nova_memory_mb_used{aggregate="",hostname="compute-06",region="RegionOne"} 24512.0
-# HELP openstack_nova_running_vms running_vms
-# TYPE openstack_nova_running_vms gauge
-openstack_nova_running_vms{aggregate="",hostname="compute-01",region="RegionOne"} 1.0
-openstack_nova_running_vms{aggregate="",hostname="compute-02",region="RegionOne"} 0.0
-openstack_nova_running_vms{aggregate="",hostname="compute-03",region="RegionOne"} 0.0
-openstack_nova_running_vms{aggregate="",hostname="compute-04",region="RegionOne"} 3.0
-openstack_nova_running_vms{aggregate="",hostname="compute-05",region="RegionOne"} 1.0
-openstack_nova_running_vms{aggregate="",hostname="compute-06",region="RegionOne"} 3.0
-# HELP openstack_nova_security_groups security_groups
-# TYPE openstack_nova_security_groups gauge
-openstack_nova_security_groups{region="RegionOne"} 5.0
-# HELP openstack_nova_servers servers
-# TYPE openstack_nova_servers gauge
-openstack_nova_servers{region="RegionOne"} 22.0
-# HELP openstack_nova_service_state service_state
-# TYPE openstack_nova_service_state counter
-openstack_nova_service_state{hostname="compute-01",region="RegionOne",service="nova-compute",status="enabled",zone="nova"} 1.0
-openstack_nova_service_state{hostname="compute-01",region="RegionOne",service="nova-conductor",status="enabled",zone="internal"} 1.0
-openstack_nova_service_state{hostname="compute-01",region="RegionOne",service="nova-consoleauth",status="enabled",zone="internal"} 1.0
-openstack_nova_service_state{hostname="compute-01",region="RegionOne",service="nova-scheduler",status="enabled",zone="internal"} 1.0
-openstack_nova_service_state{hostname="compute-02",region="RegionOne",service="nova-compute",status="enabled",zone="nova"} 1.0
-openstack_nova_service_state{hostname="compute-02",region="RegionOne",service="nova-conductor",status="enabled",zone="internal"} 1.0
-# HELP openstack_nova_vcpus vcpus
-# TYPE openstack_nova_vcpus gauge
-openstack_nova_vcpus{aggregate="",hostname="compute-01",region="RegionOne"} 48.0
-openstack_nova_vcpus{aggregate="",hostname="compute-02",region="RegionOne"} 48.0
-openstack_nova_vcpus{aggregate="",hostname="compute-03",region="RegionOne"} 48.0
-openstack_nova_vcpus{aggregate="",hostname="compute-04",region="RegionOne"} 48.0
-openstack_nova_vcpus{aggregate="",hostname="compute-05",region="RegionOne"} 48.0
-openstack_nova_vcpus{aggregate="",hostname="compute-06",region="RegionOne"} 48.0
-# HELP openstack_nova_vcpus_used vcpus_used
-# TYPE openstack_nova_vcpus_used gauge
-openstack_nova_vcpus_used{aggregate="",hostname="compute-01",region="RegionOne"} 8.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-02",region="RegionOne"} 0.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-03",region="RegionOne"} 0.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-04",region="RegionOne"} 56.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-05",region="RegionOne"} 8.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-06",region="RegionOne"} 24.0
-openstack_nova_vcpus_used{aggregate="",hostname="compute-07",region="RegionOne"} 41.0
+openstack_glance_images{region="Region"} 18.0
 # HELP openstack_identity_domains domains
 # TYPE openstack_identity_domains gauge
-openstack_identity_domains{region="London"} 1.0
+openstack_identity_domains{region="Region"} 1.0
 # HELP openstack_identity_groups groups
 # TYPE openstack_identity_groups gauge
-openstack_identity_groups{region="London"} 0.0
+openstack_identity_groups{region="Region"} 0.0
 # HELP openstack_identity_projects projects
 # TYPE openstack_identity_projects gauge
-openstack_identity_projects{region="London"} 33.0
+openstack_identity_projects{region="Region"} 33.0
 # HELP openstack_identity_regions regions
 # TYPE openstack_identity_regions gauge
-openstack_identity_regions{region="London"} 1.0
+openstack_identity_regions{region="Region"} 1.0
 # HELP openstack_identity_users users
 # TYPE openstack_identity_users gauge
-openstack_identity_users{region="London"} 39.0
+openstack_identity_users{region="Region"} 39.0
+# HELP openstack_neutron_agent_state agent_state
+# TYPE openstack_neutron_agent_state counter
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-01",region="Region",service="neutron-dhcp-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-01",region="Region",service="neutron-l3-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-01",region="Region",service="neutron-metadata-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-01",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-02",region="Region",service="neutron-dhcp-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-02",region="Region",service="neutron-l3-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-02",region="Region",service="neutron-metadata-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-02",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-03",region="Region",service="neutron-dhcp-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-03",region="Region",service="neutron-l3-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-03",region="Region",service="neutron-metadata-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-03",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-04",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-05",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-06",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-07",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-09",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-10",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-01",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-02",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-03",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-04",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-05",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-07",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-08",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-09",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-10",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-11",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-12",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-13",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-15",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-17",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-18",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-19",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-20",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-21",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-22",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-23",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-24",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-25",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-26",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-27",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-28",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-29",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-31",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-32",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-34",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-35",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-36",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-37",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-38",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-39",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-40",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-42",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-43",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-44",region="Region",service="neutron-openvswitch-agent"} 1.0
+openstack_neutron_agent_state{adminState="up",hostname="compute-node-extra-45",region="Region",service="neutron-openvswitch-agent"} 1.0
+# HELP openstack_neutron_floating_ips floating_ips
+# TYPE openstack_neutron_floating_ips gauge
+openstack_neutron_floating_ips{region="Region"} 22.0
+# HELP openstack_neutron_networks networks
+# TYPE openstack_neutron_networks gauge
+openstack_neutron_networks{region="Region"} 130.0
+# HELP openstack_neutron_security_groups security_groups
+# TYPE openstack_neutron_security_groups gauge
+openstack_neutron_security_groups{region="Region"} 114.0
+# HELP openstack_neutron_subnets subnets
+# TYPE openstack_neutron_subnets gauge
+openstack_neutron_subnets{region="Region"} 130.0
+# HELP openstack_nova_agent_state agent_state
+# TYPE openstack_nova_agent_state counter
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="nova-conductor",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="nova-consoleauth",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="nova-scheduler",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="nova-conductor",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="nova-consoleauth",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-02",region="Region",service="nova-scheduler",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="nova-conductor",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="nova-consoleauth",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-03",region="Region",service="nova-scheduler",zone="internal"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-04",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-05",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-06",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-07",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-09",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-10",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-01",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-02",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-03",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-04",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-05",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-07",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-08",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-09",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-10",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-11",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-12",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-13",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-15",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-17",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-18",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-19",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-20",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-21",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-22",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-23",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-24",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-25",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-26",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-27",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-28",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-29",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-31",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-32",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-34",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-35",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-36",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-37",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-38",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-39",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-40",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-42",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-43",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-44",region="Region",service="nova-compute",zone="nova"} 1.0
+openstack_nova_agent_state{adminState="enabled",hostname="compute-node-extra-45",region="Region",service="nova-compute",zone="nova"} 1.0
+# HELP openstack_nova_availability_zones availability_zones
+# TYPE openstack_nova_availability_zones gauge
+openstack_nova_availability_zones{region="Region"} 1.0
+# HELP openstack_nova_current_workload current_workload
+# TYPE openstack_nova_current_workload gauge
+openstack_nova_current_workload{aggregate="",hostname="compute-node-01",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-02",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-03",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-04",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-05",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-06",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-07",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-09",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-10",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-01",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-02",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-03",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-04",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-05",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-07",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-08",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-09",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-10",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-11",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-12",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-13",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-15",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-17",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-18",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-19",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-20",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-21",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-22",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-23",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-24",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-25",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-26",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-27",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-28",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-29",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-31",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-32",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-34",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-35",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-36",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-37",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-38",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-39",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-40",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-42",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
+openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
+# HELP openstack_nova_flavors flavors
+# TYPE openstack_nova_flavors gauge
+openstack_nova_flavors{region="Region"} 6.0
+# HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes
+# TYPE openstack_nova_local_storage_available_bytes gauge
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-01",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-02",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-03",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-04",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-05",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-06",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-07",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-09",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-10",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-01",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-02",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-03",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-04",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-05",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-07",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-08",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-09",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-10",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-11",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-12",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-13",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-15",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-17",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-18",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-19",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-20",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-21",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-22",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-23",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-24",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-25",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-26",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-27",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-28",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-29",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-31",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-32",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-34",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-35",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-36",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-37",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-38",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-39",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-40",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-42",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-43",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-44",region="Region"} 1.07823006482432e+14
+openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-extra-45",region="Region"} 1.07823006482432e+14
+# HELP openstack_nova_local_storage_used_bytes local_storage_used_bytes
+# TYPE openstack_nova_local_storage_used_bytes gauge
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-01",region="Region"} 2.147483648e+11
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-02",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-03",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-04",region="Region"} 1.24554051584e+12
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-05",region="Region"} 1.7179869184e+11
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-06",region="Region"} 1.073741824e+12
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-07",region="Region"} 1.073741824e+12
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-09",region="Region"} 7.516192768e+11
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-10",region="Region"} 6.39950127104e+11
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-01",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-02",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-03",region="Region"} 4.422742573056e+12
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-04",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-05",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-07",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-08",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-09",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-10",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-11",region="Region"} 1.7179869184e+11
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-12",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-13",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-15",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-17",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-18",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-19",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-20",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-21",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-22",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-23",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-24",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-25",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-26",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-27",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-28",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-29",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-31",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-32",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-34",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-35",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-36",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-37",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-38",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-39",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-40",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-42",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
+openstack_nova_local_storage_used_bytes{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
+# HELP openstack_nova_memory_available_bytes memory_available_bytes
+# TYPE openstack_nova_memory_available_bytes gauge
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-01",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-02",region="Region"} 6.751256576e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-03",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-04",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-05",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-06",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-07",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-09",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-10",region="Region"} 6.7513614336e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-01",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-02",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-03",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-04",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-05",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-07",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-08",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-09",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-10",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-11",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-12",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-13",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-15",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-17",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-18",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-19",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-20",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-21",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-22",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-23",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-24",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-25",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-26",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-27",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-28",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-29",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-31",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-32",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-34",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-35",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-36",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-37",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-38",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-39",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-40",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-42",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-43",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-44",region="Region"} 6.7542974464e+10
+openstack_nova_memory_available_bytes{aggregate="",hostname="compute-node-extra-45",region="Region"} 6.7542974464e+10
+# HELP openstack_nova_memory_used_bytes memory_used_bytes
+# TYPE openstack_nova_memory_used_bytes gauge
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-01",region="Region"} 9.135194112e+09
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-02",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-03",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-04",region="Region"} 7.2049754112e+10
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-05",region="Region"} 9.135194112e+09
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-06",region="Region"} 2.5702694912e+10
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-07",region="Region"} 4.9308237824e+10
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-09",region="Region"} 1.3220446208e+10
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-10",region="Region"} 3.221225472e+10
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-01",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-02",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-03",region="Region"} 2.565865472e+09
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-04",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-05",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-07",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-08",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-09",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-10",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-11",region="Region"} 9.126805504e+09
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-12",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-13",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-15",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-17",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-18",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-19",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-20",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-21",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-22",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-23",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-24",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-25",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-26",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-27",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-28",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-29",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-31",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-32",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-34",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-35",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-36",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-37",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-38",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-39",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-40",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-42",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-43",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-44",region="Region"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregate="",hostname="compute-node-extra-45",region="Region"} 5.36870912e+08
+# HELP openstack_nova_running_vms running_vms
+# TYPE openstack_nova_running_vms gauge
+openstack_nova_running_vms{aggregate="",hostname="compute-node-01",region="Region"} 1.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-02",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-03",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-04",region="Region"} 3.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-05",region="Region"} 1.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-06",region="Region"} 3.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-07",region="Region"} 4.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-09",region="Region"} 2.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-10",region="Region"} 6.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-01",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-02",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-03",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-04",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-05",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-07",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-08",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-09",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-10",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-11",region="Region"} 1.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-12",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-13",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-15",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-17",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-18",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-19",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-20",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-21",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-22",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-23",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-24",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-25",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-26",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-27",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-28",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-29",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-31",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-32",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-34",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-35",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-36",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-37",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-38",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-39",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-40",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-42",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
+openstack_nova_running_vms{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
+# HELP openstack_nova_security_groups security_groups
+# TYPE openstack_nova_security_groups gauge
+openstack_nova_security_groups{region="Region"} 5.0
+# HELP openstack_nova_total_vms total_vms
+# TYPE openstack_nova_total_vms gauge
+openstack_nova_total_vms{region="Region"} 23.0
+# HELP openstack_nova_vcpus_available vcpus_available
+# TYPE openstack_nova_vcpus_available gauge
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-01",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-02",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-03",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-04",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-05",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-06",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-07",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-09",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-10",region="Region"} 48.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-01",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-02",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-03",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-04",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-05",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-07",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-08",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-09",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-10",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-11",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-12",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-13",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-15",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-17",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-18",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-19",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-20",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-21",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-22",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-23",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-24",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-25",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-26",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-27",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-28",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-29",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-31",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-32",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-34",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-35",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-36",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-37",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-38",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-39",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-40",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-42",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-43",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-44",region="Region"} 8.0
+openstack_nova_vcpus_available{aggregate="",hostname="compute-node-extra-45",region="Region"} 8.0
+# HELP openstack_nova_vcpus_used vcpus_used
+# TYPE openstack_nova_vcpus_used gauge
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-01",region="Region"} 8.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-02",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-03",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-04",region="Region"} 56.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-05",region="Region"} 8.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-06",region="Region"} 24.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-07",region="Region"} 41.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-09",region="Region"} 12.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-10",region="Region"} 25.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-01",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-02",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-03",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-04",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-05",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-07",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-08",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-09",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-10",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-11",region="Region"} 8.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-12",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-13",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-15",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-17",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-18",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-19",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-20",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-21",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-22",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-23",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-24",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-25",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-26",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-27",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-28",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-29",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-31",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-32",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-34",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-35",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-36",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-37",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-38",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-39",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-40",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-42",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
+openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
 ```
 
 [buildstatus]: https://circleci.com/gh/Linaro/openstack-exporter/tree/master.svg?style=shield

@@ -17,7 +17,7 @@ type CinderExporter struct {
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes"},
 	{Name: "snapshots"},
-	{Name: "service_state", Labels: []string{"hostname", "service", "status", "zone"}},
+	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
 }
 
 func NewCinderExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*CinderExporter, error) {
@@ -45,7 +45,7 @@ func NewCinderExporter(client client.AuthenticatingClient, prefix string, config
 }
 
 func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.GetMetrics() {
+	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
 }
@@ -68,12 +68,12 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 		if service.State == "up" {
 			state = 1
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["service_state"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
 
 	log.Infoln("Fetching volumes information")
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["volumes"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
 		prometheus.GaugeValue, float64(len(volumes.Volumes)))
 
 	log.Infoln("Fetching snapshots information")
@@ -82,6 +82,6 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 		log.Errorf("%s", err)
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.GetMetrics()["snapshots"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"],
 		prometheus.GaugeValue, float64(len(snapshots.Snapshots)))
 }

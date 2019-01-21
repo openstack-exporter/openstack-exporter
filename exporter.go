@@ -13,9 +13,16 @@ type Metric struct {
 	Labels []string
 }
 
+const (
+	BYTE = 1 << (10 * iota)
+	KILOBYTE
+	MEGABYTE
+	GIGABYTE
+	TERABYTE
+)
+
 type OpenStackExporter interface {
 	GetName() string
-	GetMetrics() map[string]*prometheus.Desc
 	AddMetric(name string, labels []string, constLabels prometheus.Labels)
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
@@ -32,10 +39,6 @@ func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }
 
-func (exporter *BaseOpenStackExporter) GetMetrics() map[string]*prometheus.Desc {
-	return exporter.Metrics
-}
-
 func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, constLabels prometheus.Labels) {
 	if exporter.Metrics == nil {
 		exporter.Metrics = map[string]*prometheus.Desc{}
@@ -46,6 +49,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, c
 	}
 
 	constLabels["region"] = exporter.Config.Region
+
 	if _, ok := exporter.Metrics[name]; !ok {
 		log.Infof("Adding metric: %s to exporter: %s", name, exporter.Name)
 		exporter.Metrics[name] = prometheus.NewDesc(

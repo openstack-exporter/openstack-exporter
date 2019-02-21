@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
-	"net/http"
+	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
 func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExporter, error) {
@@ -18,7 +20,7 @@ func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExp
 	return &exporter, nil
 }
 
-var enabledServices = []string{"network", "compute", "image", "volume", "identity"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity"}
 
 func main() {
 	var (
@@ -29,28 +31,38 @@ func main() {
 		cloud          = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
 
-	log.Infoln("Starting openstack exporter", version.Info())
-	log.Infoln("Build context", version.BuildContext())
+	services := make(map[string]*bool)
+
+	for _, service := range defaultEnabledServices {
+		flagName := fmt.Sprintf("disable-service.%s", service)
+		flagHelp := fmt.Sprintf("Disable the %s service exporter", service)
+		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
+	}
 
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
+	log.Infoln("Starting openstack exporter", version.Info())
+	log.Infoln("Build context", version.BuildContext())
+
 	config, err := NewCloudConfigFromFile(*osClientConfig)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	cloudConfig, err := config.GetByName(*cloud)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
-	for _, service := range enabledServices {
-		_, err := EnableExporter(service, *prefix, cloudConfig)
-		if err != nil {
-			panic(err)
+	for service, disabled := range services {
+		if !*disabled {
+			_, err := EnableExporter(service, *prefix, cloudConfig)
+			if err != nil {
+				log.Fatal(err)
+			}
+			log.Infof("Enabled exporter for service: %s", service)
 		}
-		log.Infoln("Enabled exporter for", service)
 	}
 
 	http.Handle(*metrics, promhttp.Handler())

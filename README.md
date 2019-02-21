@@ -24,6 +24,33 @@ Alternatively a Dockerfile and image are supplied
 docker run -p 9180:9180 quay.io/niedbalski/openstack-exporter:v0.0.5
 ```
 
+### Command line options
+
+The current list of command line options (by running --help)
+```sh
+usage: openstack-exporter [<flags>] <cloud>
+
+Flags:
+  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
+      --web.listen-address=":9180"
+                                 address:port to listen on
+      --web.telemetry-path="/metrics"
+                                 uri path to expose metrics
+      --os-client-config="/etc/openstack/clouds.yml"
+                                 Path to the cloud configuration file
+      --prefix="openstack"       Prefix for metrics
+      --disable-service.network  Disable the network service exporter
+      --disable-service.compute  Disable the compute service exporter
+      --disable-service.image    Disable the image service exporter
+      --disable-service.volume   Disable the volume service exporter
+      --disable-service.identity
+                                 Disable the identity service exporter
+
+Args:
+  <cloud>  name or id of the cloud to gather metrics from
+
+```
+
 ## Contributing
 
 Please fill pull requests or issues under Github. Feel free to request any metrics

@@ -32,11 +32,13 @@ func main() {
 	)
 
 	services := make(map[string]*bool)
+
 	for _, service := range defaultEnabledServices {
 		flagName := fmt.Sprintf("disable-service.%s", service)
 		flagHelp := fmt.Sprintf("Disable the %s service exporter", service)
 		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
 	}
+
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
@@ -45,21 +47,21 @@ func main() {
 
 	config, err := NewCloudConfigFromFile(*osClientConfig)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	cloudConfig, err := config.GetByName(*cloud)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 
 	for service, disabled := range services {
 		if !*disabled {
 			_, err := EnableExporter(service, *prefix, cloudConfig)
 			if err != nil {
-				panic(err)
+				log.Fatal(err)
 			}
-			log.Infoln("Enabled exporter for", service)
+			log.Infof("Enabled exporter for service: %s", service)
 		}
 	}
 

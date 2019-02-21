@@ -51,8 +51,6 @@ gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405 h1:yhCVgyC4o1eVCa2tZl7eS0r+
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
 gopkg.in/goose.v2 v2.0.0-20180816040309-cf9b64132d71 h1:mKmO79cVms+sEcZgizth0rz9prkVhwYjWJWxCmJoOdQ=
 gopkg.in/goose.v2 v2.0.0-20180816040309-cf9b64132d71/go.mod h1:X3PYCIEMHdiiAiEpk6rdBgT6ACN+bfZWQ6y1G6qGJ+c=
-gopkg.in/niedbalski/goose.v3 v3.0.0-20181228210652-470607850f06 h1:5VOpBCDCEA1jDOov78s+NmKlhAyoLp0N2vKyObYduqA=
-gopkg.in/niedbalski/goose.v3 v3.0.0-20181228210652-470607850f06/go.mod h1:XlmZhDrWvAa0wnm3/F5n6N28XRcdaMzyLXA5jfFev8E=
 gopkg.in/niedbalski/goose.v3 v3.0.0-20190110193706-ac6ec1edbdb1 h1:Gjq1sjdrTqqp/u64oC7zy1SReDlfoVy0YPta82MtM1A=
 gopkg.in/niedbalski/goose.v3 v3.0.0-20190110193706-ac6ec1edbdb1/go.mod h1:XlmZhDrWvAa0wnm3/F5n6N28XRcdaMzyLXA5jfFev8E=
 gopkg.in/yaml.v2 v2.2.2 h1:ZCJp+EgiOT7lHqUV2J862kp8Qj64Jo6az82+3Td9dZw=

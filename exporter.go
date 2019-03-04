@@ -63,6 +63,7 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	var err error
 	var credentials identity.Credentials
 	var newClient client.AuthenticatingClient
+	var authMode identity.AuthMode
 
 	credentials.URL = config.Auth.AuthURL
 	credentials.ProjectDomain = config.Auth.ProjectDomainName
@@ -73,9 +74,20 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	credentials.TenantName = config.Auth.ProjectName
 
 	if config.IdentityAPIVersion == "3" {
-		newClient = client.NewClient(&credentials, identity.AuthUserPassV3, nil)
+		authMode = identity.AuthUserPassV3
 	} else {
-		newClient = client.NewClient(&credentials, identity.AuthUserPass, nil)
+		authMode = identity.AuthUserPass
+	}
+
+	tlsConfig, err := config.GetTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	if tlsConfig != nil {
+		newClient = client.NewClientTLSConfig(&credentials, authMode, nil, tlsConfig)
+	} else {
+		newClient = client.NewClient(&credentials, authMode, nil)
 	}
 
 	newClient.SetRequiredServiceTypes([]string{name})

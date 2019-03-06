@@ -85,8 +85,10 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	}
 
 	if tlsConfig != nil {
+		log.Infoln("using TLS configured SSL connection")
 		newClient = client.NewClientTLSConfig(&credentials, authMode, nil, tlsConfig)
 	} else {
+		log.Infoln("using non TLS configured SSL connection")
 		newClient = client.NewClient(&credentials, authMode, nil)
 	}
 

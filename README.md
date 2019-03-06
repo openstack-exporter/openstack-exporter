@@ -51,6 +51,34 @@ Args:
 
 ```
 
+### OpenStack configuration
+
+The cloud credentials and identity configuration
+should use the [os-client-config](https://docs.openstack.org/os-client-config/latest/) format
+and must by specified with the `--os-client-config` flag.
+
+Current list of supported options can be seen in the following example
+configuration:
+
+```yaml
+clouds:
+ default:
+   region_name: {{ openstack_region_name }}
+   identity_api_version: 3
+   identity_interface: internal
+   auth:
+     username: {{ keystone_admin_user }}
+     password: {{ keystone_admin_password }}
+     project_name: {{ keystone_admin_project }}
+     project_domain_name: 'Default'
+     user_domain_name: 'Default'
+     auth_url: {{ admin_protocol }}://{{ kolla_internal_fqdn }}:{{ keystone_admin_port }}/v3
+     cacert: |
+            ---- BEGIN CERTIFICATE ---
+      ...
+     verify: true | false
+```
+
 ## Contributing
 
 Please fill pull requests or issues under Github. Feel free to request any metrics

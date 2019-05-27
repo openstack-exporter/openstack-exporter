@@ -1,6 +1,6 @@
 ### Maintainer
 
-* Jorge Niedbalski <jnr@metaklass.org>
+* Jorge Niedbalski (<jnr@metaklass.org>)
 
 ##### Contributors:
 

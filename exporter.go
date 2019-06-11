@@ -117,7 +117,7 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 				return nil, err
 			}
 		}
-	case "volume":
+	case "volumev3":
 		{
 			exporter, err = NewCinderExporter(newClient, prefix, config)
 			if err != nil {

@@ -63,7 +63,9 @@ func main() {
 		if !*disabled {
 			_, err := EnableExporter(service, *prefix, cloudConfig)
 			if err != nil {
-				log.Fatal(err)
+				// Log error and continue with enabling other exporters
+				log.Errorf("enabling exporter for service %s failed: %s", service, err)
+				continue
 			}
 			log.Infof("Enabled exporter for service: %s", service)
 		}

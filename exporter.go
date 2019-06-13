@@ -93,7 +93,9 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	}
 
 	newClient.SetRequiredServiceTypes([]string{name})
-	newClient.Authenticate()
+	if err := newClient.Authenticate(); err != nil {
+		return nil, fmt.Errorf("error when authenticating: %s", err)
+	}
 
 	switch name {
 	case "network":

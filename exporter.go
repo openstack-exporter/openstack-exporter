@@ -92,8 +92,16 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 		newClient = client.NewClient(&credentials, authMode, nil)
 	}
 
+	// Change service name to the v3 version of cinder/block storage API.
+	// Part of fix for: https://github.com/openstack-exporter/openstack-exporter/issues/1
+	if name == "volume" {
+		name = "volumev3"
+	}
+
 	newClient.SetRequiredServiceTypes([]string{name})
-	newClient.Authenticate()
+	if err := newClient.Authenticate(); err != nil {
+		return nil, fmt.Errorf("error when authenticating: %s", err)
+	}
 
 	switch name {
 	case "network":

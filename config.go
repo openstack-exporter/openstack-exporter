@@ -33,11 +33,11 @@ type CloudConfig struct {
 func (config *Cloud) GetTLSConfig() (*tls.Config, error) {
 	var tlsConfig tls.Config
 
-	if config.Auth.CACert == "" && config.Auth.Verify == true {
+	if config.Auth.CACert == "" && config.Auth.Verify {
 		return nil, nil
 	}
 
-	if config.Auth.Verify == false {
+	if !config.Auth.Verify {
 		tlsConfig.InsecureSkipVerify = true
 	}
 

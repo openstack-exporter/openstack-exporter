@@ -14,10 +14,13 @@ type Metric struct {
 }
 
 const (
+	//nolint: deadcode, unused
 	BYTE = 1 << (10 * iota)
+	//nolint: deadcode, unused
 	KILOBYTE
 	MEGABYTE
 	GIGABYTE
+	//nolint: deadcode, unused
 	TERABYTE
 )
 

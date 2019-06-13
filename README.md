@@ -712,6 +712,6 @@ openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-44",region="
 openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
 ```
 
-[buildstatus]: https://circleci.com/gh/Linaro/openstack-exporter/tree/master.svg?style=shield
-[circleci]: https://circleci.com/gh/Linaro/openstack-exporter
+[buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield
+[circleci]: https://circleci.com/gh/openstack-exporter/openstack-exporter
 [hub]: https://hub.docker.com/r/niedbalski/openstack-exporter/

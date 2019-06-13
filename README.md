@@ -1,6 +1,11 @@
-# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci] [![Docker Repository on Quay](https://quay.io/repository/niedbalski/openstack-exporter/status "Docker Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter)
+# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci] 
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang.
+
+## Containers build status
+
+amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64)
+arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
 
 ## Description
 
@@ -16,12 +21,6 @@ By default the openstack\_exporter serves on port `0.0.0.0:9180` at `/metrics`
 ```sh
 make
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
-```
-
-Alternatively a Dockerfile and image are supplied
-
-```sh
-docker run -p 9180:9180 quay.io/niedbalski/openstack-exporter:v0.0.6
 ```
 
 ### Command line options
@@ -714,4 +713,3 @@ openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-45",region="
 
 [buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield
 [circleci]: https://circleci.com/gh/openstack-exporter/openstack-exporter
-[hub]: https://hub.docker.com/r/niedbalski/openstack-exporter/

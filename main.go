@@ -14,7 +14,10 @@ import (
 
 func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExporter, error) {
 	// Set the default values for config structure.
-	defaults.Set(config)
+	err := defaults.Set(config)
+	if err != nil {
+		return nil, err
+	}
 
 	exporter, err := NewExporter(service, prefix, config)
 	if err != nil {
@@ -73,13 +76,16 @@ func main() {
 
 	http.Handle(*metrics, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`<html>
+		_, err := w.Write([]byte(`<html>
              <head><title>OpenStack Exporter</title></head>
              <body>
              <h1>OpenStack Exporter</h1>
              <p><a href='` + *metrics + `'>Metrics</a></p>
              </body>
              </html>`))
+		if err != nil {
+			log.Error(err)
+		}
 	})
 
 	log.Infoln("Starting HTTP server on", *bind)

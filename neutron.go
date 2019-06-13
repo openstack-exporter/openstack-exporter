@@ -58,12 +58,12 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 
 	for _, agent := range agents {
 		var state int = 0
-		if agent.Alive == true {
+		if agent.Alive {
 			state = 1
 		}
 
 		adminState := "down"
-		if agent.AdminStateUp == true {
+		if agent.AdminStateUp {
 			adminState = "up"
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/creasty/defaults"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -13,12 +12,6 @@ import (
 )
 
 func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExporter, error) {
-	// Set the default values for config structure.
-	err := defaults.Set(config)
-	if err != nil {
-		return nil, err
-	}
-
 	exporter, err := NewExporter(service, prefix, config)
 	if err != nil {
 		return nil, err

@@ -211,7 +211,7 @@ type GetSnapshotsSimpleResults struct {
 
 //
 // Lists summary information for all Block Storage snapshots that the tenant who submits the request can access.
-func getSnapshotsSimple(client *Client, args GetSnapshotsSimpleParams) (*GetSnapshotsSimpleResults, error) {
+func getSnapshotsSimple(client *Client, args GetSnapshotsSimpleParams, allTenants bool) (*GetSnapshotsSimpleResults, error) {
 
 	argsAsJson, err := json.Marshal(args)
 	if err != nil {
@@ -220,6 +220,10 @@ func getSnapshotsSimple(client *Client, args GetSnapshotsSimpleParams) (*GetSnap
 
 	urlPath := url.URL{Path: "snapshots"}
 	url := client.endpoint.ResolveReference(&urlPath).String()
+
+	if allTenants {
+		url = fmt.Sprintf("%s?all_tenants=1", url)
+	}
 
 	var req *http.Request
 	if string(argsAsJson) != "{}" {
@@ -443,7 +447,7 @@ type GetVolumesDetailResults struct {
 
 //
 // Lists detailed information for all Block Storage volumes that the tenant who submits the request can access.
-func getVolumesDetail(client *Client, args GetVolumesDetailParams) (*GetVolumesDetailResults, error) {
+func getVolumesDetail(client *Client, args GetVolumesDetailParams, allTenants bool) (*GetVolumesDetailResults, error) {
 
 	argsAsJson, err := json.Marshal(args)
 	if err != nil {
@@ -452,6 +456,10 @@ func getVolumesDetail(client *Client, args GetVolumesDetailParams) (*GetVolumesD
 
 	urlPath := url.URL{Path: "volumes/detail"}
 	url := client.endpoint.ResolveReference(&urlPath).String()
+
+	if allTenants {
+		url = fmt.Sprintf("%s?all_tenants=1", url)
+	}
 
 	var req *http.Request
 	if string(argsAsJson) != "{}" {
@@ -1228,7 +1236,7 @@ type GetVolumesSimpleResults struct {
 
 //
 // Lists summary information for all Block Storage volumes that the tenant who submits the request can access.
-func getVolumesSimple(client *Client, args GetVolumesSimpleParams) (*GetVolumesSimpleResults, error) {
+func getVolumesSimple(client *Client, args GetVolumesSimpleParams, allTenants bool) (*GetVolumesSimpleResults, error) {
 
 	argsAsJson, err := json.Marshal(args)
 	if err != nil {
@@ -1237,6 +1245,10 @@ func getVolumesSimple(client *Client, args GetVolumesSimpleParams) (*GetVolumesS
 
 	urlPath := url.URL{Path: "volumes"}
 	url := client.endpoint.ResolveReference(&urlPath).String()
+
+	if allTenants {
+		url = fmt.Sprintf("%s?all_tenants=1", url)
+	}
 
 	var req *http.Request
 	if string(argsAsJson) != "{}" {

@@ -52,15 +52,31 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	log.Infoln("Fetching volumes info")
-	volumes, err := exporter.Client.GetVolumesSimple()
+	volumes, err := exporter.Client.GetVolumesSimple(true)
 	if err != nil {
 		log.Errorf("%s", err)
+		return
 	}
+
+	log.Infoln("Fetching volumes information")
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
+		prometheus.GaugeValue, float64(len(volumes.Volumes)))
+
+	log.Infoln("Fetching snapshots information")
+	snapshots, err := exporter.Client.GetSnapshotsSimple(true)
+	if err != nil {
+		log.Errorf("%s", err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"],
+		prometheus.GaugeValue, float64(len(snapshots.Snapshots)))
 
 	log.Infoln("Fetching services state information")
 	services, err := exporter.Client.GetServices()
 	if err != nil {
 		log.Errorf("%s", err)
+		return
 	}
 
 	for _, service := range services.Services {
@@ -72,16 +88,4 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
 
-	log.Infoln("Fetching volumes information")
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
-		prometheus.GaugeValue, float64(len(volumes.Volumes)))
-
-	log.Infoln("Fetching snapshots information")
-	snapshots, err := exporter.Client.GetSnapshotsSimple()
-	if err != nil {
-		log.Errorf("%s", err)
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"],
-		prometheus.GaugeValue, float64(len(snapshots.Snapshots)))
 }

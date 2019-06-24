@@ -133,8 +133,8 @@ func (c *Client) ListExtensionsCinderV2() (*ListExtensionsCinderV2Results, error
 
 // GetVolumesSimple lists summary information for all Block Storage
 // volumes that the tenant who submits the request can access.
-func (c *Client) GetVolumesSimple() (*GetVolumesSimpleResults, error) {
-	return getVolumesSimple(c, GetVolumesSimpleParams{TenantId: c.tenantId})
+func (c *Client) GetVolumesSimple(allTenants bool) (*GetVolumesSimpleResults, error) {
+	return getVolumesSimple(c, GetVolumesSimpleParams{TenantId: c.tenantId}, allTenants)
 }
 
 // UpdateVolumeType updates a volume type.
@@ -157,8 +157,8 @@ func (c *Client) DeleteVolumeType(volumeTypeId string) error {
 
 // GetVolumesDetail lists detailed information for all Block Storage
 // volumes that the tenant who submits the request can access.
-func (c *Client) GetVolumesDetail() (*GetVolumesDetailResults, error) {
-	return getVolumesDetail(c, GetVolumesDetailParams{TenantId: c.tenantId})
+func (c *Client) GetVolumesDetail(allTenants bool) (*GetVolumesDetailResults, error) {
+	return getVolumesDetail(c, GetVolumesDetailParams{TenantId: c.tenantId}, allTenants)
 }
 
 // GetVolume lists information about the volume with the given
@@ -201,8 +201,8 @@ func (c *Client) UpdateVolumeTypeExtraSpecs(volumeTypeId, volumeType, extraSpecs
 
 // GetSnapshotsSimple lists summary information for all Block Storage
 // snapshots that the tenant who submits the request can access.
-func (c *Client) GetSnapshotsSimple() (*GetSnapshotsSimpleResults, error) {
-	return getSnapshotsSimple(c, GetSnapshotsSimpleParams{TenantId: c.tenantId})
+func (c *Client) GetSnapshotsSimple(allTenants bool) (*GetSnapshotsSimpleResults, error) {
+	return getSnapshotsSimple(c, GetSnapshotsSimpleParams{TenantId: c.tenantId}, allTenants)
 }
 
 // ShowSnapshotMetadata shows the metadata for a specified snapshot.

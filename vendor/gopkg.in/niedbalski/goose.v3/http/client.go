@@ -16,7 +16,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/goose.v2"
+	"gopkg.in/niedbalski/goose.v3"
 	"gopkg.in/niedbalski/goose.v3/errors"
 	"gopkg.in/niedbalski/goose.v3/logging"
 )

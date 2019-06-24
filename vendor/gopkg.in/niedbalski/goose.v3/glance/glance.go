@@ -6,8 +6,9 @@ package glance
 
 import (
 	"fmt"
+	"os"
 	"net/http"
-
+	"time"
 	"gopkg.in/niedbalski/goose.v3/client"
 	"gopkg.in/niedbalski/goose.v3/errors"
 	goosehttp "gopkg.in/niedbalski/goose.v3/http"
@@ -41,6 +42,70 @@ type Image struct {
 	Id    string
 	Name  string
 	Links []Link
+}
+
+type ImageOpts struct {
+	ContainerFormat string `json:"container_format"`
+	DiskFormat      string `json:"disk_format"`
+	Name            string `json:"name"`
+	Protected       bool `json:"protected"`
+	Visibility      string `json:"visibility"`
+}
+
+type CreateImageResponse struct {
+	Status          string        `json:"status"`
+	Name            string        `json:"name"`
+	Tags            []interface{} `json:"tags"`
+	ContainerFormat string        `json:"container_format"`
+	CreatedAt       time.Time     `json:"created_at"`
+	Size            interface{}   `json:"size"`
+	DiskFormat      string        `json:"disk_format"`
+	UpdatedAt       time.Time     `json:"updated_at"`
+	Visibility      string        `json:"visibility"`
+	Locations       []interface{} `json:"locations"`
+	Self            string        `json:"self"`
+	MinDisk         int           `json:"min_disk"`
+	Protected       bool          `json:"protected"`
+	ID              string        `json:"id"`
+	File            string        `json:"file"`
+	Checksum        interface{}   `json:"checksum"`
+	OsHashAlgo      interface{}   `json:"os_hash_algo"`
+	OsHashValue     interface{}   `json:"os_hash_value"`
+	OsHidden        bool          `json:"os_hidden"`
+	Owner           string        `json:"owner"`
+	VirtualSize     interface{}   `json:"virtual_size"`
+	MinRAM          int           `json:"min_ram"`
+	Schema          string        `json:"schema"`
+}
+
+func (c *Client) CreateImageFromFile(filePath string, opts ImageOpts) (*CreateImageResponse, error){
+	var resp CreateImageResponse
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, errors.Newf(err, "cannot open image filename %#v", filePath)
+	}
+
+	defer file.Close()
+
+	requestData := goosehttp.RequestData{ReqValue: opts, RespValue: &resp, ExpectedStatus: []int{http.StatusCreated, http.StatusAccepted}}
+	err = c.client.SendRequest(client.POST, "image", "v2", apiImages, &requestData)
+	if err != nil {
+		return nil, errors.Newf(err, "failed to create image with %#v", opts)
+	}
+
+	contentTypeHeader := http.Header{}
+	contentTypeHeader.Set("content-type", "application/octet-stream")
+
+	err = c.client.SendRequest(client.PUT, "image", "v2", fmt.Sprintf("%s/%s/file", apiImages, resp.ID),
+		&goosehttp.RequestData{ReqHeaders: contentTypeHeader, ReqReader: file,
+		ExpectedStatus: []int{http.StatusCreated, http.StatusAccepted, 204}})
+
+	if err != nil {
+		return nil, errors.Newf(err, "failed to create image with %#v, #v", opts, file)
+	}
+
+	return &resp, nil
 }
 
 // ListImages lists IDs, names, and links for available images.
@@ -161,3 +226,4 @@ func (c *Client) GetImageDetailV2(imageId string) (*ImageDetailV2, error) {
 	}
 	return &resp, nil
 }
+

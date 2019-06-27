@@ -16,11 +16,20 @@ and must by specified with the `--os-client-config` flag.
 
 Other options as the binding address/port can by explored with the --help flag.
 
-By default the openstack\_exporter serves on port `0.0.0.0:9180` at `/metrics`
+By default the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+
+You can build it by yourself by cloning this repository and run:
 
 ```sh
-make
+make common-build
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
+```
+
+Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
+details):
+
+```sh
+docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yml -it quay.io/niedbalski/openstack-exporter-linux-amd64:master my-cloud.org
 ```
 
 ### Command line options
@@ -101,6 +110,7 @@ openstack_neutron_security_groups|region="RegionOne"|10.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
+openstack_nova_server_status|region="RegionOne",hostname="compute-01""id", "name", "tenant_id", "user_id", "address_ipv4",                                                                     	"address_ipv6", "host_id", "uuid", "availability_zone"|0.0 (float)
 openstack_nova_running_vms|region="RegionOne",hostname="compute-01"|12.0 (float)
 openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01"|100.0 (float)
 openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01"|30.0 (float)

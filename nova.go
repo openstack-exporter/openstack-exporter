@@ -9,7 +9,7 @@ import (
 
 var server_status = []string{
 	"ACTIVE",
-	"BUILD",          // The server has not finished the original build process.
+	"BUILD",           // The server has not finished the original build process.
 	"BUILD(spawning)", // The server has not finished the original build process but networking works (HP Cloud specific)
 	"DELETED",         // The server is deleted.
 	"ERROR",           // The server is in error.
@@ -25,7 +25,7 @@ var server_status = []string{
 	"VERIFY_RESIZE",   // System is awaiting confirmation that the server is operational after a move or resize.
 }
 
-func mapServerStatus(current string)(int) {
+func mapServerStatus(current string) int {
 	for idx, status := range server_status {
 		if current == status {
 			return idx
@@ -54,7 +54,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
 	{Name: "server_status", Labels: []string{"id", "name", "tenant_id", "user_id", "address_ipv4",
-	"address_ipv6", "host_id", "uuid", "availability_zone"}},
+		"address_ipv6", "host_id", "uuid", "availability_zone"}},
 }
 
 func NewNovaExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NovaExporter, error) {

@@ -7,6 +7,8 @@ import (
 	"gopkg.in/niedbalski/goose.v3/client"
 	"net/http"
 	"net/url"
+	"strconv"
+	"strings"
 )
 
 type CinderExporter struct {
@@ -14,10 +16,43 @@ type CinderExporter struct {
 	Client *cinder.Client
 }
 
+var volume_status = []string{
+	"creating",
+	"available",
+	"reserved",
+	"attaching",
+	"detaching",
+	"in-use",
+	"maintenance",
+	"deleting",
+	"awaiting-transfer",
+	"error",
+	"error_deleting",
+	"backing-up",
+	"restoring-backup",
+	"error_backing-up",
+	"error_restoring",
+	"error_extending",
+	"downloading",
+	"uploading",
+	"retyping",
+	"extending",
+}
+
+func mapVolumeStatus(volStatus string) int {
+	for idx, status := range volume_status {
+		if status == strings.ToLower(volStatus) {
+			return idx
+		}
+	}
+	return -1
+}
+
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes"},
 	{Name: "snapshots"},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
+	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}},
 }
 
 func NewCinderExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*CinderExporter, error) {
@@ -61,6 +96,13 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	log.Infoln("Fetching volumes information")
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
 		prometheus.GaugeValue, float64(len(volumes.Volumes)))
+
+	// Server status metrics
+	for _, volume := range volumes.Volumes {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"],
+			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+			volume.Status, volume.Bootable, volume.Os_Vol_Tenant_Attr_TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
+	}
 
 	log.Infoln("Fetching snapshots information")
 	snapshots, err := exporter.Client.GetSnapshotsSimple(true)

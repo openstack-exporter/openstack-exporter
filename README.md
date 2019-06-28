@@ -122,6 +122,7 @@ openstack_nova_vcpus_used|region="RegionOne",hostname="compute-01"|32.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
+openstack_cinder_volume_status|region="RegionOne""id", "name", "status", "bootable", "tenant_id", "size", "volume_type"|4.0 (float) 
 openstack_identity_domains|region="RegionOne"|1.0 (float)
 openstack_identity_users|region="RegionOne"|30.0 (float)
 openstack_identity_projects|region="RegionOne"|33.0 (float)
@@ -132,6 +133,7 @@ openstack_identity_regions|region="RegionOne"|1.0 (float)
 ```
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
+openstack_cinder_volume_status{bootable="",id="11017190-61ab-426f-9366-2299292sadssad",name="",region="Region",size="0",status="",tenant_id="",volume_type=""} 1.0
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-backup",zone="nova"} 1.0
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-scheduler",zone="nova"} 1.0
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0

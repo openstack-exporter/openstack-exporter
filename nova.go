@@ -53,7 +53,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
-	{Name: "server_status", Labels: []string{"id", "name", "tenant_id", "user_id", "address_ipv4",
+	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone"}},
 }
 
@@ -167,7 +167,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	// Server status metrics
 	for _, server := range servers {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"],
-			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.Id, server.Name, server.TenantId,
+			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.Id, server.Status, server.Name, server.TenantId,
 			server.UserId, server.AddressIPv4, server.AddressIPv6, server.HostId, server.UUID, server.AvailabilityZone)
 	}
 }

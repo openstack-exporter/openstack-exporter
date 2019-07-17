@@ -87,7 +87,7 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	log.Infoln("Fetching volumes info")
-	volumes, err := exporter.Client.GetVolumesSimple(true)
+	volumes, err := exporter.Client.GetVolumesDetail(true)
 	if err != nil {
 		log.Errorf("%s", err)
 		return

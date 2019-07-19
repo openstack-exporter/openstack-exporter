@@ -63,14 +63,23 @@ func NewCinderExporter(client client.AuthenticatingClient, prefix string, config
 		return nil, err
 	}
 
+	tls, err := config.GetTLSConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	var handleRequestFn cinder.RequestHandlerFn
+
+	if tls != nil {
+		handleRequestFn = cinder.AuthHeaderTSLConfigDoRequestFn(client.Token, tls)
+	} else {
+		handleRequestFn = cinder.SetAuthHeaderFn(client.Token, http.DefaultClient.Do)
+	}
 	exporter := CinderExporter{BaseOpenStackExporter{
 		Name:   "cinder",
 		Prefix: prefix,
 		Config: config,
-	}, cinder.NewClient(client.TenantId(), endpointUrl,
-		cinder.SetAuthHeaderFn(client.Token,
-			http.DefaultClient.Do),
-	)}
+	}, cinder.NewClient(client.TenantId(), endpointUrl, handleRequestFn)}
 
 	for _, metric := range defaultCinderMetrics {
 		exporter.AddMetric(metric.Name, metric.Labels, nil)

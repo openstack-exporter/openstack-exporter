@@ -29,13 +29,15 @@ type OpenStackExporter interface {
 	AddMetric(name string, labels []string, constLabels prometheus.Labels)
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
+	RefreshClient() error
 }
 
 type BaseOpenStackExporter struct {
-	Name    string
-	Prefix  string
-	Metrics map[string]*prometheus.Desc
-	Config  *Cloud
+	Name                 string
+	Prefix               string
+	Metrics              map[string]*prometheus.Desc
+	Config               *Cloud
+	AuthenticatingClient client.AuthenticatingClient
 }
 
 func (exporter *BaseOpenStackExporter) GetName() string {
@@ -102,6 +104,7 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	}
 
 	newClient.SetRequiredServiceTypes([]string{name})
+
 	if err := newClient.Authenticate(); err != nil {
 		return nil, fmt.Errorf("error when authenticating: %s", err)
 	}

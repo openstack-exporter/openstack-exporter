@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"gopkg.in/niedbalski/goose.v3/client"
@@ -60,9 +61,10 @@ var defaultNovaMetrics = []Metric{
 func NewNovaExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
-			Name:   "nova",
-			Prefix: prefix,
-			Config: config,
+			Name:                 "nova",
+			Prefix:               prefix,
+			Config:               config,
+			AuthenticatingClient: client,
 		}, nova.New(client)}
 
 	for _, metric := range defaultNovaMetrics {
@@ -78,7 +80,23 @@ func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
+func (exporter *NovaExporter) RefreshClient() error {
+	log.Infoln("Refreshing auth client in case token has expired")
+
+	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
+		return fmt.Errorf("Error authenticating nova client: %s", err)
+	}
+
+	exporter.Client = nova.New(exporter.AuthenticatingClient)
+	return nil
+}
+
 func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
+	if err := exporter.RefreshClient(); err != nil {
+		log.Error(err)
+		return
+	}
+
 	log.Infoln("Fetching list of services")
 	services, err := exporter.Client.ListServices()
 	if err != nil {

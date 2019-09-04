@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"gopkg.in/niedbalski/goose.v3/client"
@@ -23,9 +24,10 @@ var defaultNeutronMetrics = []Metric{
 func NewNeutronExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
-			Name:   "neutron",
-			Prefix: prefix,
-			Config: config,
+			Name:                 "neutron",
+			Prefix:               prefix,
+			Config:               config,
+			AuthenticatingClient: client,
 		},
 		neutron.New(client),
 	}
@@ -43,7 +45,22 @@ func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
+func (exporter *NeutronExporter) RefreshClient() error {
+	log.Infoln("Refreshing auth client in case token has expired")
+	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
+		return fmt.Errorf("Error authenticating neutron client: %s", err)
+	}
+
+	exporter.Client = neutron.New(exporter.AuthenticatingClient)
+	return nil
+}
+
 func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
+	if err := exporter.RefreshClient(); err != nil {
+		log.Error(err)
+		return
+	}
+
 	log.Infoln("Fetching floating ips list")
 	floatingips, err := exporter.Client.ListFloatingIPsV2()
 	if err != nil {

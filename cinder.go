@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"gopkg.in/niedbalski/goose.v3/cinder"
@@ -75,10 +76,12 @@ func NewCinderExporter(client client.AuthenticatingClient, prefix string, config
 	} else {
 		handleRequestFn = cinder.SetAuthHeaderFn(client.Token, http.DefaultClient.Do)
 	}
+
 	exporter := CinderExporter{BaseOpenStackExporter{
-		Name:   "cinder",
-		Prefix: prefix,
-		Config: config,
+		Name:                 "cinder",
+		Prefix:               prefix,
+		Config:               config,
+		AuthenticatingClient: client,
 	}, cinder.NewClient(client.TenantId(), endpointUrl, handleRequestFn)}
 
 	for _, metric := range defaultCinderMetrics {
@@ -94,7 +97,40 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
+func (exporter *CinderExporter) RefreshClient() error {
+	log.Infoln("Refresh auth client, in case token has expired")
+	endpoint := exporter.AuthenticatingClient.EndpointsForRegion(exporter.Config.Region)["volumev3"]
+	endpointUrl, err := url.Parse(endpoint)
+
+	if err != nil {
+		return err
+	}
+
+	tls, err := exporter.Config.GetTLSConfig()
+	if err != nil {
+		return err
+	}
+
+	var handleRequestFn cinder.RequestHandlerFn
+	if tls != nil {
+		handleRequestFn = cinder.AuthHeaderTSLConfigDoRequestFn(exporter.AuthenticatingClient.Token, tls)
+	} else {
+		handleRequestFn = cinder.SetAuthHeaderFn(exporter.AuthenticatingClient.Token, http.DefaultClient.Do)
+	}
+
+	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
+		return fmt.Errorf("Error authenticating cinder client: %s", err)
+	}
+	exporter.Client = cinder.NewClient(exporter.AuthenticatingClient.TenantId(), endpointUrl, handleRequestFn)
+	return nil
+}
+
 func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
+	if err := exporter.RefreshClient(); err != nil {
+		log.Error(err)
+		return
+	}
+
 	log.Infoln("Fetching volumes info")
 	volumes, err := exporter.Client.GetVolumesDetail(true)
 	if err != nil {

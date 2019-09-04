@@ -23,9 +23,10 @@ var defaultKeystoneMetrics = []Metric{
 func NewKeystoneExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
-			Name:   "identity",
-			Prefix: prefix,
-			Config: config,
+			Name:                 "identity",
+			Prefix:               prefix,
+			Config:               config,
+			AuthenticatingClient: client,
 		}, keystone.New(client)}
 
 	for _, metric := range defaultKeystoneMetrics {
@@ -39,6 +40,16 @@ func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
+}
+
+func (exporter *KeystoneExporter) RefreshClient() error {
+	log.Infoln("Refresh auth client, in case token has expired")
+	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
+		log.Errorf("Error authenticating keystone client: %s", err)
+		return err
+	}
+	exporter.Client = keystone.New(exporter.AuthenticatingClient)
+	return nil
 }
 
 func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {

@@ -112,15 +112,17 @@ func (exporter *CinderExporter) RefreshClient() error {
 	}
 
 	var handleRequestFn cinder.RequestHandlerFn
+
+	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
+		return fmt.Errorf("Error authenticating cinder client: %s", err)
+	}
+
 	if tls != nil {
 		handleRequestFn = cinder.AuthHeaderTSLConfigDoRequestFn(exporter.AuthenticatingClient.Token, tls)
 	} else {
 		handleRequestFn = cinder.SetAuthHeaderFn(exporter.AuthenticatingClient.Token, http.DefaultClient.Do)
 	}
 
-	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
-		return fmt.Errorf("Error authenticating cinder client: %s", err)
-	}
 	exporter.Client = cinder.NewClient(exporter.AuthenticatingClient.TenantId(), endpointUrl, handleRequestFn)
 	return nil
 }

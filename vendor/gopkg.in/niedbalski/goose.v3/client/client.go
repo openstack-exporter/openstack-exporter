@@ -499,9 +499,6 @@ func (c *authenticatingClient) Authenticate() (err error) {
 func (c *authenticatingClient) doAuthenticate() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if c.creds == nil || c.tokenId != "" {
-		return nil
-	}
 	if c.authMode == nil {
 		return fmt.Errorf("Authentication method has not been specified")
 	}

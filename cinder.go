@@ -133,6 +133,8 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	fmt.Printf("%v - %s", exporter.Client, exporter.AuthenticatingClient.Token())
+
 	log.Infoln("Fetching volumes info")
 	volumes, err := exporter.Client.GetVolumesDetail(true)
 	if err != nil {

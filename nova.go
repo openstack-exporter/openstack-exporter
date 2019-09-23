@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 	"github.com/gophercloud/gophercloud"
@@ -9,8 +10,35 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
-
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 )
+
+var server_status = []string{
+	"ACTIVE",
+	"BUILD",           // The server has not finished the original build process.
+	"BUILD(spawning)", // The server has not finished the original build process but networking works (HP Cloud specific)
+	"DELETED",         // The server is deleted.
+	"ERROR",           // The server is in error.
+	"HARD_REBOOT",     // The server is hard rebooting.
+	"PASSWORD",        // The password is being reset on the server.
+	"REBOOT",          // The server is in a soft reboot state.
+	"REBUILD",         // The server is currently being rebuilt from an image.
+	"RESCUE",          // The server is in rescue mode.
+	"RESIZE",          // Server is performing the differential copy of data that changed during its initial copy.
+	"SHUTOFF",         // The virtual machine (VM) was powered down by the user, but not through the OpenStack Compute API.
+	"SUSPENDED",       // The server is suspended, either by request or necessity.
+	"UNKNOWN",         // The state of the server is unknown. Contact your cloud provider.
+	"VERIFY_RESIZE",   // System is awaiting confirmation that the server is operational after a move or resize.
+}
+
+func mapServerStatus(current string) int {
+	for idx, status := range server_status {
+		if current == status {
+			return idx
+		}
+	}
+	return -1
+}
 
 type NovaExporter struct {
 	BaseOpenStackExporter
@@ -31,6 +59,8 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
+	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
+		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
 }
 
 func NewNovaExporter(client *gophercloud.ProviderClient, prefix string, config *Cloud) (*NovaExporter, error) {
@@ -154,4 +184,30 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"],
 		prometheus.GaugeValue, float64(len(allAZs)))
+
+	log.Infoln("Fetching list of servers for all tenants")
+	type ServerWithExt struct {
+		servers.Server
+		availabilityzones.ServerAvailabilityZoneExt
+	}
+
+	var allServers []ServerWithExt
+
+	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{
+		AllTenants: true,
+	}).AllPages()
+	err = servers.ExtractServersInto(allPagesServers, &allServers)
+	if err != nil {
+		log.Errorf("%s", err)
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"],
+		prometheus.GaugeValue, float64(len(allServers)))
+
+	// Server status metrics
+	for _, server := range allServers {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"],
+			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+	}
 }

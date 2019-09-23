@@ -20,7 +20,7 @@ func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExp
 	return &exporter, nil
 }
 
-var defaultEnabledServices = []string{"identity", "image", "compute", "network"}
+var defaultEnabledServices = []string{"identity", "image", "compute", "network", "volumev3"}
 
 func main() {
 	var (

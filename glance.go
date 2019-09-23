@@ -1,29 +1,38 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/niedbalski/goose.v3/client"
-	"gopkg.in/niedbalski/goose.v3/glance"
 )
 
 type GlanceExporter struct {
 	BaseOpenStackExporter
-	Client *glance.Client
+	Client *gophercloud.ServiceClient
 }
 
 var defaultGlanceMetrics = []Metric{
 	{Name: "images"},
 }
 
-func NewGlanceExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*GlanceExporter, error) {
+func NewGlanceExporter(client *gophercloud.ProviderClient, prefix string, config *Cloud) (*GlanceExporter, error) {
+	image, err := openstack.NewImageServiceV2(client, gophercloud.EndpointOpts{
+		Region:       "RegionOne",
+		Availability: "internal",
+	})
+	if err != nil {
+		log.Errorln(err)
+	}
+
 	exporter := GlanceExporter{BaseOpenStackExporter{
-		Name:                 "glance",
-		Prefix:               prefix,
-		Config:               config,
-		AuthenticatingClient: client,
-	}, glance.New(client)}
+			Name:                 "glance",
+			Prefix:               prefix,
+			Config:               config,
+			AuthenticatedClient: client,
+		}, image,
+	}
 
 	for _, metric := range defaultGlanceMetrics {
 		exporter.AddMetric(metric.Name, metric.Labels, nil)
@@ -34,10 +43,14 @@ func NewGlanceExporter(client client.AuthenticatingClient, prefix string, config
 
 func (exporter *GlanceExporter) RefreshClient() error {
 	log.Infoln("Refresh auth client, in case token has expired")
-	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
-		return fmt.Errorf("Error authenticating glance client: %s", err)
+	client, err := openstack.NewImageServiceV2(exporter.AuthenticatedClient, gophercloud.EndpointOpts{
+		Region:       "RegionOne",
+		Availability: "internal",
+	})
+	if err != nil {
+		log.Errorln(err)
 	}
-	exporter.Client = glance.New(exporter.AuthenticatingClient)
+	exporter.Client = client
 	return nil
 }
 
@@ -47,17 +60,13 @@ func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
-	if err := exporter.RefreshClient(); err != nil {
-		log.Error(err)
-		return
-	}
+	var allImages []images.Image
 
-	log.Infoln("Fetching images list")
-	images, err := exporter.Client.ListImagesV2()
+	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
+	allImages, err = images.ExtractImages(allPagesImage)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 	}
-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"],
-		prometheus.GaugeValue, float64(len(images)))
+		prometheus.GaugeValue, float64(len(allImages)))
 }

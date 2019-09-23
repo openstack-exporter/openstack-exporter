@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/niedbalski/goose.v3/client"
-	"gopkg.in/niedbalski/goose.v3/identity"
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/utils/openstack/clientconfig"
 )
 
 type Metric struct {
@@ -37,7 +38,7 @@ type BaseOpenStackExporter struct {
 	Prefix               string
 	Metrics              map[string]*prometheus.Desc
 	Config               *Cloud
-	AuthenticatingClient client.AuthenticatingClient
+	AuthenticatedClient *gophercloud.ProviderClient
 }
 
 func (exporter *BaseOpenStackExporter) GetName() string {
@@ -66,60 +67,36 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, c
 func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
-	var credentials identity.Credentials
-	var newClient client.AuthenticatingClient
-	var authMode identity.AuthMode
+	var newClient *gophercloud.ProviderClient
 
-	credentials.URL = config.Auth.AuthURL
-	credentials.ProjectDomain = config.Auth.ProjectDomainName
-	credentials.UserDomain = config.Auth.UserDomainName
-	credentials.Region = config.Region
-	credentials.User = config.Auth.Username
-	credentials.Secrets = config.Auth.Password
-	credentials.TenantName = config.Auth.ProjectName
+	clientOpts := new(clientconfig.ClientOpts)
 
-	if config.IdentityAPIVersion == "3" {
-		authMode = identity.AuthUserPassV3
-	} else {
-		authMode = identity.AuthUserPass
-	}
+	clientOpts.Cloud = "devstack-admin"
 
-	tlsConfig, err := config.GetTLSConfig()
+	_, err = clientconfig.GetCloudFromYAML(clientOpts)
 	if err != nil {
 		return nil, err
 	}
 
-	if tlsConfig != nil {
-		log.Infoln("using TLS configured SSL connection")
-		newClient = client.NewClientTLSConfig(&credentials, authMode, nil, tlsConfig)
-	} else {
-		log.Infoln("using non TLS configured SSL connection")
-		newClient = client.NewClient(&credentials, authMode, nil)
+	ao, err := clientconfig.AuthOptions(clientOpts)
+	if err != nil {
+		return nil, err
 	}
 
-	// Change service name to the v3 version of cinder/block storage API.
-	// Part of fix for: https://github.com/openstack-exporter/openstack-exporter/issues/1
-	if name == "volume" {
-		name = "volumev3"
+	newClient, err = openstack.NewClient(ao.IdentityEndpoint)
+	if err != nil {
+		return nil, err
 	}
 
-	newClient.SetRequiredServiceTypes([]string{name})
-
-	if err := newClient.Authenticate(); err != nil {
-		return nil, fmt.Errorf("error when authenticating: %s", err)
+	err = openstack.Authenticate(newClient, *ao)
+	if err != nil {
+		return nil, err
 	}
 
 	switch name {
-	case "network":
+	case "identity":
 		{
-			exporter, err = NewNeutronExporter(newClient, prefix, config)
-			if err != nil {
-				return nil, err
-			}
-		}
-	case "compute":
-		{
-			exporter, err = NewNovaExporter(newClient, prefix, config)
+			exporter, err = NewKeystoneExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
@@ -131,16 +108,16 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 				return nil, err
 			}
 		}
-	case "volumev3":
+	case "compute":
 		{
-			exporter, err = NewCinderExporter(newClient, prefix, config)
+			exporter, err = NewNovaExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
 		}
-	case "identity":
+	case "network":
 		{
-			exporter, err = NewKeystoneExporter(newClient, prefix, config)
+			exporter, err = NewNeutronExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}

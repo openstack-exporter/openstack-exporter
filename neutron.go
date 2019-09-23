@@ -1,16 +1,21 @@
 package main
 
 import (
-	"fmt"
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/niedbalski/goose.v3/client"
-	"gopkg.in/niedbalski/goose.v3/neutron"
 )
 
 type NeutronExporter struct {
 	BaseOpenStackExporter
-	Client *neutron.Client
+	Client *gophercloud.ServiceClient
 }
 
 var defaultNeutronMetrics = []Metric{
@@ -18,18 +23,26 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "networks"},
 	{Name: "security_groups"},
 	{Name: "subnets"},
+	{Name: "ports"},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}},
 }
 
-func NewNeutronExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*NeutronExporter, error) {
+func NewNeutronExporter(client *gophercloud.ProviderClient, prefix string, config *Cloud) (*NeutronExporter, error) {
+	network, err := openstack.NewNetworkV2(client, gophercloud.EndpointOpts{
+		Region:       "RegionOne",
+		Availability: "internal",
+	})
+	if err != nil {
+		log.Errorln(err)
+	}
+
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
 			Name:                 "neutron",
 			Prefix:               prefix,
 			Config:               config,
-			AuthenticatingClient: client,
-		},
-		neutron.New(client),
+			AuthenticatedClient: client,
+		},network,
 	}
 
 	for _, metric := range defaultNeutronMetrics {
@@ -46,34 +59,40 @@ func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *NeutronExporter) RefreshClient() error {
-	log.Infoln("Refreshing auth client in case token has expired")
-	if err := exporter.AuthenticatingClient.Authenticate(); err != nil {
-		return fmt.Errorf("Error authenticating neutron client: %s", err)
+	log.Infoln("Refresh auth client, in case token has expired")
+	client, err := openstack.NewNetworkV2(exporter.AuthenticatedClient, gophercloud.EndpointOpts{
+		Region:       "RegionOne",
+		Availability: "internal",
+	})
+	if err != nil {
+		log.Errorln(err)
 	}
-
-	exporter.Client = neutron.New(exporter.AuthenticatingClient)
+	exporter.Client = client
 	return nil
 }
 
 func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
-	if err := exporter.RefreshClient(); err != nil {
-		log.Error(err)
-		return
-	}
-
 	log.Infoln("Fetching floating ips list")
-	floatingips, err := exporter.Client.ListFloatingIPsV2()
+	var allFloatingIPs []floatingips.FloatingIP
+
+	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
+	allFloatingIPs, err = floatingips.ExtractFloatingIPs(allPagesFloatingIPs)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"],
+		prometheus.GaugeValue, float64(len(allFloatingIPs)))
 
 	log.Infoln("Fetching agents list")
-	agents, err := exporter.Client.ListAgentsV2()
+	var allAgents []agents.Agent
+
+	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{}).AllPages()
+	allAgents, err = agents.ExtractAgents(allPagesAgents)
 	if err != nil {
-		log.Errorf(err.Error())
+		log.Errorln(err)
 	}
 
-	for _, agent := range agents {
+	for _, agent := range allAgents {
 		var state int = 0
 		if agent.Alive {
 			state = 1
@@ -88,32 +107,47 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	log.Infoln("Fetching list of networks")
-	networks, err := exporter.Client.ListNetworksV2()
+	var allNetworks []networks.Network
+
+	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
+	allNetworks, err = networks.ExtractNetworks(allPagesNetworks)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"],
+		prometheus.GaugeValue, float64(len(allNetworks)))
 
 	log.Infoln("Fetching list of security groups")
-	securityGroups, err := exporter.Client.ListSecurityGroupsV2()
+	var allSecurityGroups []groups.SecGroup
+
+	allPagesSecurityGroups, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
+	allSecurityGroups, err = groups.ExtractGroups(allPagesSecurityGroups)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
+		prometheus.GaugeValue, float64(len(allSecurityGroups)))
 
 	log.Infoln("Fetching list of subnets")
-	subnets, err := exporter.Client.ListSubnetsV2()
+	var allSubnets []subnets.Subnet
+
+	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
+	allSubnets, err = subnets.ExtractSubnets(allPagesSubnets)
 	if err != nil {
-		log.Errorf("%s", err)
+		log.Errorln(err)
 	}
-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"],
-		prometheus.GaugeValue, float64(len(subnets)))
+		prometheus.GaugeValue, float64(len(allSubnets)))
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"],
-		prometheus.GaugeValue, float64(len(floatingips)))
+	log.Infoln("Fetching list of ports")
+	var allPorts []ports.Port
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"],
-		prometheus.GaugeValue, float64(len(networks)))
+	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
+	allPorts, err = ports.ExtractPorts(allPagesPorts)
+	if err != nil {
+		log.Errorln(err)
+	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports"],
+		prometheus.GaugeValue, float64(len(allPorts)))
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
-		prometheus.GaugeValue, float64(len(securityGroups)))
 }

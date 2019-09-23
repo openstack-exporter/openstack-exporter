@@ -11,14 +11,40 @@ github.com/creasty/defaults
 github.com/davecgh/go-spew/spew
 # github.com/golang/protobuf v1.2.0
 github.com/golang/protobuf/proto
+# github.com/gophercloud/gophercloud v0.4.0
+github.com/gophercloud/gophercloud
+github.com/gophercloud/gophercloud/openstack
+github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones
+github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors
+github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services
+github.com/gophercloud/gophercloud/openstack/compute/v2/flavors
+github.com/gophercloud/gophercloud/openstack/identity/v3/domains
+github.com/gophercloud/gophercloud/openstack/identity/v3/groups
+github.com/gophercloud/gophercloud/openstack/identity/v3/projects
+github.com/gophercloud/gophercloud/openstack/identity/v3/regions
+github.com/gophercloud/gophercloud/openstack/identity/v3/users
+github.com/gophercloud/gophercloud/openstack/imageservice/v2/images
+github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents
+github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips
+github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups
+github.com/gophercloud/gophercloud/openstack/networking/v2/networks
+github.com/gophercloud/gophercloud/openstack/networking/v2/ports
+github.com/gophercloud/gophercloud/openstack/networking/v2/subnets
+github.com/gophercloud/gophercloud/openstack/identity/v2/tokens
+github.com/gophercloud/gophercloud/openstack/identity/v3/tokens
+github.com/gophercloud/gophercloud/openstack/utils
+github.com/gophercloud/gophercloud/pagination
+github.com/gophercloud/gophercloud/internal
+github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/rules
+github.com/gophercloud/gophercloud/openstack/identity/v2/tenants
+# github.com/gophercloud/utils v0.0.0-20190829151529-94e6842399e5
+github.com/gophercloud/utils/openstack/clientconfig
 # github.com/gorilla/context v1.1.1
 github.com/gorilla/context
 # github.com/gorilla/mux v1.6.2
 github.com/gorilla/mux
 # github.com/jarcoal/httpmock v0.0.0-20181110092731-53def6cd0f87
 github.com/jarcoal/httpmock
-# github.com/juju/loggo v0.0.0-20180524022052-584905176618
-github.com/juju/loggo
 # github.com/konsorten/go-windows-terminal-sequences v1.0.1
 github.com/konsorten/go-windows-terminal-sequences
 # github.com/matttproud/golang_protobuf_extensions v1.0.1
@@ -48,27 +74,14 @@ github.com/sirupsen/logrus
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/suite
 github.com/stretchr/testify/require
-# golang.org/x/crypto v0.0.0-20180904163835-0709b304e793
+# golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67
 golang.org/x/crypto/ssh/terminal
-# golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb
+# golang.org/x/sys v0.0.0-20190209173611-3b5209105503
 golang.org/x/sys/windows/svc/eventlog
 golang.org/x/sys/windows
 golang.org/x/sys/windows/registry
 golang.org/x/sys/unix
 # gopkg.in/alecthomas/kingpin.v2 v2.2.6
 gopkg.in/alecthomas/kingpin.v2
-# gopkg.in/niedbalski/goose.v3 v3.0.0-20190910013403-1c698144c35a
-gopkg.in/niedbalski/goose.v3/cinder
-gopkg.in/niedbalski/goose.v3/client
-gopkg.in/niedbalski/goose.v3/glance
-gopkg.in/niedbalski/goose.v3/identity
-gopkg.in/niedbalski/goose.v3/keystone
-gopkg.in/niedbalski/goose.v3/neutron
-gopkg.in/niedbalski/goose.v3/nova
-gopkg.in/niedbalski/goose.v3/http
-gopkg.in/niedbalski/goose.v3/errors
-gopkg.in/niedbalski/goose.v3/logging
-gopkg.in/niedbalski/goose.v3/sync
-gopkg.in/niedbalski/goose.v3
 # gopkg.in/yaml.v2 v2.2.2
 gopkg.in/yaml.v2

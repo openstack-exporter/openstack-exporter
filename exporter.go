@@ -94,16 +94,9 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	}
 
 	switch name {
-	case "identity":
+	case "network":
 		{
-			exporter, err = NewKeystoneExporter(newClient, prefix, config)
-			if err != nil {
-				return nil, err
-			}
-		}
-	case "image":
-		{
-			exporter, err = NewGlanceExporter(newClient, prefix, config)
+			exporter, err = NewNeutronExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
@@ -115,9 +108,9 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 				return nil, err
 			}
 		}
-	case "network":
+	case "image":
 		{
-			exporter, err = NewNeutronExporter(newClient, prefix, config)
+			exporter, err = NewGlanceExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}
@@ -125,6 +118,13 @@ func NewExporter(name string, prefix string, config *Cloud) (OpenStackExporter, 
 	case "volumev3":
 		{
 			exporter, err = NewCinderExporter(newClient, prefix, config)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case "identity":
+		{
+			exporter, err = NewKeystoneExporter(newClient, prefix, config)
 			if err != nil {
 				return nil, err
 			}

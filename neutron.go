@@ -42,11 +42,6 @@ func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *NeutronExporter) RefreshClient() error {
-	log.Infoln("Refreshing auth client in case token has expired")
-	return nil
-}
-
 func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	if err := exporter.RefreshClient(); err != nil {
 		log.Error(err)

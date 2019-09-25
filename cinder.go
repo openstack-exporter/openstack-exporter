@@ -73,11 +73,6 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *CinderExporter) RefreshClient() error {
-	log.Infoln("Refresh auth client, in case token has expired")
-	return nil
-}
-
 func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	if err := exporter.RefreshClient(); err != nil {
 		log.Error(err)

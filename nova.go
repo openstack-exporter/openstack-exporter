@@ -79,11 +79,6 @@ func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *NovaExporter) RefreshClient() error {
-	log.Infoln("Refreshing auth client in case token has expired")
-	return nil
-}
-
 func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	if err := exporter.RefreshClient(); err != nil {
 		log.Error(err)

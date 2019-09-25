@@ -43,6 +43,14 @@ func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }
 
+func (exporter *BaseOpenStackExporter) RefreshClient() error {
+	log.Debugln("Refreshing auth client in case token has expired")
+	if err := exporter.Client.Reauthenticate(exporter.Client.Token()); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, constLabels prometheus.Labels) {
 	if exporter.Metrics == nil {
 		exporter.Metrics = map[string]*prometheus.Desc{}

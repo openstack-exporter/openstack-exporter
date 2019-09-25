@@ -32,11 +32,6 @@ func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*Glanc
 	return &exporter, nil
 }
 
-func (exporter *GlanceExporter) RefreshClient() error {
-	log.Infoln("Refresh auth client, in case token has expired")
-	return nil
-}
-
 func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
 		ch <- metric

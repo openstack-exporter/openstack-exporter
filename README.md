@@ -5,7 +5,21 @@ A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang.
 ## Containers build status
 
 amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64)
+
 arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
+
+### Latest master images
+
+```sh
+docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:master
+docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
+```
+### Latest release images
+```sh
+docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.2.1
+docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.2.1
+```
+
 
 ## Description
 

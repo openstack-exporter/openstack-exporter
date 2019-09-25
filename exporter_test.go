@@ -11,23 +11,11 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
 )
 
-const testCloudConfig = `
-clouds:
- test.cloud:
-   region_name: RegionOne
-   identity_api_version: 3
-   identity_interface: internal
-   auth: 
-     username: 'admin'
-     password: 'admin'
-     project_name: 'admin'
-     project_domain_name: 'Default'
-     user_domain_name: 'Default'
-     auth_url: 'http://test.cloud:35357/v3'
-`
 const baseFixturePath = "./fixtures"
 const cloudName = "test.cloud"
 
@@ -62,12 +50,10 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 }
 
 func (suite *BaseOpenStackTestSuite) SetupSuite() {
-	config, _ := NewCloudConfigFromByteArray([]byte(testCloudConfig))
-	cloudConfig, _ := config.GetByName(cloudName)
+	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
 	httpmock.Activate()
 	suite.Prefix = "openstack"
-	suite.Config = cloudConfig
 	suite.SetResponseFromFixture("POST", 201,
 		suite.MakeURL("/v3/auth/tokens", "35357"),
 		suite.FixturePath("tokens"))
@@ -78,7 +64,7 @@ func (suite *BaseOpenStackTestSuite) TearDownSuite() {
 }
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {
-	exporter, _ := EnableExporter(suite.ServiceName, suite.Prefix, suite.Config)
+	exporter, _ := EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
 	suite.Exporter = exporter
 }
 

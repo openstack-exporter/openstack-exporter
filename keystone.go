@@ -1,15 +1,15 @@
 package main
 
 import (
+	"fmt"
+	"github.com/gophercloud/gophercloud"
+	domains2 "github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"gopkg.in/niedbalski/goose.v3/client"
-	"gopkg.in/niedbalski/goose.v3/keystone"
 )
 
 type KeystoneExporter struct {
 	BaseOpenStackExporter
-	Client *keystone.Client
 }
 
 var defaultKeystoneMetrics = []Metric{
@@ -20,13 +20,14 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "regions"},
 }
 
-func NewKeystoneExporter(client client.AuthenticatingClient, prefix string, config *Cloud) (*KeystoneExporter, error) {
+func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
 			Name:   "identity",
 			Prefix: prefix,
-			Config: config,
-		}, keystone.New(client)}
+			Client: client,
+		},
+	}
 
 	for _, metric := range defaultKeystoneMetrics {
 		exporter.AddMetric(metric.Name, metric.Labels, nil)
@@ -43,43 +44,44 @@ func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	log.Infoln("Fetching domains information")
-	domains, err := exporter.Client.ListDomains()
-	if err != nil {
-		log.Errorln(err)
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"],
-		prometheus.GaugeValue, float64(len(domains)))
-
-	log.Infoln("Fetching users information")
-	users, err := exporter.Client.ListUsers()
-	if err != nil {
-		log.Errorln(err)
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"],
-		prometheus.GaugeValue, float64(len(users)))
-
-	log.Infoln("Fetching projects information")
-	projects, err := exporter.Client.ListProjects()
-	if err != nil {
-		log.Errorln(err)
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"],
-		prometheus.GaugeValue, float64(len(projects)))
-
-	log.Infoln("Fetching groups information")
-	groups, err := exporter.Client.ListGroups()
-	if err != nil {
-		log.Errorln(err)
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"],
-		prometheus.GaugeValue, float64(len(groups)))
-
-	log.Infoln("Fetching regions information")
-	regions, err := exporter.Client.ListRegions()
-	if err != nil {
-		log.Errorln(err)
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"],
-		prometheus.GaugeValue, float64(len(regions)))
+	domains := domains2.List(exporter.Client, domains2.ListOpts{})
+	fmt.Println(domains)
+	//if err != nil {
+	//	log.Errorln(err)
+	//}
+	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"],
+	//	prometheus.GaugeValue, float64(len(domains)))
+	//
+	//log.Infoln("Fetching users information")
+	//users, err := exporter.Client.ListUsers()
+	//if err != nil {
+	//	log.Errorln(err)
+	//}
+	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"],
+	//	prometheus.GaugeValue, float64(len(users)))
+	//
+	//log.Infoln("Fetching projects information")
+	//projects, err := exporter.Client.ListProjects()
+	//if err != nil {
+	//	log.Errorln(err)
+	//}
+	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"],
+	//	prometheus.GaugeValue, float64(len(projects)))
+	//
+	//log.Infoln("Fetching groups information")
+	//groups, err := exporter.Client.ListGroups()
+	//if err != nil {
+	//	log.Errorln(err)
+	//}
+	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"],
+	//	prometheus.GaugeValue, float64(len(groups)))
+	//
+	//log.Infoln("Fetching regions information")
+	//regions, err := exporter.Client.ListRegions()
+	//if err != nil {
+	//	log.Errorln(err)
+	//}
+	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"],
+	//	prometheus.GaugeValue, float64(len(regions)))
 
 }

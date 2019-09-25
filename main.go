@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -11,8 +12,8 @@ import (
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
-func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, config)
+func EnableExporter(service, prefix, cloud string) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud)
 	if err != nil {
 		return nil, err
 	}
@@ -20,13 +21,14 @@ func EnableExporter(service string, prefix string, config *Cloud) (*OpenStackExp
 	return &exporter, nil
 }
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volumev3", "identity"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity"}
+var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 func main() {
 	var (
 		bind           = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 		metrics        = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default("/etc/openstack/clouds.yml").String()
+		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
 		prefix         = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
 		cloud          = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
@@ -42,22 +44,17 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	log.Infoln("Starting openstack exporter", version.Info())
+	log.Infof("Starting openstack exporter version %s for cloud: %s", version.Info(), *cloud)
 	log.Infoln("Build context", version.BuildContext())
 
-	config, err := NewCloudConfigFromFile(*osClientConfig)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cloudConfig, err := config.GetByName(*cloud)
-	if err != nil {
-		log.Fatal(err)
+	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
+		log.Debugf("Setting Env var OS_CLIENT_CONFIG_FILE = %s", *osClientConfig)
+		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := EnableExporter(service, *prefix, cloudConfig)
+			_, err := EnableExporter(service, *prefix, *cloud)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

@@ -32,12 +32,22 @@ func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*Glanc
 	return &exporter, nil
 }
 
+func (exporter *GlanceExporter) RefreshClient() error {
+	log.Infoln("Refresh auth client, in case token has expired")
+	return nil
+}
+
 func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
 		ch <- metric
 	}
 }
 func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
+	if err := exporter.RefreshClient(); err != nil {
+		log.Error(err)
+		return
+	}
+
 	log.Infoln("Fetching images list")
 	allPagesImage, _ := images.List(exporter.Client, images.ListOpts{}).AllPages()
 	fmt.Println(allPagesImage)

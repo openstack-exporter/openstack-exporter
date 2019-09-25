@@ -29,6 +29,7 @@ type OpenStackExporter interface {
 	AddMetric(name string, labels []string, constLabels prometheus.Labels)
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
+	RefreshClient() error
 }
 
 type BaseOpenStackExporter struct {

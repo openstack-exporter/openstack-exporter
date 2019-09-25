@@ -15,6 +15,6 @@ require (
 	github.com/sirupsen/logrus v1.2.0 // indirect
 	github.com/stretchr/testify v1.2.2
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
-	gopkg.in/niedbalski/goose.v3 v3.0.0-20190624142258-e599ac475754
+	gopkg.in/niedbalski/goose.v3 v3.0.0-20190910013403-1c698144c35a
 	gopkg.in/yaml.v2 v2.2.2
 )

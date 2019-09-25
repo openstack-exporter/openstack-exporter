@@ -42,6 +42,11 @@ func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
+func (exporter *KeystoneExporter) RefreshClient() error {
+	log.Infoln("Refresh auth client, in case token has expired")
+	return nil
+}
+
 func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
 	log.Infoln("Fetching domains information")
 	domains := domains2.List(exporter.Client, domains2.ListOpts{})

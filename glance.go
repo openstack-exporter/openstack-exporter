@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
@@ -43,13 +42,20 @@ func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	var allImages []images.Image
+
 	log.Infoln("Fetching images list")
-	allPagesImage, _ := images.List(exporter.Client, images.ListOpts{}).AllPages()
-	fmt.Println(allPagesImage)
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"],
-	//	prometheus.GaugeValue, float64(len(images)))
+	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allImages, err = images.ExtractImages(allPagesImage); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"],
+		prometheus.GaugeValue, float64(len(allImages)))
 }

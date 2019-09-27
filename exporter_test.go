@@ -21,19 +21,31 @@ const cloudName = "test.cloud"
 
 type BaseOpenStackTestSuite struct {
 	suite.Suite
-	Config      *Cloud
 	ServiceName string
 	Prefix      string
 	Exporter    *OpenStackExporter
+	Recorder    *httptest.ResponseRecorder
+}
+
+func (suite *BaseOpenStackTestSuite) StartMetricsHandler() {
+	router := mux.NewRouter()
+	router.Handle("/metrics", promhttp.Handler())
+	req, _ := http.NewRequest("GET", "/metrics", nil)
+	suite.Recorder = httptest.NewRecorder()
+	router.ServeHTTP(suite.Recorder, req)
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
 	httpmock.RegisterResponder(method, url, func(request *http.Request) (*http.Response, error) {
 		data, _ := ioutil.ReadFile(file)
 		return &http.Response{
-			Body:       ioutil.NopCloser(bytes.NewReader(data)),
-			Header:     http.Header{"X-Subject-Token": []string{"1234"}},
+			Body: ioutil.NopCloser(bytes.NewReader(data)),
+			Header: http.Header{
+				"Content-Type":    []string{"application/json"},
+				"X-Subject-Token": []string{"1234"},
+			},
 			StatusCode: statusCode,
+			Request:    request,
 		}, nil
 	})
 }
@@ -50,8 +62,6 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 }
 
 func (suite *BaseOpenStackTestSuite) SetupSuite() {
-	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
-
 	httpmock.Activate()
 	suite.Prefix = "openstack"
 	suite.SetResponseFromFixture("POST", 201,
@@ -64,16 +74,16 @@ func (suite *BaseOpenStackTestSuite) TearDownSuite() {
 }
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {
-	exporter, _ := EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
+	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
+	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
+	if err != nil {
+		panic(err)
+	}
 	suite.Exporter = exporter
 }
 
 func (suite *BaseOpenStackTestSuite) TearDownTest() {
 	prometheus.Unregister(*suite.Exporter)
-}
-
-func (suite *BaseOpenStackTestSuite) TestConfig() {
-	suite.NotNil(suite.Config)
 }
 
 type NovaTestSuite struct {
@@ -86,40 +96,34 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 		suite.FixturePath("nova_api_discovery"))
 
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/os-services", ""),
+		suite.MakeURL("/compute/os-services", ""),
 		suite.FixturePath("nova_os_services"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/os-hypervisors/detail", ""),
+		suite.MakeURL("/compute/os-hypervisors/detail", ""),
 		suite.FixturePath("nova_os_hypervisors"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/flavors", ""),
+		suite.MakeURL("/compute/flavors/detail", ""),
 		suite.FixturePath("nova_os_flavors"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/os-availability-zone", ""),
+		suite.MakeURL("/compute/os-availability-zone", ""),
 		suite.FixturePath("nova_os_availability_zones"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/os-security-groups", ""),
+		suite.MakeURL("/compute/os-security-groups", ""),
 		suite.FixturePath("nova_os_security_groups"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/v2.1/servers/detail?all_tenants=1", ""),
+		suite.MakeURL("/compute/servers/detail?all_tenants=true", ""),
 		suite.FixturePath("nova_os_servers"),
 	)
 
-	router := mux.NewRouter()
-	router.Handle("/metrics", promhttp.Handler())
+	suite.StartMetricsHandler()
 
-	req, _ := http.NewRequest("GET", "/metrics", nil)
-	res := httptest.NewRecorder()
-	router.ServeHTTP(res, req)
-
-	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultNovaMetrics {
-		suite.Contains(res.Body.String(), "nova_"+metric.Name)
+		suite.Contains(suite.Recorder.Body.String(), "nova_"+metric.Name)
 	}
 }
 
@@ -153,16 +157,16 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 		suite.MakeURL("/neutron/v2.0/subnets", ""),
 		suite.FixturePath("neutron_subnets"),
 	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/neutron/v2.0/ports", ""),
+		suite.FixturePath("neutron_ports"),
+	)
 
-	router := mux.NewRouter()
-	router.Handle("/metrics", promhttp.Handler())
+	suite.StartMetricsHandler()
 
-	req, _ := http.NewRequest("GET", "/metrics", nil)
-	res := httptest.NewRecorder()
-	router.ServeHTTP(res, req)
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultNeutronMetrics {
-		suite.Contains(res.Body.String(), "neutron_"+metric.Name)
+		suite.Contains(suite.Recorder.Body.String(), "neutron_"+metric.Name)
 	}
 }
 
@@ -171,49 +175,57 @@ type GlanceTestSuite struct {
 }
 
 func (suite *GlanceTestSuite) TestGlanceExporter() {
-
 	suite.SetResponseFromFixture("GET", 200,
 		suite.MakeURL("/glance/", ""),
 		suite.FixturePath("glance_api_discovery"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/glance/v2//images", ""),
+		suite.MakeURL("/glance/v2/images", ""),
 		suite.FixturePath("glance_images"),
 	)
 
-	router := mux.NewRouter()
-	router.Handle("/metrics", promhttp.Handler())
-	req, _ := http.NewRequest("GET", "/metrics", nil)
-	res := httptest.NewRecorder()
-	router.ServeHTTP(res, req)
+	suite.StartMetricsHandler()
 
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultGlanceMetrics {
-		suite.Contains(res.Body.String(), "glance_"+metric.Name)
+		suite.Contains(suite.Recorder.Body.String(), "glance_"+metric.Name)
 	}
 }
 
-//type CinderTestSuite struct {
-//	BaseOpenStackTestSuite
-//}
-//
-//func (suite *CinderTestSuite) TestCinderExporter() {
-//
-//	router := mux.NewRouter()
-//	router.Handle("/metrics", promhttp.Handler())
-//	req, _ := http.NewRequest("GET", "/metrics", nil)
-//	res := httptest.NewRecorder()
-//	router.ServeHTTP(res, req)
-//
-//	//Check that all the default metrics are contained on the response
-//	for _, metric := range defaultCinderMetrics {
-//		suite.Contains(res.Body.String(), "cinder_" + metric.Name)
-//	}
-//}
-//
+type CinderTestSuite struct {
+	BaseOpenStackTestSuite
+}
+
+func (suite *CinderTestSuite) TestCinderExporter() {
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/volumes/", ""),
+		suite.FixturePath("cinder_api_discovery"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/volumes/volumes/detail?all_tenants=true", ""),
+		suite.FixturePath("cinder_volumes"),
+	)
+
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/volumes/snapshots", ""),
+		suite.FixturePath("cinder_snapshots"),
+	)
+
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/volumes/os-services", ""),
+		suite.FixturePath("cinder_os_services"),
+	)
+	suite.StartMetricsHandler()
+
+	//Check that all the default metrics are contained on the response
+	for _, metric := range defaultCinderMetrics {
+		suite.Contains(suite.Recorder.Body.String(), "cinder_"+metric.Name)
+	}
+}
 
 func TestOpenStackSuites(t *testing.T) {
-	suite.Run(t, &NovaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "compute"}})
-	suite.Run(t, &NeutronTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "network"}})
-	suite.Run(t, &GlanceTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "image"}})
+	suite.Run(t, &CinderTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "volume"}})
+	//suite.Run(t, &NovaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "compute"}})
+	//suite.Run(t, &NeutronTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "network"}})
+	//suite.Run(t, &GlanceTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "image"}})
 }

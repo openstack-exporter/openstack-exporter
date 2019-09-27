@@ -1,11 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"strconv"
 	"strings"
 )
 
@@ -80,53 +82,68 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	log.Infoln("Fetching volumes info")
+	var allVolumes []volumes.Volume
 
-	allPagesVolumes, _ := volumes.List(exporter.Client,
-		volumes.ListOpts{
-			AllTenants: true,
-		}).AllPages()
-	//
-	//volumes, err := exporter.Client.GetVolumesDetail(true)
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//	return
-	//}
-	//
-	//log.Infoln("Fetching volumes information")
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
-	//	prometheus.GaugeValue, float64(len(volumes.Volumes)))
-	//
-	//// Server status metrics
-	//for _, volume := range volumes.Volumes {
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"],
-	//		prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-	//		volume.Status, volume.Bootable, volume.Os_Vol_Tenant_Attr_TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
-	//}
-	//
-	//log.Infoln("Fetching snapshots information")
-	//snapshots, err := exporter.Client.GetSnapshotsSimple(true)
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//	return
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"],
-	//	prometheus.GaugeValue, float64(len(snapshots.Snapshots)))
-	//
-	//log.Infoln("Fetching services state information")
-	//services, err := exporter.Client.GetServices()
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//	return
-	//}
-	//
-	//for _, service := range services.Services {
-	//	var state int = 0
-	//	if service.State == "up" {
-	//		state = 1
-	//	}
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
-	//		prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
-	//}
-	fmt.Println(allPagesVolumes)
+	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
+		AllTenants: true,
+	}).AllPages()
+
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	allVolumes, err = volumes.ExtractVolumes(allPagesVolumes)
+	if err != nil {
+		log.Errorln(err)
+	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
+		prometheus.GaugeValue, float64(len(allVolumes)))
+
+	// Volume status metrics
+	for _, volume := range allVolumes {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"],
+			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+			volume.Status, volume.Bootable, "", strconv.Itoa(volume.Size), volume.VolumeType)
+	}
+
+	log.Infoln("Fetching snapshots information")
+	var allSnapshots []snapshots.Snapshot
+
+	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	allSnapshots, err = snapshots.ExtractSnapshots(allPagesSnapshot)
+	if err != nil {
+		log.Errorln(err)
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"],
+		prometheus.GaugeValue, float64(len(allSnapshots)))
+
+	log.Infoln("Fetching services state information")
+	var allServices []services.Service
+
+	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+	allServices, err = services.ExtractServices(allPagesService)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	for _, service := range allServices {
+		var state int = 0
+		if service.State == "up" {
+			state = 1
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
+			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
+	}
 }

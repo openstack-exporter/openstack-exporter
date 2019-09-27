@@ -3,7 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )
@@ -86,97 +91,147 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	log.Infoln("Fetching list of services")
-	services := services.List(exporter.Client)
-	fmt.Println(services)
+	var allServices []services.Service
 
-	//services, err := exporter.Client.ListServices()
-	//if err != nil {
-	//	log.Errorf(err.Error())
-	//}
-	//
-	//for _, service := range services {
-	//	var state int = 0
-	//	if service.State == "up" {
-	//		state = 1
-	//	}
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
-	//		prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
-	//}
-	//
-	//log.Infoln("Fetching list of hypervisors")
-	//hypervisors, err := exporter.Client.ListHypervisors()
-	//if err != nil {
-	//	log.Errorf("%v", err)
-	//}
-	//
-	//for _, hypervisor := range hypervisors {
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"],
-	//		prometheus.GaugeValue, float64(hypervisor.RunningVms), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"],
-	//		prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"],
-	//		prometheus.GaugeValue, float64(hypervisor.Vcpus), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"],
-	//		prometheus.GaugeValue, float64(hypervisor.VcpusUsed), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"],
-	//		prometheus.GaugeValue, float64(hypervisor.MemoryMb*MEGABYTE), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"],
-	//		prometheus.GaugeValue, float64(hypervisor.MemoryMbUsed*MEGABYTE), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"],
-	//		prometheus.GaugeValue, float64(hypervisor.LocalGb*GIGABYTE), hypervisor.HypervisorHostname, "")
-	//
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"],
-	//		prometheus.GaugeValue, float64(hypervisor.LocalGbUsed*GIGABYTE), hypervisor.HypervisorHostname, "")
-	//}
-	//
-	//log.Infoln("Fetching list of flavors")
-	//flavors, err := exporter.Client.ListFlavors()
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"],
-	//	prometheus.GaugeValue, float64(len(flavors)))
-	//
-	//log.Infoln("Fetching list of availability zones")
-	//azs, err := exporter.Client.ListAvailabilityZones()
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"],
-	//	prometheus.GaugeValue, float64(len(azs)))
-	//
-	//log.Infoln("Fetching list of security groups")
-	//securtyGroups, err := exporter.Client.ListSecurityGroups()
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
-	//	prometheus.GaugeValue, float64(len(securtyGroups)))
-	//
-	//filter := nova.NewFilter()
-	//filter.Set("all_tenants", "1")
-	//log.Infoln("Fetching list of servers for all tenants")
-	//servers, err := exporter.Client.ListServersDetail(filter)
-	//if err != nil {
-	//	log.Errorf("%s", err)
-	//}
-	//
-	//ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"],
-	//	prometheus.GaugeValue, float64(len(servers)))
-	//
-	//// Server status metrics
-	//for _, server := range servers {
-	//	ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"],
-	//		prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.Id, server.Status, server.Name, server.TenantId,
-	//		server.UserId, server.AddressIPv4, server.AddressIPv6, server.HostId, server.UUID, server.AvailabilityZone, server.Flavor.Id)
-	//}
+	allPagesServices, err := services.List(exporter.Client).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allServices, err = services.ExtractServices(allPagesServices); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	for _, service := range allServices {
+		var state int = 0
+		if service.State == "up" {
+			state = 1
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
+			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
+	}
+
+	var allHypervisors []hypervisors.Hypervisor
+
+	log.Infoln("Fetching list of hypervisors")
+	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	for _, hypervisor := range allHypervisors {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"],
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"],
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"],
+			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"],
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"],
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"],
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"],
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, "")
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"],
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, "")
+	}
+
+	log.Infoln("Fetching list of flavors")
+	var allFlavors []flavors.Flavor
+
+	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"],
+		prometheus.GaugeValue, float64(len(allFlavors)))
+
+	log.Infoln("Fetching list of availability zones")
+	var allAZs []availabilityzones.AvailabilityZone
+
+	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allAZs, err = availabilityzones.ExtractAvailabilityZones(allPagesAZs); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"],
+		prometheus.GaugeValue, float64(len(allAZs)))
+
+	log.Infoln("Fetching list of nova security groups")
+	var allSecurityGroups []secgroups.SecurityGroup
+
+	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allSecurityGroups, err = secgroups.ExtractSecurityGroups(allPagesSecurityGroups); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
+		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+
+	log.Infoln("Fetching list of servers for all tenants")
+	type ServerWithExt struct {
+		servers.Server
+		availabilityzones.ServerAvailabilityZoneExt
+	}
+
+	var allServers []ServerWithExt
+
+	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	err = servers.ExtractServersInto(allPagesServers, &allServers)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"],
+		prometheus.GaugeValue, float64(len(allServers)))
+
+	// Server status metrics
+	for _, server := range allServers {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"],
+			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+	}
 }

@@ -74,7 +74,7 @@ func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 
-	client, err := clientconfig.NewServiceClient("compute", &clientconfig.ClientOpts{Cloud: cloud})
+	client, err := clientconfig.NewServiceClient(name, &clientconfig.ClientOpts{Cloud: cloud})
 	if err != nil {
 		return nil, err
 	}

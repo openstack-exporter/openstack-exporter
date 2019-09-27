@@ -3,7 +3,7 @@ go:
     # be updated.
     version: 1.11
 repository:
-    path: github.com/niedbalski/openstack-exporter
+    path: github.com/openstack-exporter/openstack-exporter
 build:
     flags: -mod=vendor
 tarball:

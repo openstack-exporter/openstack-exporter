@@ -19,6 +19,7 @@ jobs:
 
   build:
     machine: true
+    image: ubuntu-1604:201903-01
     working_directory: /home/circleci/.go_workspace/src/github.com/niedbalski/openstack-exporter
 
     steps:

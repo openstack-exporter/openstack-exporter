@@ -23,8 +23,8 @@ jobs:
 
     steps:
     - checkout
-    - run: apt-get install snapd
-    - run: snap install go
+    - run: sudo apt-get install snapd
+    - run: sudo snap install go
     - run: go mod vendor
     - run: go mod download
     - run: make promu

@@ -24,9 +24,7 @@ jobs:
 
     steps:
     - checkout
-    - run: sudo add-apt-repository -y ppa:longsleep/golang-backports
-    - run: sudo apt-get -yyq update
-    - run: sudo apt-get -yyq install golang-go
+    - run: snap install go --classic
     - run: go mod vendor
     - run: go mod download
     - run: make promu

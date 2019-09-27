@@ -23,6 +23,7 @@ jobs:
 
     steps:
     - checkout
+    - run: apt-get install snapd
     - run: snap install go
     - run: go mod vendor
     - run: go mod download

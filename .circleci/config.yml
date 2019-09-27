@@ -23,6 +23,7 @@ jobs:
 
     steps:
     - checkout
+    - run: snap install go
     - run: go mod vendor
     - run: go mod download
     - run: make promu

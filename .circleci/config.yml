@@ -25,8 +25,8 @@ jobs:
     steps:
     - checkout
     - run: sudo snap install go --classic
-    - run: /snap/bin/go mod vendor
-    - run: /snap/bin/go mod download
+    - run: GO111MODULE=on /snap/bin/go mod vendor
+    - run: GO111MODULE=on /snap/bin/go mod download
     - run: make promu
     - run: promu crossbuild -v
     - persist_to_workspace:

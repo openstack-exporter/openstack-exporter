@@ -23,6 +23,8 @@ jobs:
 
     steps:
     - checkout
+    - run: go mod vendor
+    - run: go mod download
     - run: make promu
     - run: promu crossbuild -v
     - persist_to_workspace:

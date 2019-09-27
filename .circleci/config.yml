@@ -24,7 +24,7 @@ jobs:
 
     steps:
     - checkout
-    - run: snap install go --classic
+    - run: sudo snap install go --classic
     - run: go mod vendor
     - run: go mod download
     - run: make promu

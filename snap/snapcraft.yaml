@@ -17,7 +17,7 @@ description: |
 adopt-info: openstack-exporter
 confinement: strict
 version: "$VERSION"
-grade: "devel"
+grade: "$GRADE"
 
 apps:
   openstack-exporter:

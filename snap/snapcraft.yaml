@@ -1,4 +1,4 @@
-name: openstack-exporter
+name: golang-openstack-exporter
 base: core18 # the base snap is the execution environment for this snap
 
 summary: OpenStack Exporter for Prometheus
@@ -14,7 +14,7 @@ description: |
   By default the openstack_exporter serves on port 0.0.0.0:9180 at the /metrics
   URL.
 
-adopt-info: openstack-exporter
+adopt-info: golang-openstack-exporter
 confinement: strict
 version: "$VERSION"
 grade: "devel"

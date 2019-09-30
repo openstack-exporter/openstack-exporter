@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
@@ -82,21 +83,28 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	log.Infoln("Fetching volumes info")
-	var allVolumes []volumes.Volume
+
+	type VolumeWithExt struct {
+		volumes.Volume
+		volumetenants.VolumeTenantExt
+	}
+
+	var allVolumes []VolumeWithExt
 
 	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
 		AllTenants: true,
 	}).AllPages()
-
 	if err != nil {
 		log.Errorln(err)
 		return
 	}
 
-	allVolumes, err = volumes.ExtractVolumes(allPagesVolumes)
+	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
 	if err != nil {
 		log.Errorln(err)
+		return
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"],
 		prometheus.GaugeValue, float64(len(allVolumes)))
 
@@ -104,7 +112,7 @@ func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
 	for _, volume := range allVolumes {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"],
 			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-			volume.Status, volume.Bootable, "", strconv.Itoa(volume.Size), volume.VolumeType)
+			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
 	}
 
 	log.Infoln("Fetching snapshots information")

@@ -1,6 +1,7 @@
 # OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci] 
 
-A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang.
+A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
+[gophercloud](https://github.com/gophercloud/gophercloud) library.
 
 ## Containers and binaries build status
 

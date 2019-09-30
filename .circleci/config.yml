@@ -109,8 +109,7 @@ jobs:
           command: |
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
-            snapcraft push *.snap --channel edge
-
+            /snap/bin/snapcraft push --release=edge *.snap
 workflows:
   version: 2
   openstack_exporter:

@@ -6,21 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
-
-func EnableExporter(service, prefix, cloud string) (*exporters.OpenStackExporter, error) {
-	exporter, err := exporters.NewExporter(service, prefix, cloud)
-	if err != nil {
-		return nil, err
-	}
-	prometheus.MustRegister(exporter)
-	return &exporter, nil
-}
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity"}
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
@@ -55,7 +45,7 @@ func main() {
 
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := EnableExporter(service, *prefix, *cloud)
+			_, err := exporters.EnableExporter(service, *prefix, *cloud)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

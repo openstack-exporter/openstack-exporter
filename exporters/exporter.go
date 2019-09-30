@@ -32,6 +32,15 @@ type OpenStackExporter interface {
 	RefreshClient() error
 }
 
+func EnableExporter(service, prefix, cloud string) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud)
+	if err != nil {
+		return nil, err
+	}
+	prometheus.MustRegister(exporter)
+	return &exporter, nil
+}
+
 type BaseOpenStackExporter struct {
 	Name    string
 	Prefix  string

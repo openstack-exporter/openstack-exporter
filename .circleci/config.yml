@@ -83,9 +83,13 @@ jobs:
 
   snap_master_build:
     docker:
-      - image: cibuilds/snapcraft:stable
+      - image: circleci/golang:1.12
     steps:
       - checkout
+      - run:
+          name: Install snapcraft
+          command: |
+            ./.circleci/install_snapcraft.sh
       - run: sed -i -e "s/'$VERSION'/latest/g" snap/snapcraft.yaml
       - run: sed -i -e "s/'$GRADE'/devel/g" snap/snapcraft.yaml
       - run:

@@ -82,21 +82,16 @@ jobs:
     - run: make docker-publish DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
 
   snap_master_build:
-    docker:
-      - image: cibuilds/snapcraft:stable
+    machine:
+      image: ubuntu-1604:201903-01
     steps:
       - checkout
-      - run:
-          name: install go
-          command: |
-            cd /tmp
-            wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
-            tar -xvf go1.12.linux-amd64.tar.gz > /dev/null && sudo mv go /usr/local && rm go1.12.linux-amd64.tar.gz
+      - run: sudo snap install snapcraft
       - run: sed -i -e "s/'$VERSION'/latest/g" snap/snapcraft.yaml
       - run: sed -i -e "s/'$GRADE'/devel/g" snap/snapcraft.yaml
       - run:
           name: "Build edge snap"
-          command: snapcraft
+          command: /snap/bin/snapcraft
 
       - persist_to_workspace:
           root: .

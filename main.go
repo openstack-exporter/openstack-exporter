@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"net/http"
 	"os"
 
@@ -9,11 +10,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
-	kingpin "gopkg.in/alecthomas/kingpin.v2"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-func EnableExporter(service, prefix, cloud string) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud)
+func EnableExporter(service, prefix, cloud string) (*exporters.OpenStackExporter, error) {
+	exporter, err := exporters.NewExporter(service, prefix, cloud)
 	if err != nil {
 		return nil, err
 	}

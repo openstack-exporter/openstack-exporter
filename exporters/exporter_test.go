@@ -1,10 +1,11 @@
-package main
+package exporters
 
 import (
 	"bytes"
 	"fmt"
 	"github.com/gorilla/mux"
 	"github.com/jarcoal/httpmock"
+	"github.com/openstack-exporter/openstack-exporter"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/suite"
@@ -75,7 +76,7 @@ func (suite *BaseOpenStackTestSuite) TearDownSuite() {
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
-	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
+	exporter, err := main.EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
 	if err != nil {
 		panic(err)
 	}
@@ -122,7 +123,7 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 
 	suite.StartMetricsHandler()
 
-	for _, metric := range defaultNovaMetrics {
+	for _, metric := range main.defaultNovaMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "nova_"+metric.Name)
 	}
 }
@@ -165,7 +166,7 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 	suite.StartMetricsHandler()
 
 	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultNeutronMetrics {
+	for _, metric := range main.defaultNeutronMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "neutron_"+metric.Name)
 	}
 }
@@ -187,7 +188,7 @@ func (suite *GlanceTestSuite) TestGlanceExporter() {
 	suite.StartMetricsHandler()
 
 	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultGlanceMetrics {
+	for _, metric := range main.defaultGlanceMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "glance_"+metric.Name)
 	}
 }
@@ -218,7 +219,7 @@ func (suite *CinderTestSuite) TestCinderExporter() {
 	suite.StartMetricsHandler()
 
 	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultCinderMetrics {
+	for _, metric := range main.defaultCinderMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "cinder_"+metric.Name)
 	}
 }

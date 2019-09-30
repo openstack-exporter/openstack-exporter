@@ -86,7 +86,7 @@ jobs:
       image: ubuntu-1604:201903-01
     steps:
       - checkout
-      - run: sudo snap install snapcraft
+      - run: sudo snap install snapcraft --classic
       - run: sed -i -e "s/'$VERSION'/latest/g" snap/snapcraft.yaml
       - run: sed -i -e "s/'$GRADE'/devel/g" snap/snapcraft.yaml
       - run:

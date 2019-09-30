@@ -14,7 +14,7 @@ description: |
   By default the openstack_exporter serves on port 0.0.0.0:9180 at the /metrics
   URL.
 
-adopt-info: golang-openstack-exporter
+adopt-info: openstack-exporter
 confinement: strict
 version: "$VERSION"
 grade: "devel"

@@ -83,13 +83,15 @@ jobs:
 
   snap_master_build:
     docker:
-      - image: circleci/golang:1.12
+      - image: cibuilds/snapcraft:stable
     steps:
       - checkout
       - run:
-          name: Install snapcraft
+          name: install go
           command: |
-            ./.circleci/install_snapcraft.sh
+            cd /tmp
+            wget https://dl.google.com/go/go1.12.linux-amd64.tar.gz
+            tar -xvf go1.12.linux-amd64.tar.gz > /dev/null && sudo mv go /usr/local && rm go1.12.linux-amd64.tar.gz
       - run: sed -i -e "s/'$VERSION'/latest/g" snap/snapcraft.yaml
       - run: sed -i -e "s/'$GRADE'/devel/g" snap/snapcraft.yaml
       - run:

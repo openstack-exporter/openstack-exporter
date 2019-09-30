@@ -29,6 +29,11 @@ parts:
     go-importpath: github.com/openstack-exporter/openstack-exporter
     go-channel: latest/stable
     parse-info: []
+    override-pull: |
+      snapcraftctl pull
+      snapcraftctl set-version "$VERSION"
+      snapcraftctl set-grade "$GRADE"
+
     build-packages:
       - git
       - build-essential

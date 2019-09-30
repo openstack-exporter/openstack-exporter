@@ -81,6 +81,35 @@ jobs:
     - run: docker run -i -t --entrypoint "sh" quay.io/niedbalski/openstack-exporter-linux-amd64:$CIRCLE_TAG -c 'test -e /bin/openstack-exporter; exit $?'
     - run: make docker-publish DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
 
+  snap_master_build:
+    docker:
+      - image: cibuilds/snapcraft:stable
+    steps:
+      - checkout
+      - run: snapcraftctl set-version "latest"
+      - run: snapcraftctl set-grade "devel"
+      - run:
+          name: "Build edge snap"
+          command: snapcraft
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "*.snap"
+
+  snap_master_publish:
+    docker:
+      - image: cibuilds/snapcraft:stable
+    steps:
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Publish edge snap to store"
+          command: |
+            mkdir .snapcraft
+            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
+            snapcraft push *.snap --channel edge
+
 workflows:
   version: 2
   openstack_exporter:
@@ -95,7 +124,6 @@ workflows:
             only: /.*/
         requires:
           - test
-
     - release:
         requires:
           - test
@@ -105,6 +133,20 @@ workflows:
             only: /^v[0-9]+(\.[0-9]+){2}(-.+|[^-.]*)$/
           branches:
             ignore: /.*/
+
+    - snap_master_build:
+        requires:
+          - test
+        filters:
+          branches:
+            only: master
+
+    - snap_master_publish:
+        requires:
+          - snap_master_build
+        filters:
+          branches:
+            only: master
 
     - docker_master:
         requires:

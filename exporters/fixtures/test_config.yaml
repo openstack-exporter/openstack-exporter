@@ -1,0 +1,12 @@
+clouds:
+  test.cloud:
+    region_name: RegionOne
+    identity_api_version: 3
+    identity_interface: internal
+    auth:
+      username: 'admin'
+      password: 'admin'
+      project_name: 'admin'
+      project_domain_name: 'Default'
+      user_domain_name: 'Default'
+      auth_url: 'http://test.cloud:35357/v3'

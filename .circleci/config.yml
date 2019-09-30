@@ -18,11 +18,15 @@ jobs:
     - run: make all
 
   build:
-    machine: true
+    machine:
+      image: ubuntu-1604:201903-01
     working_directory: /home/circleci/.go_workspace/src/github.com/niedbalski/openstack-exporter
 
     steps:
     - checkout
+    - run: sudo snap install go --classic
+    - run: GO111MODULE=on /snap/bin/go mod vendor
+    - run: GO111MODULE=on /snap/bin/go mod download
     - run: make promu
     - run: promu crossbuild -v
     - persist_to_workspace:

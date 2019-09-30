@@ -1,4 +1,4 @@
-name: openstack-exporter
+name: golang-openstack-exporter
 base: core18 # the base snap is the execution environment for this snap
 
 summary: OpenStack Exporter for Prometheus
@@ -16,6 +16,8 @@ description: |
 
 adopt-info: openstack-exporter
 confinement: strict
+version: "$VERSION"
+grade: "$GRADE"
 
 apps:
   openstack-exporter:
@@ -29,13 +31,6 @@ parts:
     go-importpath: github.com/openstack-exporter/openstack-exporter
     go-channel: latest/stable
     parse-info: []
-    override-pull: |
-      snapcraftctl pull
-      version="$(git describe --tags --always --dirty)"
-      [ -n "$(echo $version | grep '-')" ] && grade=devel || grade=stable
-      snapcraftctl set-version "$version"
-      snapcraftctl set-grade "$grade"
-
     build-packages:
       - git
       - build-essential

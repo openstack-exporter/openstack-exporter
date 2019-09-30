@@ -2,22 +2,36 @@
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang.
 
-## Containers build status
+## Containers and binaries build status
 
 amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64) | arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
 
-### Latest master images
+### Latest Docker master images
 
 ```sh
 docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:master
 docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
 ```
-### Latest release images
+### Latest Docker release images
 ```sh
 docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.3.0
 docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.3.0
 ```
 
+## Snap
+
+The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
+
+For installing the latest master build (edge channel):
+
+```sh
+snap install --channel edge golang-openstack-exporter
+```
+
+For installing the latest stable version (stable channel):
+```sh
+snap install --channel stable golang-openstack-exporter
+```
 
 ## Description
 

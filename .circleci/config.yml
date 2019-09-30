@@ -86,7 +86,7 @@ jobs:
       - image: cibuilds/snapcraft:stable
     steps:
       - checkout
-      - run: sudo apt install snapcraft
+      - run: sudo apt -yyq install snapcraft
       - run: snapcraftctl set-version "latest"
       - run: snapcraftctl set-grade "devel"
       - run:

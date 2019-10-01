@@ -49,14 +49,14 @@ You can build it by yourself by cloning this repository and run:
 
 ```sh
 make common-build
-./openstack-exporter --os-client-config /etc/openstack/clouds.yml region.mycludprovider.org
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml region.mycludprovider.org
 ```
 
 Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
 details):
 
 ```sh
-docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yml -it quay.io/niedbalski/openstack-exporter-linux-amd64:master my-cloud.org
+docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it quay.io/niedbalski/openstack-exporter-linux-amd64:master my-cloud.org
 ```
 
 ### Command line options

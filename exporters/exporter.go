@@ -11,6 +11,7 @@ import (
 type Metric struct {
 	Name   string
 	Labels []string
+	Fn     ListFunc
 }
 
 const (
@@ -26,9 +27,10 @@ const (
 
 type OpenStackExporter interface {
 	GetName() string
-	AddMetric(name string, labels []string, constLabels prometheus.Labels)
+	AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels)
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
+	CollectMetrics(ch chan<- prometheus.Metric)
 	RefreshClient() error
 }
 
@@ -41,28 +43,53 @@ func EnableExporter(service, prefix, cloud string) (*OpenStackExporter, error) {
 	return &exporter, nil
 }
 
+type PrometheusMetric struct {
+	Metric *prometheus.Desc
+	Fn     ListFunc
+}
+
 type BaseOpenStackExporter struct {
 	Name    string
 	Prefix  string
-	Metrics map[string]*prometheus.Desc
+	Metrics map[string]*PrometheusMetric
 	Client  *gophercloud.ServiceClient
 }
+
+type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }
 
+func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metric) {
+
+	for name, metric := range exporter.Metrics {
+		log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), name)
+		err := exporter.RefreshClient()
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+		if metric.Fn == nil {
+			log.Debugf("No function handler set for metric: %s", name)
+			continue
+		}
+
+		metric.Fn(exporter, ch)
+	}
+}
+
 func (exporter *BaseOpenStackExporter) RefreshClient() error {
-	log.Debugln("Refreshing auth client in case token has expired")
+	log.Infoln("Refreshing auth client in case token has expired")
 	if err := exporter.Client.Reauthenticate(exporter.Client.Token()); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, constLabels prometheus.Labels) {
+func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {
 	if exporter.Metrics == nil {
-		exporter.Metrics = map[string]*prometheus.Desc{}
+		exporter.Metrics = make(map[string]*PrometheusMetric)
 	}
 
 	if constLabels == nil {
@@ -73,9 +100,12 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, labels []string, c
 
 	if _, ok := exporter.Metrics[name]; !ok {
 		log.Infof("Adding metric: %s to exporter: %s", name, exporter.Name)
-		exporter.Metrics[name] = prometheus.NewDesc(
-			prometheus.BuildFQName(exporter.GetName(), "", name),
-			name, labels, constLabels)
+		exporter.Metrics[name] = &PrometheusMetric{
+			Metric: prometheus.NewDesc(
+				prometheus.BuildFQName(exporter.GetName(), "", name),
+				name, labels, constLabels),
+			Fn: fn,
+		}
 	}
 }
 

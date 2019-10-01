@@ -12,7 +12,7 @@ type GlanceExporter struct {
 }
 
 var defaultGlanceMetrics = []Metric{
-	{Name: "images"},
+	{Name: "images", Fn: ListImages},
 }
 
 func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*GlanceExporter, error) {
@@ -25,7 +25,7 @@ func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*Glanc
 	}
 
 	for _, metric := range defaultGlanceMetrics {
-		exporter.AddMetric(metric.Name, metric.Labels, nil)
+		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
 
 	return &exporter, nil
@@ -33,18 +33,18 @@ func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*Glanc
 
 func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
-		ch <- metric
+		ch <- metric.Metric
 	}
 }
 func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
-	if err := exporter.RefreshClient(); err != nil {
-		log.Error(err)
-		return
-	}
+	exporter.CollectMetrics(ch)
+}
 
-	var allImages []images.Image
+func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching images list")
+	var allImages []images.Image
+
 	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
@@ -56,6 +56,6 @@ func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"].Metric,
 		prometheus.GaugeValue, float64(len(allImages)))
 }

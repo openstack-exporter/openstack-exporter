@@ -4,7 +4,6 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
-	//"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
@@ -18,12 +17,12 @@ type NeutronExporter struct {
 }
 
 var defaultNeutronMetrics = []Metric{
-	{Name: "floating_ips"},
-	{Name: "networks"},
-	{Name: "security_groups"},
-	{Name: "subnets"},
-	{Name: "ports"},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}},
+	{Name: "floating_ips", Fn: ListFloatingIps},
+	{Name: "networks", Fn: ListNetworks},
+	{Name: "security_groups", Fn: ListSecGroups},
+	{Name: "subnets", Fn: ListSubnets},
+	{Name: "ports", Fn: ListPorts},
+	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
 }
 
 func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string) (*NeutronExporter, error) {
@@ -36,7 +35,7 @@ func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string) (*Neut
 	}
 
 	for _, metric := range defaultNeutronMetrics {
-		exporter.AddMetric(metric.Name, metric.Labels, nil)
+		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
 
 	return &exporter, nil
@@ -44,11 +43,16 @@ func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string) (*Neut
 
 func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
-		ch <- metric
+		ch <- metric.Metric
 	}
 }
 
 func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
+	exporter.CollectMetrics(ch)
+}
+
+func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching floating ips list")
 	var allFloatingIPs []floatingips.FloatingIP
 
@@ -62,8 +66,11 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
 		prometheus.GaugeValue, float64(len(allFloatingIPs)))
+}
+
+func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching agents list")
 	var allAgents []agents.Agent
@@ -77,6 +84,7 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	allAgents, err = agents.ExtractAgents(allPagesAgents)
 	if err != nil {
 		log.Errorln(err)
+		return
 	}
 
 	for _, agent := range allAgents {
@@ -89,9 +97,12 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 		if agent.AdminStateUp {
 			adminState = "up"
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), agent.Host, agent.Binary, adminState)
 	}
+}
+
+func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of networks")
 	var allNetworks []networks.Network
@@ -107,8 +118,11 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 		log.Errorln(err)
 		return
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
+}
+
+func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of network security groups")
 	var allSecurityGroups []groups.SecGroup
@@ -122,9 +136,13 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	allSecurityGroups, err = groups.ExtractGroups(allPagesSecurityGroups)
 	if err != nil {
 		log.Errorln(err)
+		return
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+}
+
+func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of subnets")
 	var allSubnets []subnets.Subnet
@@ -138,9 +156,13 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	allSubnets, err = subnets.ExtractSubnets(allPagesSubnets)
 	if err != nil {
 		log.Errorln(err)
+		return
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
+}
+
+func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of ports")
 	var allPorts []ports.Port
@@ -157,7 +179,6 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports"].Metric,
 		prometheus.GaugeValue, float64(len(allPorts)))
-
 }

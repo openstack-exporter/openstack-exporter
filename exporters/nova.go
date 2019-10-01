@@ -45,11 +45,12 @@ type NovaExporter struct {
 }
 
 var defaultNovaMetrics = []Metric{
-	{Name: "flavors"},
-	{Name: "availability_zones"},
-	{Name: "security_groups"},
-	{Name: "total_vms"},
-	{Name: "running_vms", Labels: []string{"hostname", "aggregate"}},
+	{Name: "flavors", Fn: ListFlavors},
+	{Name: "availability_zones", Fn: ListAZs},
+	{Name: "security_groups", Fn: ListComputeSecGroups},
+	{Name: "total_vms", Fn: ListAllServers},
+	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}, Fn: ListNovaAgentState},
+	{Name: "running_vms", Labels: []string{"hostname", "aggregate"}, Fn: ListHypervisors},
 	{Name: "current_workload", Labels: []string{"hostname", "aggregate"}},
 	{Name: "vcpus_available", Labels: []string{"hostname", "aggregate"}},
 	{Name: "vcpus_used", Labels: []string{"hostname", "aggregate"}},
@@ -57,7 +58,6 @@ var defaultNovaMetrics = []Metric{
 	{Name: "memory_used_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "aggregate"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "aggregate"}},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
 }
@@ -70,9 +70,8 @@ func NewNovaExporter(client *gophercloud.ServiceClient, prefix string) (*NovaExp
 			Client: client,
 		},
 	}
-
 	for _, metric := range defaultNovaMetrics {
-		exporter.AddMetric(metric.Name, metric.Labels, nil)
+		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
 
 	return &exporter, nil
@@ -80,15 +79,15 @@ func NewNovaExporter(client *gophercloud.ServiceClient, prefix string) (*NovaExp
 
 func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
-		ch <- metric
+		ch <- metric.Metric
 	}
 }
 
 func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
-	if err := exporter.RefreshClient(); err != nil {
-		log.Error(err)
-		return
-	}
+	exporter.CollectMetrics(ch)
+}
+
+func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of services")
 	var allServices []services.Service
@@ -109,13 +108,16 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 		if service.State == "up" {
 			state = 1
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
+}
 
-	var allHypervisors []hypervisors.Hypervisor
+func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of hypervisors")
+	var allHypervisors []hypervisors.Hypervisor
+
 	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
@@ -128,30 +130,33 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, hypervisor := range allHypervisors {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, "")
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, "")
 	}
+}
+
+func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of flavors")
 	var allFlavors []flavors.Flavor
@@ -168,8 +173,11 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+}
+
+func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of availability zones")
 	var allAZs []availabilityzones.AvailabilityZone
@@ -185,8 +193,11 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"].Metric,
 		prometheus.GaugeValue, float64(len(allAZs)))
+}
+
+func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of nova security groups")
 	var allSecurityGroups []secgroups.SecurityGroup
@@ -202,10 +213,14 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+}
+
+func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
 	log.Infoln("Fetching list of servers for all tenants")
+
 	type ServerWithExt struct {
 		servers.Server
 		availabilityzones.ServerAvailabilityZoneExt
@@ -225,12 +240,12 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
 
 	// Server status metrics
 	for _, server := range allServers {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"],
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
 			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
 	}

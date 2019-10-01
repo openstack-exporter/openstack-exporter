@@ -9,7 +9,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"sync"
 )
 
 type KeystoneExporter struct {
@@ -17,11 +16,11 @@ type KeystoneExporter struct {
 }
 
 var defaultKeystoneMetrics = []Metric{
-	{Name: "domains"},
-	{Name: "users"},
-	{Name: "groups"},
-	{Name: "projects"},
-	{Name: "regions"},
+	{Name: "domains", Fn: ListDomains},
+	{Name: "users", Fn: ListUsers},
+	{Name: "groups", Fn: ListGroups},
+	{Name: "projects", Fn: ListProjects},
+	{Name: "regions", Fn: ListRegions},
 }
 
 func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string) (*KeystoneExporter, error) {
@@ -34,7 +33,7 @@ func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string) (*Key
 	}
 
 	for _, metric := range defaultKeystoneMetrics {
-		exporter.AddMetric(metric.Name, metric.Labels, nil)
+		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
 
 	return &exporter, nil
@@ -42,11 +41,12 @@ func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string) (*Key
 
 func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range exporter.Metrics {
-		ch <- metric
+		ch <- metric.Metric
 	}
 }
 
-func ListDomains(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric) {
+func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching domains information")
 	var allDomains []domains.Domain
 
@@ -61,12 +61,13 @@ func ListDomains(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prome
 		log.Errorln(err)
 		return
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
 
 }
 
-func ListProjects(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric) {
+func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching projects information")
 	var allProjects []projects.Project
 
@@ -82,11 +83,12 @@ func ListProjects(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prom
 		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
 }
 
-func ListRegions(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric) {
+func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching regions information")
 	var allRegions []regions.Region
 
@@ -101,11 +103,12 @@ func ListRegions(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prome
 		log.Errorln(err)
 		return
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
 		prometheus.GaugeValue, float64(len(allRegions)))
 }
 
-func ListUsers(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric) {
+func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching users information")
 	var allUsers []users.User
 
@@ -119,11 +122,12 @@ func ListUsers(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometh
 	if err != nil {
 		log.Errorln(err)
 	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
 }
 
-func ListGroups(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric) {
+func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
 	log.Infoln("Fetching groups information")
 	var allGroups []groups.Group
 
@@ -136,21 +140,14 @@ func ListGroups(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- promet
 	allGroups, err = groups.ExtractGroups(allPagesGroup)
 	if err != nil {
 		log.Errorln(err)
+		return
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"],
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"].Metric,
 		prometheus.GaugeValue, float64(len(allGroups)))
 
 }
 
-type ListFunc func(exporter *KeystoneExporter, wg *sync.WaitGroup, ch chan<- prometheus.Metric)
-
 func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
-	var listMethods = []ListFunc{ListProjects, ListDomains, ListRegions, ListUsers, ListGroups}
-	wg := new(sync.WaitGroup)
-
-	for _, method := range listMethods {
-		go method(exporter, wg, ch)
-	}
-
+	exporter.CollectMetrics(ch)
 }

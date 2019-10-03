@@ -19,7 +19,7 @@ docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.5.0
 docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.5.0
 ```
 
-## Snap
+### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
 
@@ -118,6 +118,10 @@ clouds:
 
 Please fill pull requests or issues under Github. Feel free to request any metrics
 that might be missing.
+
+### Communication
+
+Please join us at #openstack-exporter at Freenode
 
 ## Metrics
 

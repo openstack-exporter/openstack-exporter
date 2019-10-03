@@ -1,11 +1,13 @@
 package exporters
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
+	"net/http"
 )
 
 type Metric struct {
@@ -113,9 +115,23 @@ func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 
-	client, err := clientconfig.NewServiceClient(name, &clientconfig.ClientOpts{Cloud: cloud})
+	opts := clientconfig.ClientOpts{Cloud: cloud}
+
+	client, err := clientconfig.NewServiceClient(name, &opts)
 	if err != nil {
 		return nil, err
+	}
+
+	config, err := clientconfig.GetCloudFromYAML(&opts)
+	if err != nil {
+		return nil, err
+	}
+
+	if !*config.Verify {
+		log.Infoln("SSL verification disabled on transport")
+		tlsConfig := &tls.Config{InsecureSkipVerify: true}
+		transport := &http.Transport{TLSClientConfig: tlsConfig}
+		client.HTTPClient.Transport = transport
 	}
 
 	switch name {

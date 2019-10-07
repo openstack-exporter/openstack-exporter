@@ -3,6 +3,7 @@ package exporters
 import (
 	"fmt"
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
@@ -115,8 +116,9 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 
 func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 
-	log.Infoln("Fetching list of hypervisors")
+	log.Infoln("Fetching list of hypervisors and aggregates")
 	var allHypervisors []hypervisors.Hypervisor
+	var allAggregates []aggregates.Aggregate
 
 	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
 	if err != nil {
@@ -129,30 +131,48 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return
 	}
 
+	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	if allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates); err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	hostToAggregateMap := map[string]string{}
+	for _, v := range allAggregates {
+		for _, w := range v.Hosts {
+			hostToAggregateMap[w] = v.AvailabilityZone
+		}
+	}
+
 	for _, hypervisor := range allHypervisors {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, "")
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
 	}
 }
 

@@ -126,7 +126,7 @@ Please join us at #openstack-exporter at Freenode
 ## Metrics
 
 The neutron/nova metrics contains the *_state metrics, which are separated
-by service/agent name. 
+by service/agent name.
 
 Please note that by convention resources metrics such as memory or storage are returned in bytes.
 

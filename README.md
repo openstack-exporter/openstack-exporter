@@ -29,6 +29,7 @@ For installing the latest master build (edge channel):
 snap install --channel edge golang-openstack-exporter
 ```
 
+
 For installing the latest stable version (stable channel):
 ```sh
 snap install --channel stable golang-openstack-exporter

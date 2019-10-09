@@ -114,13 +114,9 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
+	var transport *http.Transport
 
 	opts := clientconfig.ClientOpts{Cloud: cloud}
-
-	client, err := clientconfig.NewServiceClient(name, &opts)
-	if err != nil {
-		return nil, err
-	}
 
 	config, err := clientconfig.GetCloudFromYAML(&opts)
 	if err != nil {
@@ -130,8 +126,12 @@ func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
 	if !*config.Verify {
 		log.Infoln("SSL verification disabled on transport")
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
-		transport := &http.Transport{TLSClientConfig: tlsConfig}
-		client.HTTPClient.Transport = transport
+		transport = &http.Transport{TLSClientConfig: tlsConfig}
+	}
+
+	client, err := NewServiceClient(name, &opts, transport)
+	if err != nil {
+		return nil, err
 	}
 
 	switch name {

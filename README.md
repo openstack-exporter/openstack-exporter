@@ -112,7 +112,7 @@ clouds:
      cacert: |
             ---- BEGIN CERTIFICATE ---
       ...
-  verify: true | false  // disable || enable SSL certificate verification
+    verify: true | false  // disable || enable SSL certificate verification
 ```
 
 ## Contributing

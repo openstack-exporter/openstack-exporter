@@ -148,7 +148,7 @@ openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01"
 openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01"|30.0 (float)
 openstack_nova_memory_used_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
 openstack_nova_memory_available_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
-openstack_nova_agent_state|hostname="compute-01",region="RegionOne",service="nova-compute",adminState="enabled",zone="nova"|1.0 or 0 (bool)
+openstack_nova_agent_state|hostname="compute-01",region="RegionOne", id="288", service="nova-compute",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_nova_vcpus_available|region="RegionOne",hostname="compute-01"|128.0 (float)
 openstack_nova_vcpus_used|region="RegionOne",hostname="compute-01"|32.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)

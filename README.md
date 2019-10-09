@@ -78,7 +78,7 @@ Flags:
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
-      --disable-service.volumev3   Disable the volumev3 service exporter
+      --disable-service.volume   Disable the volume service exporter
       --disable-service.identity
                                  Disable the identity service exporter
 

@@ -14,6 +14,10 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 	if err != nil {
 		return nil, err
 	}
+
+	// Fixes #42
+	options.AllowReauth = true
+
 	client, err := openstack.NewClient(options.IdentityEndpoint)
 	if err != nil {
 		return nil, err

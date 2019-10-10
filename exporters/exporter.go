@@ -84,8 +84,11 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 func (exporter *BaseOpenStackExporter) RefreshClient() error {
 	log.Infoln("Refreshing auth client in case token has expired")
 	if err := exporter.Client.Reauthenticate(exporter.Client.Token()); err != nil {
+		log.Debugf("Error while re-authenticating client: %s", err)
 		return err
 	}
+
+	log.Infoln("Client successfully re-authenticated")
 	return nil
 }
 

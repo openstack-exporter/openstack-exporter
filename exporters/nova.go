@@ -51,14 +51,14 @@ var defaultNovaMetrics = []Metric{
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}, Fn: ListNovaAgentState},
-	{Name: "running_vms", Labels: []string{"hostname", "aggregate"}, Fn: ListHypervisors},
-	{Name: "current_workload", Labels: []string{"hostname", "aggregate"}},
-	{Name: "vcpus_available", Labels: []string{"hostname", "aggregate"}},
-	{Name: "vcpus_used", Labels: []string{"hostname", "aggregate"}},
-	{Name: "memory_available_bytes", Labels: []string{"hostname", "aggregate"}},
-	{Name: "memory_used_bytes", Labels: []string{"hostname", "aggregate"}},
-	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "aggregate"}},
-	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "aggregate"}},
+	{Name: "running_vms", Labels: []string{"hostname", "availability_zone"}, Fn: ListHypervisors},
+	{Name: "current_workload", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "vcpus_used", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "memory_available_bytes", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "memory_used_bytes", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
 }
@@ -145,34 +145,41 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	hostToAggregateMap := map[string]string{}
 	for _, v := range allAggregates {
 		for _, w := range v.Hosts {
-			hostToAggregateMap[w] = v.AvailabilityZone
+			if v.AvailabilityZone != "" {
+				hostToAggregateMap[w] = v.AvailabilityZone
+			}
 		}
 	}
 
 	for _, hypervisor := range allHypervisors {
+		availabilityZone := ""
+		if val, ok := hostToAggregateMap[hypervisor.HypervisorHostname]; ok {
+			availabilityZone = val
+		}
+
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, hostToAggregateMap[hypervisor.HypervisorHostname])
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 	}
 }
 

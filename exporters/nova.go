@@ -105,12 +105,12 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 	}
 
 	for _, service := range allServices {
-		var state int = 0
+		var state = 0
 		if service.State == "up" {
 			state = 1
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
+			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone)
 	}
 }
 

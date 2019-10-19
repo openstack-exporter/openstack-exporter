@@ -15,8 +15,8 @@ docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
 ```
 ### Latest Docker release images
 ```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.5.0
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.5.0
+docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.6.0
+docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.6.0
 ```
 
 ### Snaps
@@ -28,6 +28,7 @@ For installing the latest master build (edge channel):
 ```sh
 snap install --channel edge golang-openstack-exporter
 ```
+
 
 For installing the latest stable version (stable channel):
 ```sh
@@ -77,7 +78,7 @@ Flags:
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
-      --disable-service.volumev3   Disable the volumev3 service exporter
+      --disable-service.volume   Disable the volume service exporter
       --disable-service.identity
                                  Disable the identity service exporter
 
@@ -111,7 +112,7 @@ clouds:
      cacert: |
             ---- BEGIN CERTIFICATE ---
       ...
-  verify: true | false  // disable || enable SSL certificate verification
+    verify: true | false  // disable || enable SSL certificate verification
 ```
 
 ## Contributing
@@ -126,7 +127,7 @@ Please join us at #openstack-exporter at Freenode
 ## Metrics
 
 The neutron/nova metrics contains the *_state metrics, which are separated
-by service/agent name. 
+by service/agent name.
 
 Please note that by convention resources metrics such as memory or storage are returned in bytes.
 
@@ -147,7 +148,7 @@ openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01"
 openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01"|30.0 (float)
 openstack_nova_memory_used_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
 openstack_nova_memory_available_bytes|region="RegionOne",hostname="compute-01"|40000.0 (float)
-openstack_nova_agent_state|hostname="compute-01",region="RegionOne",service="nova-compute",adminState="enabled",zone="nova"|1.0 or 0 (bool)
+openstack_nova_agent_state|hostname="compute-01",region="RegionOne", id="288", service="nova-compute",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_nova_vcpus_available|region="RegionOne",hostname="compute-01"|128.0 (float)
 openstack_nova_vcpus_used|region="RegionOne",hostname="compute-01"|32.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)

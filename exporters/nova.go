@@ -50,7 +50,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}, Fn: ListNovaAgentState},
+	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone"}, Fn: ListNovaAgentState},
 	{Name: "running_vms", Labels: []string{"hostname", "availability_zone"}, Fn: ListHypervisors},
 	{Name: "current_workload", Labels: []string{"hostname", "availability_zone"}},
 	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone"}},

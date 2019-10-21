@@ -116,6 +116,10 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 		suite.FixturePath("nova_os_security_groups"),
 	)
 	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/os-aggregates", ""),
+		suite.FixturePath("nova_os_aggregates"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
 		suite.MakeURL("/compute/servers/detail?all_tenants=true", ""),
 		suite.FixturePath("nova_os_servers"),
 	)

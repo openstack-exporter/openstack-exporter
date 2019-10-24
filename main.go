@@ -43,6 +43,7 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
+	enabledExporters := 0
 	for service, disabled := range services {
 		if !*disabled {
 			_, err := exporters.EnableExporter(service, *prefix, *cloud)
@@ -52,7 +53,13 @@ func main() {
 				continue
 			}
 			log.Infof("Enabled exporter for service: %s", service)
+			enabledExporters++
 		}
+	}
+
+	if enabledExporters == 0 {
+		log.Errorln("No exporter has been enabled, exiting")
+		os.Exit(-1)
 	}
 
 	http.Handle(*metrics, promhttp.Handler())

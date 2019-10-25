@@ -164,6 +164,9 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 	suite.SetResponseFromFixture("GET", 200,
 		suite.MakeURL("/neutron/v2.0/ports", ""),
 		suite.FixturePath("neutron_ports"),
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/neutron/v2.0/network-ip-availabilities", ""),
+		suite.FixturePath("neutron_network_ip_availabilities"),
 	)
 
 	suite.StartMetricsHandler()

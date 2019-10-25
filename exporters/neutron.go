@@ -4,6 +4,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -24,6 +25,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
 	{Name: "ports", Fn: ListPorts},
+	{Name: "routers", Fn: ListRouters},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "project_id"}},
@@ -222,4 +224,25 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
 			NetworkIPAvailabilities.NetworkName, NetworkIPAvailabilities.ProjectID)
 	}
+}
+
+func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+
+	log.Infoln("Fetching list of routers")
+	var allRouters []routers.Router
+
+	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	allRouters, err = routers.ExtractRouters(allPagesRouters)
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,
+		prometheus.GaugeValue, float64(len(allRouters)))
 }

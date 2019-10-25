@@ -7,6 +7,8 @@ require (
 	github.com/gophercloud/utils v0.0.0-20191020172814-bd86af96d544
 	github.com/gorilla/mux v1.7.3
 	github.com/jarcoal/httpmock v1.0.4
+	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
+	github.com/modern-go/reflect2 v1.0.1 // indirect
 	github.com/prometheus/client_golang v1.2.1
 	github.com/prometheus/common v0.7.0
 	github.com/stretchr/testify v1.4.0

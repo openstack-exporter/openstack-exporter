@@ -27,8 +27,8 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports", Fn: ListPorts},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
-	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
-	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "project_id"}},
+	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
+	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "cidr", "subnet_name", "project_id"}},
 }
 
 func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string) (*NeutronExporter, error) {
@@ -206,23 +206,27 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 	}
 
 	for _, NetworkIPAvailabilities := range allNetworkIPAvailabilities {
-		totalIPs, err := strconv.ParseFloat(NetworkIPAvailabilities.TotalIPs, 64)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
-			prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
-			NetworkIPAvailabilities.NetworkName, NetworkIPAvailabilities.ProjectID)
+		for _, SubnetIPAvailability := range NetworkIPAvailabilities.SubnetIPAvailabilities {
+			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
+			if err != nil {
+				log.Errorln(err)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
+				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
+				NetworkIPAvailabilities.NetworkName, SubnetIPAvailability.CIDR,
+				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
 
-		usedIPs, err := strconv.ParseFloat(NetworkIPAvailabilities.UsedIPs, 64)
-		if err != nil {
-			log.Errorln(err)
-			return
+			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
+			if err != nil {
+				log.Errorln(err)
+				return
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
+				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
+				NetworkIPAvailabilities.NetworkName, SubnetIPAvailability.CIDR,
+				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
-			prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
-			NetworkIPAvailabilities.NetworkName, NetworkIPAvailabilities.ProjectID)
 	}
 }
 

@@ -140,8 +140,8 @@ openstack_neutron_networks|region="RegionOne"|25.0 (float)
 openstack_neutron_ports|region="RegionOne"| 1063.0 (float)
 openstack_neutron_subnets|region="RegionOne"|4.0 (float)
 openstack_neutron_security_groups|region="RegionOne"|10.0 (float)
-openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",project_id="478340c7c6bf49c99ce40641fd13ba96"|253.0 (float)
-openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",project_id="478340c7c6bf49c99ce40641fd13ba96"|151.0 (float)
+openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|253.0 (float)
+openstack_neutron_network_ip_availabilities_used|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|151.0 (float)
 openstack_neutron_routers|region="RegionOne"|134.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
@@ -282,12 +282,12 @@ openstack_neutron_floating_ips{region="Region"} 22.0
 openstack_neutron_networks{region="Region"} 130.0
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
-openstack_neutron_network_ip_availabilities_total{region="Region",network_id="00bd4d2d-e8d7-4715-a52d-f9c8378a8ab4",network_name="default-network",project_id="4bc6a4b06c11495c8beed2fecb3da5f7"} 253.0
-openstack_neutron_network_ip_availabilities_total{region="Region",network_id="00de2fca-b8e4-42b8-84fa-1d88648e08eb",network_name="default-network",project_id="7abf4adfd30548a381554b3a4a08cd5d"} 253.0
+openstack_neutron_network_ip_availabilities_total{region="Region",network_id="00bd4d2d-e8d7-4715-a52d-f9c8378a8ab4",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="4bc6a4b06c11495c8beed2fecb3da5f7"} 253.0
+openstack_neutron_network_ip_availabilities_total{region="Region",network_id="00de2fca-b8e4-42b8-84fa-1d88648e08eb",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="7abf4adfd30548a381554b3a4a08cd5d"} 253.0
 # HELP openstack_neutron_network_ip_availabilities_used network_ip_availabilities_used
 # TYPE openstack_neutron_network_ip_availabilities_used gauge
-openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00bd4d2d-e8d7-4715-a52d-f9c8378a8ab4",network_name="default-network",project_id="4bc6a4b06c11495c8beed2fecb3da5f7"} 4.0
-openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00de2fca-b8e4-42b8-84fa-1d88648e08eb",network_name="default-network",project_id="7abf4adfd30548a381554b3a4a08cd5d"} 5.0
+openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00bd4d2d-e8d7-4715-a52d-f9c8378a8ab4",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="4bc6a4b06c11495c8beed2fecb3da5f7"} 4.0
+openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00de2fca-b8e4-42b8-84fa-1d88648e08eb",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="7abf4adfd30548a381554b3a4a08cd5d"} 5.0
 # HELP openstack_neutron_security_groups security_groups
 # TYPE openstack_neutron_security_groups gauge
 # HELP openstack_neutron_ports{region="Region"} ports

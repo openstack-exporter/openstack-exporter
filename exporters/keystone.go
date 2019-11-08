@@ -23,12 +23,13 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "regions", Fn: ListRegions},
 }
 
-func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string) (*KeystoneExporter, error) {
+func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
-			Name:   "identity",
-			Prefix: prefix,
-			Client: client,
+			Name:            "identity",
+			Prefix:          prefix,
+			Client:          client,
+			DisabledMetrics: disabledMetrics,
 		},
 	}
 

@@ -55,12 +55,13 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil},
 }
 
-func NewCinderExporter(client *gophercloud.ServiceClient, prefix string) (*CinderExporter, error) {
+func NewCinderExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
-			Name:   "cinder",
-			Prefix: prefix,
-			Client: client,
+			Name:            "cinder",
+			Prefix:          prefix,
+			Client:          client,
+			DisabledMetrics: disabledMetrics,
 		},
 	}
 	for _, metric := range defaultCinderMetrics {

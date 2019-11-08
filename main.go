@@ -3,13 +3,12 @@ package main
 import (
 	"fmt"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
-	"net/http"
-	"os"
-
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
 	"github.com/prometheus/common/version"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"net/http"
+	"os"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity"}
@@ -17,11 +16,12 @@ var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 func main() {
 	var (
-		bind           = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
-		metrics        = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-		osClientConfig = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
-		prefix         = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
-		cloud          = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
+		bind            = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
+		metrics         = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
+		osClientConfig  = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
+		prefix          = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
+		disabledMetrics = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
+		cloud           = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
 
 	services := make(map[string]*bool)
@@ -46,7 +46,7 @@ func main() {
 	enabledExporters := 0
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := exporters.EnableExporter(service, *prefix, *cloud)
+			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

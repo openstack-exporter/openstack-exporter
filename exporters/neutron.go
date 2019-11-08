@@ -31,12 +31,13 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "cidr", "subnet_name", "project_id"}},
 }
 
-func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string) (*NeutronExporter, error) {
+func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
-			Name:   "neutron",
-			Prefix: prefix,
-			Client: client,
+			Name:            "neutron",
+			Prefix:          prefix,
+			Client:          client,
+			DisabledMetrics: disabledMetrics,
 		},
 	}
 

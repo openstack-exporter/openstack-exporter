@@ -33,11 +33,12 @@ type OpenStackExporter interface {
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
 	CollectMetrics(ch chan<- prometheus.Metric)
+	MetricIsDisabled(name string) bool
 	RefreshClient() error
 }
 
-func EnableExporter(service, prefix, cloud string) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -51,16 +52,26 @@ type PrometheusMetric struct {
 }
 
 type BaseOpenStackExporter struct {
-	Name    string
-	Prefix  string
-	Metrics map[string]*PrometheusMetric
-	Client  *gophercloud.ServiceClient
+	Name            string
+	Prefix          string
+	Metrics         map[string]*PrometheusMetric
+	Client          *gophercloud.ServiceClient
+	DisabledMetrics []string
 }
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
+}
+
+func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
+	for _, metric := range exporter.DisabledMetrics {
+		if metric == fmt.Sprintf("%s-%s", exporter.Name, name) {
+			return true
+		}
+	}
+	return false
 }
 
 func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metric) {
@@ -93,6 +104,12 @@ func (exporter *BaseOpenStackExporter) RefreshClient() error {
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {
+
+	if exporter.MetricIsDisabled(name) {
+		log.Warnf("metric: %s has been disabled on %s exporter, not collecting metrics", name, exporter.Name)
+		return
+	}
+
 	if exporter.Metrics == nil {
 		exporter.Metrics = make(map[string]*PrometheusMetric)
 	}
@@ -114,7 +131,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -140,35 +157,35 @@ func NewExporter(name, prefix, cloud string) (OpenStackExporter, error) {
 	switch name {
 	case "network":
 		{
-			exporter, err = NewNeutronExporter(client, prefix)
+			exporter, err = NewNeutronExporter(client, prefix, disabledMetrics)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "compute":
 		{
-			exporter, err = NewNovaExporter(client, prefix)
+			exporter, err = NewNovaExporter(client, prefix, disabledMetrics)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "image":
 		{
-			exporter, err = NewGlanceExporter(client, prefix)
+			exporter, err = NewGlanceExporter(client, prefix, disabledMetrics)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "volume":
 		{
-			exporter, err = NewCinderExporter(client, prefix)
+			exporter, err = NewCinderExporter(client, prefix, disabledMetrics)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "identity":
 		{
-			exporter, err = NewKeystoneExporter(client, prefix)
+			exporter, err = NewKeystoneExporter(client, prefix, disabledMetrics)
 			if err != nil {
 				return nil, err
 			}

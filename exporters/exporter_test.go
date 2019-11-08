@@ -75,7 +75,7 @@ func (suite *BaseOpenStackTestSuite) TearDownSuite() {
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
-	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName)
+	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName, []string{})
 	if err != nil {
 		panic(err)
 	}

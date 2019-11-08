@@ -81,6 +81,7 @@ Flags:
       --disable-service.volume   Disable the volume service exporter
       --disable-service.identity
                                  Disable the identity service exporter
+      --disable-metric
 
 Args:
   <cloud>  name or id of the cloud to gather metrics from

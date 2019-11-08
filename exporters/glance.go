@@ -15,12 +15,13 @@ var defaultGlanceMetrics = []Metric{
 	{Name: "images", Fn: ListImages},
 }
 
-func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string) (*GlanceExporter, error) {
+func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*GlanceExporter, error) {
 	exporter := GlanceExporter{
 		BaseOpenStackExporter{
-			Name:   "glance",
-			Prefix: prefix,
-			Client: client,
+			Name:            "glance",
+			Prefix:          prefix,
+			Client:          client,
+			DisabledMetrics: disabledMetrics,
 		},
 	}
 

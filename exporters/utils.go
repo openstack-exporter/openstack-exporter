@@ -98,6 +98,19 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	eo := gophercloud.EndpointOpts{
 		Region: region,
 	}
+	
+	// Determine the IdentityType to use.
+	// First, check if the INTERFACE_IDENTITY environment variable is set.
+	var IdentityType string
+	if v := os.Getenv(envPrefix + "INTERFACE_IDENTITY"); v != "" {
+		IdentityType = v
+	}
+
+	if v := cloud.IdentityType; v == "internal" {
+		eo.Availability = gophercloud.AvailabilityInternal
+	} else if v == "admin" {
+		eo.Availability = gophercloud.AvailabilityAdmin
+	}
 
 	switch service {
 	case "clustering":

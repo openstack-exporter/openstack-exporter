@@ -37,8 +37,8 @@ type OpenStackExporter interface {
 	RefreshClient() error
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType)
 	if err != nil {
 		return nil, err
 	}
@@ -131,7 +131,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -149,7 +149,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string) (OpenStac
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 
-	client, err := NewServiceClient(name, &opts, transport)
+	client, err := NewServiceClient(name, &opts, transport, endpointType)
 	if err != nil {
 		return nil, err
 	}

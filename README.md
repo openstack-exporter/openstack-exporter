@@ -68,24 +68,24 @@ usage: openstack-exporter [<flags>] <cloud>
 
 Flags:
   -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
-      --web.listen-address=":9180"
+      --web.listen-address=":9180"  
                                  address:port to listen on
-      --web.telemetry-path="/metrics"
+      --web.telemetry-path="/metrics"  
                                  uri path to expose metrics
-      --os-client-config="/etc/openstack/clouds.yml"
+      --os-client-config="/etc/openstack/clouds.yaml"  
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
+      --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
       --disable-service.volume   Disable the volume service exporter
-      --disable-service.identity
+      --disable-service.identity  
                                  Disable the identity service exporter
-      --disable-metric
 
 Args:
   <cloud>  name or id of the cloud to gather metrics from
-
 ```
 
 ### OpenStack configuration

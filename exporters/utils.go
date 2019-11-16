@@ -99,17 +99,24 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		Region: region,
 	}
 	
-	// Determine the IdentityType to use.
+        // Determine the IdentityType to use.
 	// First, check if the INTERFACE_IDENTITY environment variable is set.
 	var IdentityType string
 	if v := os.Getenv(envPrefix + "INTERFACE_IDENTITY"); v != "" {
 		IdentityType = v
 	}
 
-	if v := cloud.IdentityType; v == "internal" {
+	if v := cloud.IdentityType; v != "" {
+		IdentityType = v
+	}
+
+	switch IdentityType {
+	case "internal":
 		eo.Availability = gophercloud.AvailabilityInternal
-	} else if v == "admin" {
+	case "admin":
 		eo.Availability = gophercloud.AvailabilityAdmin
+	default:
+		eo.Availability = gophercloud.AvailabilityPublic
 	}
 
 	switch service {

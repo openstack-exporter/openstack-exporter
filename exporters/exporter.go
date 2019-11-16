@@ -34,7 +34,6 @@ type OpenStackExporter interface {
 	Collect(ch chan<- prometheus.Metric)
 	CollectMetrics(ch chan<- prometheus.Metric)
 	MetricIsDisabled(name string) bool
-	RefreshClient() error
 }
 
 func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string) (*OpenStackExporter, error) {
@@ -78,11 +77,6 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 
 	for name, metric := range exporter.Metrics {
 		log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), name)
-		err := exporter.RefreshClient()
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
 		if metric.Fn == nil {
 			log.Debugf("No function handler set for metric: %s", name)
 			continue
@@ -90,17 +84,6 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 
 		metric.Fn(exporter, ch)
 	}
-}
-
-func (exporter *BaseOpenStackExporter) RefreshClient() error {
-	log.Infoln("Refreshing auth client in case token has expired")
-	if err := exporter.Client.Reauthenticate(exporter.Client.Token()); err != nil {
-		log.Debugf("Error while re-authenticating client: %s", err)
-		return err
-	}
-
-	log.Infoln("Client successfully re-authenticated")
-	return nil
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {

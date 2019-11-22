@@ -35,7 +35,7 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 }
 
 // NewServiceClient is a convenience function to get a new service client.
-func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ServiceClient, error) {
+func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *http.Transport, endpointType string) (*gophercloud.ServiceClient, error) {
 	cloud := new(clientconfig.Cloud)
 
 	// If no opts were passed in, create an empty ClientOpts.
@@ -96,7 +96,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	}
 
 	eo := gophercloud.EndpointOpts{
-		Region: region,
+		Region:       region,
+		Availability: GetEndpointType(endpointType),
 	}
 	
         // Determine the IdentityType to use.
@@ -175,4 +176,14 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	}
 
 	return nil, fmt.Errorf("unable to create a service client for %s", service)
+}
+
+func GetEndpointType(endpointType string) gophercloud.Availability {
+	if endpointType == "internal" || endpointType == "internalURL" {
+		return gophercloud.AvailabilityInternal
+	}
+	if endpointType == "admin" || endpointType == "adminURL" {
+		return gophercloud.AvailabilityAdmin
+	}
+	return gophercloud.AvailabilityPublic
 }

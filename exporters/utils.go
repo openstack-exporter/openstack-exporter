@@ -99,8 +99,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		Region:       region,
 		Availability: GetEndpointType(endpointType),
 	}
-	
-        // Determine the IdentityType to use.
+
+	// Determine the IdentityType to use.
 	// First, check if the INTERFACE_IDENTITY environment variable is set.
 	var IdentityType string
 	if v := os.Getenv(envPrefix + "INTERFACE_IDENTITY"); v != "" {

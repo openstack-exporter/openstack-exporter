@@ -3,7 +3,16 @@
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
 
-## Containers and binaries build status
+### Deployment options
+
+The openstack-exporter can be deployed using the following mechanisms:
+
+* Via docker images directly from our repositories
+* Via snaps
+* By using [kolla-ansible](https://github.com/opentack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
+* By using [helm charts](https://github.com/openstack-exporter/helm-charts)
+
+### Containers and binaries build status
 
 amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64) | arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
 
@@ -18,7 +27,6 @@ docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
 docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:0.7.0
 docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:0.7.0
 ```
-
 ### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)

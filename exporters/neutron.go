@@ -13,7 +13,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type NeutronExporter struct {
@@ -60,8 +59,6 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching floating ips list")
 	var allFloatingIPs []floatingips.FloatingIP
 
 	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
@@ -80,8 +77,6 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 }
 
 func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching agents list")
 	var allAgents []agents.Agent
 
 	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{}).AllPages()
@@ -112,8 +107,6 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 }
 
 func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of networks")
 	var allNetworks []networks.Network
 
 	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
@@ -132,8 +125,6 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 }
 
 func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of network security groups")
 	var allSecurityGroups []groups.SecGroup
 
 	allPagesSecurityGroups, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
@@ -152,8 +143,6 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 }
 
 func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of subnets")
 	var allSubnets []subnets.Subnet
 
 	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
@@ -172,8 +161,6 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 }
 
 func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of ports")
 	var allPorts []ports.Port
 
 	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
@@ -193,8 +180,6 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 }
 
 func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching network ip availabilities list")
 	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
 
 	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
@@ -233,8 +218,6 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 }
 
 func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of routers")
 	var allRouters []routers.Router
 
 	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()

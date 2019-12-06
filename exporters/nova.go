@@ -12,7 +12,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 var server_status = []string{
@@ -97,8 +96,6 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of services")
 	var allServices []services.Service
 
 	allPagesServices, err := services.List(exporter.Client).AllPages()
@@ -123,8 +120,6 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 }
 
 func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of hypervisors and aggregates")
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
@@ -190,8 +185,6 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 }
 
 func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of flavors")
 	var allFlavors []flavors.Flavor
 
 	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
@@ -211,8 +204,6 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 }
 
 func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of availability zones")
 	var allAZs []availabilityzones.AvailabilityZone
 
 	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
@@ -231,8 +222,6 @@ func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 }
 
 func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of nova security groups")
 	var allSecurityGroups []secgroups.SecurityGroup
 
 	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
@@ -251,9 +240,6 @@ func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 }
 
 func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching list of servers for all tenants")
-
 	type ServerWithExt struct {
 		servers.Server
 		availabilityzones.ServerAvailabilityZoneExt

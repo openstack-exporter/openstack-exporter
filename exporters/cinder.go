@@ -10,7 +10,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type CinderExporter struct {
@@ -79,8 +78,6 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	log.Infoln("Fetching volumes info")
-
 	type VolumeWithExt struct {
 		volumes.Volume
 		volumetenants.VolumeTenantExt
@@ -114,8 +111,6 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 }
 
 func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching snapshots information")
 	var allSnapshots []snapshots.Snapshot
 
 	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
@@ -135,8 +130,6 @@ func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 }
 
 func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching services state information")
 	var allServices []services.Service
 
 	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()

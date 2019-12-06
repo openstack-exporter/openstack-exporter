@@ -71,12 +71,6 @@ func NewCinderExporter(client *gophercloud.ServiceClient, prefix string, disable
 	return &exporter, nil
 }
 
-func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
 func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	type VolumeWithExt struct {
 		volumes.Volume

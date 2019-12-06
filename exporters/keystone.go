@@ -39,12 +39,6 @@ func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string, disab
 	return &exporter, nil
 }
 
-func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
 func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allDomains []domains.Domain
 

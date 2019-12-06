@@ -48,12 +48,6 @@ func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string, disabl
 	return &exporter, nil
 }
 
-func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
 func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFloatingIPs []floatingips.FloatingIP
 

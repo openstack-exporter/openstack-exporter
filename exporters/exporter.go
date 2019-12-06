@@ -73,6 +73,12 @@ func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
 	return false
 }
 
+func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
+	for _, metric := range exporter.Metrics {
+		ch <- metric.Metric
+	}
+}
+
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 	serviceUp := true
 

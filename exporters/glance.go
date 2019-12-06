@@ -31,12 +31,6 @@ func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string, disable
 	return &exporter, nil
 }
 
-func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
 func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allImages []images.Image
 

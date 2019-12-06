@@ -3,6 +3,7 @@ package exporters
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,8 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	dto "github.com/prometheus/client_model/go"
+	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -22,10 +25,11 @@ const cloudName = "test.cloud"
 
 type BaseOpenStackTestSuite struct {
 	suite.Suite
-	ServiceName string
-	Prefix      string
-	Exporter    *OpenStackExporter
-	Recorder    *httptest.ResponseRecorder
+	ServiceName    string
+	Prefix         string
+	Exporter       *OpenStackExporter
+	Recorder       *httptest.ResponseRecorder
+	MetricFamilies map[string]*dto.MetricFamily
 }
 
 func (suite *BaseOpenStackTestSuite) StartMetricsHandler() {
@@ -34,6 +38,16 @@ func (suite *BaseOpenStackTestSuite) StartMetricsHandler() {
 	req, _ := http.NewRequest("GET", "/metrics", nil)
 	suite.Recorder = httptest.NewRecorder()
 	router.ServeHTTP(suite.Recorder, req)
+
+	suite.ParsePrometheus(suite.Recorder.Body)
+}
+
+func (suite *BaseOpenStackTestSuite) ParsePrometheus(in io.Reader) {
+	var parser expfmt.TextParser
+	metricFamilies, err := parser.TextToMetricFamilies(in)
+	suite.NoError(err)
+
+	suite.MetricFamilies = metricFamilies
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
@@ -122,16 +136,25 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 
 	suite.StartMetricsHandler()
 
+	for _, fam := range suite.MetricFamilies {
+		fmt.Println(fam)
+	}
+	// fmt.Println(suite.MetricFamilies)
+
 	for _, metric := range defaultNovaMetrics {
-		suite.Contains(suite.Recorder.Body.String(), "nova_"+metric.Name)
+		fmt.Println(suite.MetricFamilies["openstack_nova_"+metric.Name])
+		suite.Contains(suite.MetricFamilies, "openstack_nova_"+metric.Name)
 	}
 
-	suite.Contains(suite.Recorder.Body.String(), "nova_up 1")
+	suite.Contains(suite.MetricFamilies, "openstack_nova_up")
+	suite.Equal(float64(1), suite.MetricFamilies["openstack_nova_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func (suite *NovaTestSuite) TestNovaExporterWithEndpointDown() {
 	suite.StartMetricsHandler()
-	suite.Contains(suite.Recorder.Body.String(), "nova_up 0")
+
+	suite.Contains(suite.MetricFamilies, "openstack_nova_up")
+	suite.Equal(float64(0), suite.MetricFamilies["openstack_nova_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 type NeutronTestSuite struct {
@@ -181,15 +204,18 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultNeutronMetrics {
-		suite.Contains(suite.Recorder.Body.String(), "neutron_"+metric.Name)
+		suite.Contains(suite.MetricFamilies, "openstack_neutron_"+metric.Name)
 	}
 
-	suite.Contains(suite.Recorder.Body.String(), "neutron_up 1")
+	suite.Contains(suite.MetricFamilies, "openstack_neutron_up")
+	suite.Equal(float64(1), suite.MetricFamilies["openstack_neutron_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func (suite *NeutronTestSuite) TestNeutronExporterWithEndpointDown() {
 	suite.StartMetricsHandler()
-	suite.Contains(suite.Recorder.Body.String(), "neutron_up 0")
+
+	suite.Contains(suite.MetricFamilies, "openstack_neutron_up")
+	suite.Equal(float64(0), suite.MetricFamilies["openstack_neutron_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 type GlanceTestSuite struct {
@@ -210,15 +236,18 @@ func (suite *GlanceTestSuite) TestGlanceExporter() {
 
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultGlanceMetrics {
-		suite.Contains(suite.Recorder.Body.String(), "glance_"+metric.Name)
+		suite.Contains(suite.MetricFamilies, "openstack_glance_"+metric.Name)
 	}
 
-	suite.Contains(suite.Recorder.Body.String(), "glance_up 1")
+	suite.Contains(suite.MetricFamilies, "openstack_glance_up")
+	suite.Equal(float64(1), suite.MetricFamilies["openstack_glance_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func (suite *GlanceTestSuite) TestGlanceExporterWithEndpointDown() {
 	suite.StartMetricsHandler()
-	suite.Contains(suite.Recorder.Body.String(), "glance_up 0")
+
+	suite.Contains(suite.MetricFamilies, "openstack_glance_up")
+	suite.Equal(float64(0), suite.MetricFamilies["openstack_glance_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 type CinderTestSuite struct {
@@ -248,15 +277,18 @@ func (suite *CinderTestSuite) TestCinderExporter() {
 
 	//Check that all the default metrics are contained on the response
 	for _, metric := range defaultCinderMetrics {
-		suite.Contains(suite.Recorder.Body.String(), "cinder_"+metric.Name)
+		suite.Contains(suite.MetricFamilies, "openstack_cinder_"+metric.Name)
 	}
 
-	suite.Contains(suite.Recorder.Body.String(), "cinder_up 1")
+	suite.Contains(suite.MetricFamilies, "openstack_cinder_up")
+	suite.Equal(float64(1), suite.MetricFamilies["openstack_cinder_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func (suite *CinderTestSuite) TestCinderExporterWithEndpointDown() {
 	suite.StartMetricsHandler()
-	suite.Contains(suite.Recorder.Body.String(), "cinder_up 0")
+
+	suite.Contains(suite.MetricFamilies, "openstack_cinder_up")
+	suite.Equal(float64(0), suite.MetricFamilies["openstack_cinder_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func TestOpenStackSuites(t *testing.T) {

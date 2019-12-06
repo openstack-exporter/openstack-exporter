@@ -8,6 +8,7 @@ require (
 	github.com/gorilla/mux v1.7.3
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/prometheus/client_golang v1.2.1
+	github.com/prometheus/client_model v0.0.0-20191202183732-d1d2010b5bee
 	github.com/prometheus/common v0.7.0
 	github.com/stretchr/testify v1.4.0
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6

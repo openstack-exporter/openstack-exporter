@@ -45,7 +45,7 @@ ifeq (, $(PRE_GO_111))
 
 		ifneq (,$(wildcard vendor))
 			# Always use the local vendor/ directory to satisfy the dependencies.
-			GOOPTS := $(GOOPTS) -mod=vendor
+			GOOPTS := $(GOOPTS) #-mod=vendor
 		endif
 	endif
 else
@@ -187,6 +187,7 @@ else
 ifdef GO111MODULE
 	@echo ">> running check for unused/missing packages in go.mod"
 	GO111MODULE=$(GO111MODULE) $(GO) mod tidy
+	GO111MODULE=$(GO111MODULE) $(GO) mod vendor
 ifeq (,$(wildcard vendor))
 	@git diff --exit-code -- go.sum go.mod
 else

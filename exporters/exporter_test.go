@@ -62,19 +62,13 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 	return fmt.Sprintf("%s/%s", baseFixturePath, name+".json")
 }
 
-func (suite *BaseOpenStackTestSuite) SetupSuite() {
+func (suite *BaseOpenStackTestSuite) SetupTest() {
 	httpmock.Activate()
 	suite.Prefix = "openstack"
 	suite.SetResponseFromFixture("POST", 201,
 		suite.MakeURL("/v3/auth/tokens", "35357"),
 		suite.FixturePath("tokens"))
-}
 
-func (suite *BaseOpenStackTestSuite) TearDownSuite() {
-	defer httpmock.DeactivateAndReset()
-}
-
-func (suite *BaseOpenStackTestSuite) SetupTest() {
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public")
 	if err != nil {
@@ -84,6 +78,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 }
 
 func (suite *BaseOpenStackTestSuite) TearDownTest() {
+	defer httpmock.DeactivateAndReset()
 	prometheus.Unregister(*suite.Exporter)
 }
 

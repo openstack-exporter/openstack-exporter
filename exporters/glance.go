@@ -4,7 +4,6 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type GlanceExporter struct {
@@ -42,8 +41,6 @@ func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching images list")
 	var allImages []images.Image
 
 	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()

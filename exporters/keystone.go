@@ -8,7 +8,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type KeystoneExporter struct {
@@ -47,8 +46,6 @@ func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching domains information")
 	var allDomains []domains.Domain
 
 	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
@@ -67,8 +64,6 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 }
 
 func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching projects information")
 	var allProjects []projects.Project
 
 	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
@@ -88,8 +83,6 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 }
 
 func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching regions information")
 	var allRegions []regions.Region
 
 	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
@@ -108,8 +101,6 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 }
 
 func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching users information")
 	var allUsers []users.User
 
 	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
@@ -128,8 +119,6 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 }
 
 func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
-	log.Infoln("Fetching groups information")
 	var allGroups []groups.Group
 
 	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()

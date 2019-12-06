@@ -3,11 +3,12 @@ package exporters
 import (
 	"crypto/tls"
 	"fmt"
+	"net/http"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"net/http"
 )
 
 type Metric struct {

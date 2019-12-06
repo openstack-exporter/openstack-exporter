@@ -1,6 +1,9 @@
 package exporters
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
@@ -8,8 +11,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"strconv"
-	"strings"
 )
 
 type CinderExporter struct {

@@ -29,10 +29,10 @@ const (
 )
 
 type OpenStackExporter interface {
+	prometheus.Collector
+
 	GetName() string
 	AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels)
-	Describe(ch chan<- *prometheus.Desc)
-	Collect(ch chan<- prometheus.Metric)
 	MetricIsDisabled(name string) bool
 }
 

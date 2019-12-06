@@ -41,7 +41,7 @@ func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
 	exporter.CollectMetrics(ch)
 }
 
-func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching images list")
 	var allImages []images.Image
@@ -49,14 +49,16 @@ func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allImages, err = images.ExtractImages(allPagesImage); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"].Metric,
 		prometheus.GaugeValue, float64(len(allImages)))
+
+	return nil
 }

@@ -59,7 +59,7 @@ func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
 	exporter.CollectMetrics(ch)
 }
 
-func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching floating ips list")
 	var allFloatingIPs []floatingips.FloatingIP
@@ -67,18 +67,21 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allFloatingIPs, err = floatingips.ExtractFloatingIPs(allPagesFloatingIPs)
 	if err != nil {
 		log.Errorln(err)
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
 		prometheus.GaugeValue, float64(len(allFloatingIPs)))
+
+	return nil
 }
 
-func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching agents list")
 	var allAgents []agents.Agent
@@ -86,13 +89,13 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allAgents, err = agents.ExtractAgents(allPagesAgents)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	for _, agent := range allAgents {
@@ -108,9 +111,11 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), agent.Host, agent.Binary, adminState)
 	}
+
+	return nil
 }
 
-func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of networks")
 	var allNetworks []networks.Network
@@ -118,19 +123,21 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allNetworks, err = networks.ExtractNetworks(allPagesNetworks)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
+
+	return nil
 }
 
-func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of network security groups")
 	var allSecurityGroups []groups.SecGroup
@@ -138,19 +145,21 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 	allPagesSecurityGroups, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allSecurityGroups, err = groups.ExtractGroups(allPagesSecurityGroups)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+
+	return nil
 }
 
-func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of subnets")
 	var allSubnets []subnets.Subnet
@@ -158,19 +167,21 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allSubnets, err = subnets.ExtractSubnets(allPagesSubnets)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
+
+	return nil
 }
 
-func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of ports")
 	var allPorts []ports.Port
@@ -178,20 +189,22 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allPorts, err = ports.ExtractPorts(allPagesPorts)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports"].Metric,
 		prometheus.GaugeValue, float64(len(allPorts)))
+
+	return nil
 }
 
-func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching network ip availabilities list")
 	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
@@ -199,12 +212,13 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allNetworkIPAvailabilities, err = networkipavailabilities.ExtractNetworkIPAvailabilities(allPagesNetworkIPAvailabilities)
 	if err != nil {
 		log.Errorln(err)
+		return err
 	}
 
 	for _, NetworkIPAvailabilities := range allNetworkIPAvailabilities {
@@ -212,7 +226,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
 			if err != nil {
 				log.Errorln(err)
-				return
+				return err
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
 				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
@@ -222,7 +236,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
 			if err != nil {
 				log.Errorln(err)
-				return
+				return err
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
 				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
@@ -230,9 +244,11 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
 		}
 	}
+
+	return nil
 }
 
-func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of routers")
 	var allRouters []routers.Router
@@ -240,15 +256,17 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allRouters, err = routers.ExtractRouters(allPagesRouters)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,
 		prometheus.GaugeValue, float64(len(allRouters)))
+
+	return nil
 }

@@ -125,6 +125,13 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 	for _, metric := range defaultNovaMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "nova_"+metric.Name)
 	}
+
+	suite.Contains(suite.Recorder.Body.String(), "nova_up 1")
+}
+
+func (suite *NovaTestSuite) TestNovaExporterWithEndpointDown() {
+	suite.StartMetricsHandler()
+	suite.Contains(suite.Recorder.Body.String(), "nova_up 0")
 }
 
 type NeutronTestSuite struct {
@@ -176,6 +183,13 @@ func (suite *NeutronTestSuite) TestNeutronExporter() {
 	for _, metric := range defaultNeutronMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "neutron_"+metric.Name)
 	}
+
+	suite.Contains(suite.Recorder.Body.String(), "neutron_up 1")
+}
+
+func (suite *NeutronTestSuite) TestNeutronExporterWithEndpointDown() {
+	suite.StartMetricsHandler()
+	suite.Contains(suite.Recorder.Body.String(), "neutron_up 0")
 }
 
 type GlanceTestSuite struct {
@@ -198,6 +212,13 @@ func (suite *GlanceTestSuite) TestGlanceExporter() {
 	for _, metric := range defaultGlanceMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "glance_"+metric.Name)
 	}
+
+	suite.Contains(suite.Recorder.Body.String(), "glance_up 1")
+}
+
+func (suite *GlanceTestSuite) TestGlanceExporterWithEndpointDown() {
+	suite.StartMetricsHandler()
+	suite.Contains(suite.Recorder.Body.String(), "glance_up 0")
 }
 
 type CinderTestSuite struct {
@@ -229,6 +250,13 @@ func (suite *CinderTestSuite) TestCinderExporter() {
 	for _, metric := range defaultCinderMetrics {
 		suite.Contains(suite.Recorder.Body.String(), "cinder_"+metric.Name)
 	}
+
+	suite.Contains(suite.Recorder.Body.String(), "cinder_up 1")
+}
+
+func (suite *CinderTestSuite) TestCinderExporterWithEndpointDown() {
+	suite.StartMetricsHandler()
+	suite.Contains(suite.Recorder.Body.String(), "cinder_up 0")
 }
 
 func TestOpenStackSuites(t *testing.T) {

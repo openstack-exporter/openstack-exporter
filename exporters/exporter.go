@@ -33,7 +33,6 @@ type OpenStackExporter interface {
 	AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels)
 	Describe(ch chan<- *prometheus.Desc)
 	Collect(ch chan<- prometheus.Metric)
-	CollectMetrics(ch chan<- prometheus.Metric)
 	MetricIsDisabled(name string) bool
 }
 
@@ -74,7 +73,7 @@ func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
 	return false
 }
 
-func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metric) {
+func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 	serviceUp := true
 
 	for name, metric := range exporter.Metrics {

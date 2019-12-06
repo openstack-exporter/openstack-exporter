@@ -36,9 +36,6 @@ func (exporter *GlanceExporter) Describe(ch chan<- *prometheus.Desc) {
 		ch <- metric.Metric
 	}
 }
-func (exporter *GlanceExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}
 
 func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allImages []images.Image

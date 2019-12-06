@@ -3,17 +3,18 @@ package exporters
 import (
 	"bytes"
 	"fmt"
-	"github.com/gorilla/mux"
-	"github.com/jarcoal/httpmock"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/stretchr/testify/suite"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/jarcoal/httpmock"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/stretchr/testify/suite"
 )
 
 const baseFixturePath = "./fixtures"

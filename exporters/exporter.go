@@ -86,6 +86,7 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 
 		err := metric.Fn(exporter, ch)
 		if err != nil {
+			log.Errorln(err)
 			serviceUp = false
 		}
 	}

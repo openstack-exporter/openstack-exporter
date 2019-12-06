@@ -66,13 +66,11 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allFloatingIPs, err = floatingips.ExtractFloatingIPs(allPagesFloatingIPs)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
@@ -88,13 +86,11 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allAgents, err = agents.ExtractAgents(allPagesAgents)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -122,13 +118,11 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allNetworks, err = networks.ExtractNetworks(allPagesNetworks)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
@@ -144,13 +138,11 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 
 	allPagesSecurityGroups, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allSecurityGroups, err = groups.ExtractGroups(allPagesSecurityGroups)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
@@ -166,13 +158,11 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allSubnets, err = subnets.ExtractSubnets(allPagesSubnets)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
@@ -188,13 +178,11 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 
 	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allPorts, err = ports.ExtractPorts(allPagesPorts)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -211,13 +199,11 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 
 	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allNetworkIPAvailabilities, err = networkipavailabilities.ExtractNetworkIPAvailabilities(allPagesNetworkIPAvailabilities)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -225,7 +211,6 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 		for _, SubnetIPAvailability := range NetworkIPAvailabilities.SubnetIPAvailabilities {
 			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
 			if err != nil {
-				log.Errorln(err)
 				return err
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
@@ -235,7 +220,6 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 
 			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
 			if err != nil {
-				log.Errorln(err)
 				return err
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
@@ -255,13 +239,11 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allRouters, err = routers.ExtractRouters(allPagesRouters)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 

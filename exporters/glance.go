@@ -48,12 +48,10 @@ func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 
 	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allImages, err = images.ExtractImages(allPagesImage); err != nil {
-		log.Errorln(err)
 		return err
 	}
 

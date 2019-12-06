@@ -53,13 +53,11 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allDomains, err = domains.ExtractDomains(allPagesDomain)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
@@ -75,13 +73,11 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -98,13 +94,11 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allRegions, err = regions.ExtractRegions(allPagesRegion)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
@@ -120,13 +114,11 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 
 	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allUsers, err = users.ExtractUsers(allPagesUser)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
@@ -142,13 +134,11 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 
 	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allGroups, err = groups.ExtractGroups(allPagesGroup)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 

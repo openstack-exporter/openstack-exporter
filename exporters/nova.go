@@ -85,12 +85,6 @@ func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledM
 	return &exporter, nil
 }
 
-func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
 func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 

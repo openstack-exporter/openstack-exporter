@@ -78,7 +78,7 @@ func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	log.Infoln("Fetching volumes info")
 
 	type VolumeWithExt struct {
@@ -93,13 +93,13 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
@@ -111,9 +111,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
 			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
 	}
+
+	return nil
 }
 
-func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching snapshots information")
 	var allSnapshots []snapshots.Snapshot
@@ -121,19 +123,22 @@ func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allSnapshots, err = snapshots.ExtractSnapshots(allPagesSnapshot)
 	if err != nil {
 		log.Errorln(err)
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"].Metric,
 		prometheus.GaugeValue, float64(len(allSnapshots)))
+
+	return nil
 }
 
-func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching services state information")
 	var allServices []services.Service
@@ -141,12 +146,12 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	allServices, err = services.ExtractServices(allPagesService)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	for _, service := range allServices {
@@ -157,6 +162,8 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
+
+	return nil
 }
 
 func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {

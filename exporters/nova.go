@@ -96,7 +96,7 @@ func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
 	exporter.CollectMetrics(ch)
 }
 
-func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of services")
 	var allServices []services.Service
@@ -104,12 +104,12 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 	allPagesServices, err := services.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allServices, err = services.ExtractServices(allPagesServices); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	for _, service := range allServices {
@@ -120,9 +120,11 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone)
 	}
+
+	return nil
 }
 
-func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of hypervisors and aggregates")
 	var allHypervisors []hypervisors.Hypervisor
@@ -131,23 +133,23 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	hostToAggregateMap := map[string]string{}
@@ -189,9 +191,11 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 	}
+
+	return nil
 }
 
-func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of flavors")
 	var allFlavors []flavors.Flavor
@@ -199,20 +203,22 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+
+	return nil
 }
 
-func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of availability zones")
 	var allAZs []availabilityzones.AvailabilityZone
@@ -220,19 +226,21 @@ func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allAZs, err = availabilityzones.ExtractAvailabilityZones(allPagesAZs); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"].Metric,
 		prometheus.GaugeValue, float64(len(allAZs)))
+
+	return nil
 }
 
-func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of nova security groups")
 	var allSecurityGroups []secgroups.SecurityGroup
@@ -240,19 +248,21 @@ func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allSecurityGroups, err = secgroups.ExtractSecurityGroups(allPagesSecurityGroups); err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+
+	return nil
 }
 
-func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching list of servers for all tenants")
 
@@ -266,13 +276,13 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	err = servers.ExtractServersInto(allPagesServers, &allServers)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
@@ -284,4 +294,6 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
 	}
+
+	return nil
 }

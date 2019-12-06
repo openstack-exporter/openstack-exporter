@@ -59,7 +59,7 @@ type BaseOpenStackExporter struct {
 	DisabledMetrics []string
 }
 
-type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
+type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -75,6 +75,7 @@ func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
 }
 
 func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metric) {
+	serviceUp := true
 
 	for name, metric := range exporter.Metrics {
 		log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), name)
@@ -83,7 +84,16 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 			continue
 		}
 
-		metric.Fn(exporter, ch)
+		err := metric.Fn(exporter, ch)
+		if err != nil {
+			serviceUp = false
+		}
+	}
+
+	if serviceUp {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
+	} else {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	}
 }
 
@@ -96,6 +106,12 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 
 	if exporter.Metrics == nil {
 		exporter.Metrics = make(map[string]*PrometheusMetric)
+		exporter.Metrics["up"] = &PrometheusMetric{
+			Metric: prometheus.NewDesc(
+				prometheus.BuildFQName(exporter.GetName(), "", "up"),
+				"up", nil, constLabels),
+			Fn: nil,
+		}
 	}
 
 	if constLabels == nil {

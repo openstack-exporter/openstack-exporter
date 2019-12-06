@@ -46,7 +46,7 @@ func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching domains information")
 	var allDomains []domains.Domain
@@ -54,20 +54,21 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allDomains, err = domains.ExtractDomains(allPagesDomain)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
 
+	return nil
 }
 
-func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching projects information")
 	var allProjects []projects.Project
@@ -75,20 +76,22 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
+
+	return nil
 }
 
-func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching regions information")
 	var allRegions []regions.Region
@@ -96,19 +99,21 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allRegions, err = regions.ExtractRegions(allPagesRegion)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
 		prometheus.GaugeValue, float64(len(allRegions)))
+
+	return nil
 }
 
-func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching users information")
 	var allUsers []users.User
@@ -116,18 +121,21 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allUsers, err = users.ExtractUsers(allPagesUser)
 	if err != nil {
 		log.Errorln(err)
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
+
+	return nil
 }
 
-func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
+func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	log.Infoln("Fetching groups information")
 	var allGroups []groups.Group
@@ -135,18 +143,19 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	allGroups, err = groups.ExtractGroups(allPagesGroup)
 	if err != nil {
 		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"].Metric,
 		prometheus.GaugeValue, float64(len(allGroups)))
 
+	return nil
 }
 
 func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {

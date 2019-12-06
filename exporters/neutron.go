@@ -54,10 +54,6 @@ func (exporter *NeutronExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *NeutronExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}
-
 func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFloatingIPs []floatingips.FloatingIP
 

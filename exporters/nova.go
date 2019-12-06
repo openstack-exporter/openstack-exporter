@@ -91,10 +91,6 @@ func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}
-
 func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 

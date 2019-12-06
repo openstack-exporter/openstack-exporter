@@ -152,7 +152,3 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	return nil
 }
-
-func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}

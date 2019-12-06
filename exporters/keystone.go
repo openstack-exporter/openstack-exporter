@@ -136,7 +136,3 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 
 	return nil
 }
-
-func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}

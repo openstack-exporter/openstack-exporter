@@ -92,13 +92,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		AllTenants: true,
 	}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -122,13 +120,11 @@ func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 
 	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allSnapshots, err = snapshots.ExtractSnapshots(allPagesSnapshot)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -145,12 +141,10 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 	allServices, err = services.ExtractServices(allPagesService)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 

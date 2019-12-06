@@ -103,12 +103,10 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 
 	allPagesServices, err := services.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allServices, err = services.ExtractServices(allPagesServices); err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -132,23 +130,19 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates); err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -202,13 +196,11 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -225,12 +217,10 @@ func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
 	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allAZs, err = availabilityzones.ExtractAvailabilityZones(allPagesAZs); err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -247,12 +237,10 @@ func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	if allSecurityGroups, err = secgroups.ExtractSecurityGroups(allPagesSecurityGroups); err != nil {
-		log.Errorln(err)
 		return err
 	}
 
@@ -275,13 +263,11 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 
 	err = servers.ExtractServersInto(allPagesServers, &allServers)
 	if err != nil {
-		log.Errorln(err)
 		return err
 	}
 

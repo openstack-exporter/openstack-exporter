@@ -136,13 +136,7 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 
 	suite.StartMetricsHandler()
 
-	for _, fam := range suite.MetricFamilies {
-		fmt.Println(fam)
-	}
-	// fmt.Println(suite.MetricFamilies)
-
 	for _, metric := range defaultNovaMetrics {
-		fmt.Println(suite.MetricFamilies["openstack_nova_"+metric.Name])
 		suite.Contains(suite.MetricFamilies, "openstack_nova_"+metric.Name)
 	}
 

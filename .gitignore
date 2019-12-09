@@ -5,6 +5,7 @@
 *.so
 *.dylib
 openstack-exporter
+vendor
 
 # Test binary, build with `go test -c`
 *.test

@@ -33,6 +33,7 @@ func main() {
 		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
 	}
 
+	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 

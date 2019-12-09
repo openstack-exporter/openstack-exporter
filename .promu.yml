@@ -1,15 +1,24 @@
 go:
     # Whenever the Go version is updated here, .circle/config.yml should also
     # be updated.
-    version: 1.11
+    version: 1.13
+
 repository:
-    path: github.com/openstack-exporter/openstack-exporter
+  path: github.com/openstack-exporter/openstack-exporter
+
 build:
-    flags: -mod=vendor
+  ldflags: |
+    -X github.com/prometheus/common/version.Version={{.Version}}
+    -X github.com/prometheus/common/version.Revision={{.Revision}}
+    -X github.com/prometheus/common/version.Branch={{.Branch}}
+    -X github.com/prometheus/common/version.BuildUser={{user}}@{{host}}
+    -X github.com/prometheus/common/version.BuildDate={{date "20060102-15:04:05"}}
+
 tarball:
-    files:
-        - LICENSE
+  files:
+    - LICENSE
+
 crossbuild:
-    platforms:
-        - linux/amd64
-        - linux/arm64
+  platforms:
+    - linux/amd64
+    - linux/arm64

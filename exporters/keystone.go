@@ -8,7 +8,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type KeystoneExporter struct {
@@ -40,115 +39,94 @@ func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string, disab
 	return &exporter, nil
 }
 
-func (exporter *KeystoneExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
-func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching domains information")
+func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allDomains []domains.Domain
 
 	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allDomains, err = domains.ExtractDomains(allPagesDomain)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
 
+	return nil
 }
 
-func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching projects information")
+func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
 	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
+
+	return nil
 }
 
-func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching regions information")
+func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRegions []regions.Region
 
 	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allRegions, err = regions.ExtractRegions(allPagesRegion)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
 		prometheus.GaugeValue, float64(len(allRegions)))
+
+	return nil
 }
 
-func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching users information")
+func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allUsers []users.User
 
 	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allUsers, err = users.ExtractUsers(allPagesUser)
 	if err != nil {
-		log.Errorln(err)
+		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
+
+	return nil
 }
 
-func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching groups information")
+func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allGroups []groups.Group
 
 	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allGroups, err = groups.ExtractGroups(allPagesGroup)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["groups"].Metric,
 		prometheus.GaugeValue, float64(len(allGroups)))
 
-}
-
-func (exporter *KeystoneExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
+	return nil
 }

@@ -1,15 +1,15 @@
 package exporters
 
 import (
+	"strconv"
+	"strings"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
-	"strconv"
-	"strings"
 )
 
 type CinderExporter struct {
@@ -71,15 +71,7 @@ func NewCinderExporter(client *gophercloud.ServiceClient, prefix string, disable
 	return &exporter, nil
 }
 
-func (exporter *CinderExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
-func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-	log.Infoln("Fetching volumes info")
-
+func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	type VolumeWithExt struct {
 		volumes.Volume
 		volumetenants.VolumeTenantExt
@@ -91,14 +83,12 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 		AllTenants: true,
 	}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
@@ -110,42 +100,39 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
 			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
 	}
+
+	return nil
 }
 
-func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching snapshots information")
+func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSnapshots []snapshots.Snapshot
 
 	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allSnapshots, err = snapshots.ExtractSnapshots(allPagesSnapshot)
 	if err != nil {
-		log.Errorln(err)
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"].Metric,
 		prometheus.GaugeValue, float64(len(allSnapshots)))
+
+	return nil
 }
 
-func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching services state information")
+func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
 	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 	allServices, err = services.ExtractServices(allPagesService)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	for _, service := range allServices {
@@ -156,8 +143,6 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
-}
 
-func (exporter *CinderExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
+	return nil
 }

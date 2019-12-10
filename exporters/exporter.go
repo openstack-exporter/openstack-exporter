@@ -3,11 +3,12 @@ package exporters
 import (
 	"crypto/tls"
 	"fmt"
+	"net/http"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
-	"net/http"
 )
 
 type Metric struct {
@@ -28,11 +29,10 @@ const (
 )
 
 type OpenStackExporter interface {
+	prometheus.Collector
+
 	GetName() string
 	AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels)
-	Describe(ch chan<- *prometheus.Desc)
-	Collect(ch chan<- prometheus.Metric)
-	CollectMetrics(ch chan<- prometheus.Metric)
 	MetricIsDisabled(name string) bool
 }
 
@@ -58,7 +58,7 @@ type BaseOpenStackExporter struct {
 	DisabledMetrics []string
 }
 
-type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
+type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -73,7 +73,14 @@ func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
 	return false
 }
 
-func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metric) {
+func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
+	for _, metric := range exporter.Metrics {
+		ch <- metric.Metric
+	}
+}
+
+func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
+	serviceUp := true
 
 	for name, metric := range exporter.Metrics {
 		log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), name)
@@ -82,7 +89,17 @@ func (exporter *BaseOpenStackExporter) CollectMetrics(ch chan<- prometheus.Metri
 			continue
 		}
 
-		metric.Fn(exporter, ch)
+		err := metric.Fn(exporter, ch)
+		if err != nil {
+			log.Errorln(err)
+			serviceUp = false
+		}
+	}
+
+	if serviceUp {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
+	} else {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	}
 }
 
@@ -95,6 +112,12 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 
 	if exporter.Metrics == nil {
 		exporter.Metrics = make(map[string]*PrometheusMetric)
+		exporter.Metrics["up"] = &PrometheusMetric{
+			Metric: prometheus.NewDesc(
+				prometheus.BuildFQName(exporter.GetName(), "", "up"),
+				"up", nil, constLabels),
+			Fn: nil,
+		}
 	}
 
 	if constLabels == nil {

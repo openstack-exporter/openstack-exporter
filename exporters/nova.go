@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"fmt"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
@@ -11,7 +12,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 var server_status = []string{
@@ -85,30 +85,16 @@ func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledM
 	return &exporter, nil
 }
 
-func (exporter *NovaExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range exporter.Metrics {
-		ch <- metric.Metric
-	}
-}
-
-func (exporter *NovaExporter) Collect(ch chan<- prometheus.Metric) {
-	exporter.CollectMetrics(ch)
-}
-
-func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of services")
+func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
 	allPagesServices, err := services.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allServices, err = services.ExtractServices(allPagesServices); err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	for _, service := range allServices {
@@ -119,34 +105,30 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
 			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone)
 	}
+
+	return nil
 }
 
-func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of hypervisors and aggregates")
+func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
 	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates); err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	hostToAggregateMap := map[string]string{}
@@ -188,73 +170,66 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
 	}
+
+	return nil
 }
 
-func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of flavors")
+func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFlavors []flavors.Flavor
 
 	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+
+	return nil
 }
 
-func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of availability zones")
+func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAZs []availabilityzones.AvailabilityZone
 
 	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allAZs, err = availabilityzones.ExtractAvailabilityZones(allPagesAZs); err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["availability_zones"].Metric,
 		prometheus.GaugeValue, float64(len(allAZs)))
+
+	return nil
 }
 
-func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of nova security groups")
+func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSecurityGroups []secgroups.SecurityGroup
 
 	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	if allSecurityGroups, err = secgroups.ExtractSecurityGroups(allPagesSecurityGroups); err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
+
+	return nil
 }
 
-func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) {
-
-	log.Infoln("Fetching list of servers for all tenants")
-
+func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	type ServerWithExt struct {
 		servers.Server
 		availabilityzones.ServerAvailabilityZoneExt
@@ -264,14 +239,12 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	err = servers.ExtractServersInto(allPagesServers, &allServers)
 	if err != nil {
-		log.Errorln(err)
-		return
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
@@ -283,4 +256,6 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
 	}
+
+	return nil
 }

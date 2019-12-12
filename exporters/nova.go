@@ -142,7 +142,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	for _, hypervisor := range allHypervisors {
 		availabilityZone := ""
-		if val, ok := hostToAggregateMap[hypervisor.HypervisorHostname]; ok {
+		if val, ok := hostToAggregateMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val
 		}
 

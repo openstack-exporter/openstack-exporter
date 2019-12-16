@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
@@ -268,18 +267,11 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 }
 
 func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an Identity client.
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, gophercloud.EndpointOpts{
-		Region: "RegionOne",
-	})
-	if err != nil {
-		return err
-	}
-
 	var allProjects []projects.Project
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to use the Identity client.
+	allPagesProject, err := projects.List(clients["identity"], projects.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}

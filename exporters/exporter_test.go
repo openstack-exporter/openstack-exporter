@@ -133,6 +133,14 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 		suite.MakeURL("/compute/servers/detail?all_tenants=true", ""),
 		suite.FixturePath("nova_os_servers"),
 	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/limits", ""),
+		suite.FixturePath("nova_os_limits"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/identity/v3/projects", ""),
+		suite.FixturePath("identity_projects"),
+	)
 
 	suite.StartMetricsHandler()
 

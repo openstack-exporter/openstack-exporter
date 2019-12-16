@@ -269,7 +269,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an Identity client as well.
+	// to create an Identity client.
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, gophercloud.EndpointOpts{
 		Region: "RegionOne",
 	})
@@ -290,6 +290,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	for _, p := range allProjects {
+		// Limits are obtained from the nova API, so now we can just use this exporter's client
 		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
 		if err != nil {
 			return err

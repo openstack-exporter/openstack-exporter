@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gophercloud/gophercloud"
@@ -271,6 +272,10 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
 	// to use the Identity client.
+	if clients["identity"] == nil {
+		return errors.New("No 'identity' client available")
+	}
+
 	allPagesProject, err := projects.List(clients["identity"], projects.ListOpts{}).AllPages()
 	if err != nil {
 		return err

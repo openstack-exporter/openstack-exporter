@@ -8,13 +8,13 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 var server_status = []string{
@@ -70,10 +70,10 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
-	{Name: "limits_total_vcpus_max", Labels: []string{"tenant"}, Fn: ListComputeLimits},
-	{Name: "limits_total_vcpus_used", Labels: []string{"tenant"}},
-	{Name: "limits_total_memory_max", Labels: []string{"tenant"}},
-	{Name: "limits_total_memory_used", Labels: []string{"tenant"}},
+	{Name: "limits_vcpus_max", Labels: []string{"tenant"}, Fn: ListComputeLimits},
+	{Name: "limits_vcpus_used", Labels: []string{"tenant"}},
+	{Name: "limits_memory_max", Labels: []string{"tenant"}},
+	{Name: "limits_memory_used", Labels: []string{"tenant"}},
 }
 
 func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NovaExporter, error) {
@@ -273,6 +273,9 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, gophercloud.EndpointOpts{
 		Region: "RegionOne",
 	})
+	if err != nil {
+		return err
+	}
 
 	var allProjects []projects.Project
 
@@ -287,7 +290,22 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	for _, p := range allProjects {
-		log.Infof("Project: %s (ID: %s)", p.Name, p.ID)
+		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name)
 	}
 
 	return nil

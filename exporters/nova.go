@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
@@ -269,14 +270,25 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
 
 	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to use the Identity client.
-	if clients["identity"] == nil {
-		return errors.New("No 'identity' client available")
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["compute"]; ok {
+		eo = v
+	} else {
+		return errors.New("No EndpointOpts available to create Identity client")
 	}
 
-	allPagesProject, err := projects.List(clients["identity"], projects.ListOpts{}).AllPages()
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}

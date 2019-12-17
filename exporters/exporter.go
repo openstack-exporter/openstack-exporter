@@ -60,7 +60,7 @@ type BaseOpenStackExporter struct {
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var clients map[string]*gophercloud.ServiceClient
+var endpointOpts map[string]gophercloud.EndpointOpts
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -161,11 +161,6 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	if err != nil {
 		return nil, err
 	}
-
-	if clients == nil {
-		clients = make(map[string]*gophercloud.ServiceClient)
-	}
-	clients[name] = client
 
 	switch name {
 	case "network":

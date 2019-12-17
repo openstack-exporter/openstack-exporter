@@ -100,6 +100,12 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		Availability: GetEndpointType(endpointType),
 	}
 
+	// Keep a map of the EndpointOpts for each service
+	if endpointOpts == nil {
+		endpointOpts = make(map[string]gophercloud.EndpointOpts)
+	}
+	endpointOpts[service] = eo
+
 	switch service {
 	case "clustering":
 		return openstack.NewClusteringV1(pClient, eo)

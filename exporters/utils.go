@@ -2,11 +2,12 @@ package exporters
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/openstack/clientconfig"
-	"net/http"
-	"os"
 )
 
 func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {

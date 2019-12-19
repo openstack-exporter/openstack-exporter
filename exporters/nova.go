@@ -1,16 +1,20 @@
 package exporters
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -67,6 +71,10 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
+	{Name: "limits_vcpus_max", Labels: []string{"tenant"}, Fn: ListComputeLimits},
+	{Name: "limits_vcpus_used", Labels: []string{"tenant"}},
+	{Name: "limits_memory_max", Labels: []string{"tenant"}},
+	{Name: "limits_memory_used", Labels: []string{"tenant"}},
 }
 
 func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NovaExporter, error) {
@@ -255,6 +263,59 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
 			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+	}
+
+	return nil
+}
+
+func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["compute"]; ok {
+		eo = v
+	} else {
+		return errors.New("No EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range allProjects {
+		// Limits are obtained from the nova API, so now we can just use this exporter's client
+		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name)
 	}
 
 	return nil

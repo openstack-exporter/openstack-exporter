@@ -2,11 +2,12 @@ package exporters
 
 import (
 	"fmt"
+	"net/http"
+	"os"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/openstack/clientconfig"
-	"net/http"
-	"os"
 )
 
 func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
@@ -99,6 +100,12 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		Region:       region,
 		Availability: GetEndpointType(endpointType),
 	}
+
+	// Keep a map of the EndpointOpts for each service
+	if endpointOpts == nil {
+		endpointOpts = make(map[string]gophercloud.EndpointOpts)
+	}
+	endpointOpts[service] = eo
 
 	switch service {
 	case "clustering":

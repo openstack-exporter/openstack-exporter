@@ -60,6 +60,8 @@ type BaseOpenStackExporter struct {
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
+var endpointOpts map[string]gophercloud.EndpointOpts
+
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }

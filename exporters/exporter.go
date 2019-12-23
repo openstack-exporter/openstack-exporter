@@ -198,6 +198,13 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 				return nil, err
 			}
 		}
+	case "object-store":
+		{
+			exporter, err = NewObjectStoreExporter(client, prefix, disabledMetrics)
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		{
 			return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)

@@ -3,6 +3,7 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -61,14 +62,14 @@ var defaultNovaMetrics = []Metric{
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone"}, Fn: ListNovaAgentState},
-	{Name: "running_vms", Labels: []string{"hostname", "availability_zone"}, Fn: ListHypervisors},
-	{Name: "current_workload", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "vcpus_used", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "memory_available_bytes", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "memory_used_bytes", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone"}},
-	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone"}},
+	{Name: "running_vms", Labels: []string{"hostname", "availability_zone", "aggregates"}, Fn: ListHypervisors},
+	{Name: "current_workload", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "vcpus_used", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "memory_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "memory_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant"}, Fn: ListComputeLimits},
@@ -139,44 +140,51 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
-	hostToAggregateMap := map[string]string{}
-	for _, v := range allAggregates {
-		for _, w := range v.Hosts {
-			if v.AvailabilityZone != "" {
-				hostToAggregateMap[w] = v.AvailabilityZone
+	hostToAzMap := map[string]string{}     // map of hypervisors and in which AZ they are
+	hostToAggrMap := map[string][]string{} // map of hypervisors and of which aggregates they are part of
+	for _, a := range allAggregates {
+		isAzAggregate := isAzAggregate(a)
+		for _, h := range a.Hosts {
+			// Map the AZ of this aggregate to each host part of this aggregate
+			if a.AvailabilityZone != "" {
+				hostToAzMap[h] = a.AvailabilityZone
+			}
+			// Map the aggregate name to each host part of this aggregate
+			if !isAzAggregate {
+				hostToAggrMap[h] = append(hostToAggrMap[h], a.Name)
 			}
 		}
 	}
 
 	for _, hypervisor := range allHypervisors {
 		availabilityZone := ""
-		if val, ok := hostToAggregateMap[hypervisor.Service.Host]; ok {
+		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone)
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 	}
 
 	return nil
@@ -319,4 +327,30 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	return nil
+}
+
+// Help function to determine if this aggregate has only the 'availability_zone' metadata
+// attribute set. If so, the only purpose of the aggregate is to set the AZ for its member hosts.
+func isAzAggregate(a aggregates.Aggregate) bool {
+	if len(a.Metadata) == 1 {
+		if _, ok := a.Metadata["availability_zone"]; ok {
+			return true
+		}
+	}
+	return false
+}
+
+func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
+	label := ""
+	if aggregates, ok := hostToAggrMap[h]; ok {
+		sort.Strings(aggregates)
+		for k, a := range aggregates {
+			if k == 0 {
+				label += a
+			} else {
+				label += "," + a
+			}
+		}
+	}
+	return label
 }

@@ -177,6 +177,7 @@ openstack_identity_users|region="RegionOne"|30.0 (float)
 openstack_identity_projects|region="RegionOne"|33.0 (float)
 openstack_identity_groups|region="RegionOne"|1.0 (float)
 openstack_identity_regions|region="RegionOne"|1.0 (float)
+openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float) 
 
 ## Example metrics
 ```
@@ -784,6 +785,12 @@ openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-42",region="
 openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
 openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
 openstack_nova_vcpus_used{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
+# HELP openstack_object_store_objects objects
+# TYPE openstack_object_store_objects gauge
+openstack_object_store_objects{container_name="test2"} 1
+# HELP openstack_object_store_up up
+# TYPE openstack_object_store_up gauge
+openstack_object_store_up 1
 ```
 
 [buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield

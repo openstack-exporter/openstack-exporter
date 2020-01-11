@@ -2,21 +2,15 @@ package exporters
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path"
 	"testing"
 
-	"github.com/gorilla/mux"
 	"github.com/jarcoal/httpmock"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	dto "github.com/prometheus/client_model/go"
-	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -25,29 +19,9 @@ const cloudName = "test.cloud"
 
 type BaseOpenStackTestSuite struct {
 	suite.Suite
-	ServiceName    string
-	Prefix         string
-	Exporter       *OpenStackExporter
-	Recorder       *httptest.ResponseRecorder
-	MetricFamilies map[string]*dto.MetricFamily
-}
-
-func (suite *BaseOpenStackTestSuite) StartMetricsHandler() {
-	router := mux.NewRouter()
-	router.Handle("/metrics", promhttp.Handler())
-	req, _ := http.NewRequest("GET", "/metrics", nil)
-	suite.Recorder = httptest.NewRecorder()
-	router.ServeHTTP(suite.Recorder, req)
-
-	suite.ParsePrometheus(suite.Recorder.Body)
-}
-
-func (suite *BaseOpenStackTestSuite) ParsePrometheus(in io.Reader) {
-	var parser expfmt.TextParser
-	metricFamilies, err := parser.TextToMetricFamilies(in)
-	suite.NoError(err)
-
-	suite.MetricFamilies = metricFamilies
+	ServiceName string
+	Prefix      string
+	Exporter    *OpenStackExporter
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
@@ -76,221 +50,86 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 	return fmt.Sprintf("%s/%s", baseFixturePath, name+".json")
 }
 
+var fixtures map[string]string = map[string]string{
+	"/compute/":                      "nova_api_discovery",
+	"/compute/os-services":           "nova_os_services",
+	"/compute/os-hypervisors/detail": "nova_os_hypervisors",
+	"/compute/flavors/detail":        "nova_os_flavors",
+	"/compute/os-availability-zone":  "nova_os_availability_zones",
+	"/compute/os-security-groups":    "nova_os_security_groups",
+	"/compute/os-aggregates":         "nova_os_aggregates",
+	"/compute/limits?tenant_id=0c4e939acacf4376bdcd1129f1a054ad": "nova_os_limits",
+	"/compute/limits?tenant_id=0cbd49cbf76d405d9c86562e1d579bd3": "nova_os_limits",
+	"/compute/limits?tenant_id=2db68fed84324f29bb73130c6c2094fb": "nova_os_limits",
+	"/compute/limits?tenant_id=3d594eb0f04741069dbbb521635b21c7": "nova_os_limits",
+	"/compute/limits?tenant_id=43ebde53fc314b1c9ea2b8c5dc744927": "nova_os_limits",
+	"/compute/limits?tenant_id=4b1eb781a47440acb8af9850103e537f": "nova_os_limits",
+	"/compute/limits?tenant_id=5961c443439d4fcebe42643723755e9d": "nova_os_limits",
+	"/compute/limits?tenant_id=fdb8424c4e4f4c0ba32c52e2de3bd80e": "nova_os_limits",
+	"/compute/servers/detail?all_tenants=true":                   "nova_os_servers",
+	"/glance/":                                 "glance_api_discovery",
+	"/glance/v2/images":                        "glance_images",
+	"/identity/v3/projects":                    "identity_projects",
+	"/neutron/":                                "neutron_api_discovery",
+	"/neutron/v2.0/floatingips":                "neutron_floating_ips",
+	"/neutron/v2.0/agents":                     "neutron_agents",
+	"/neutron/v2.0/networks":                   "neutron_networks",
+	"/neutron/v2.0/security-groups":            "neutron_security_groups",
+	"/neutron/v2.0/subnets":                    "neutron_subnets",
+	"/neutron/v2.0/ports":                      "neutron_ports",
+	"/neutron/v2.0/network-ip-availabilities":  "neutron_network_ip_availabilities",
+	"/neutron/v2.0/routers":                    "neutron_routers",
+	"/volumes":                                 "cinder_api_discovery",
+	"/volumes/volumes/detail?all_tenants=true": "cinder_volumes",
+	"/volumes/snapshots":                       "cinder_snapshots",
+	"/volumes/os-services":                     "cinder_os_services",
+}
+
 func (suite *BaseOpenStackTestSuite) SetupTest() {
 	httpmock.Activate()
 	suite.Prefix = "openstack"
-	suite.SetResponseFromFixture("POST", 201,
-		suite.MakeURL("/v3/auth/tokens", "35357"),
-		suite.FixturePath("tokens"))
+
+	suite.teardownFixtures()
+	suite.installFixtures()
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
-	exporter, err := EnableExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public")
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public")
 	if err != nil {
 		panic(err)
 	}
-	suite.Exporter = exporter
+	suite.Exporter = &exporter
+}
+
+func (suite *BaseOpenStackTestSuite) teardownFixtures() {
+	httpmock.Reset()
+	suite.SetResponseFromFixture("POST", 201,
+		suite.MakeURL("/v3/auth/tokens", "35357"),
+		suite.FixturePath("tokens"),
+	)
+}
+
+func (suite *BaseOpenStackTestSuite) installFixtures() {
+	for path, fixture := range fixtures {
+		suite.SetResponseFromFixture("GET", 200,
+			suite.MakeURL(path, ""),
+			suite.FixturePath(fixture),
+		)
+	}
+
+	// NOTE(mnaser): The following makes sure that all requests are mocked
+	//               and any un-mocked requests will fail to ensure we have
+	//               full coverage.
+	httpmock.RegisterNoResponder(
+		func(req *http.Request) (*http.Response, error) {
+			msg := fmt.Sprintf("Unmocked request: %s", req.URL.RequestURI())
+			suite.T().Error(errors.New(msg))
+			return httpmock.NewStringResponse(500, ""), nil
+		},
+	)
 }
 
 func (suite *BaseOpenStackTestSuite) TearDownTest() {
 	defer httpmock.DeactivateAndReset()
-	prometheus.Unregister(*suite.Exporter)
-}
-
-type NovaTestSuite struct {
-	BaseOpenStackTestSuite
-}
-
-func (suite *NovaTestSuite) TestNovaExporter() {
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/", ""),
-		suite.FixturePath("nova_api_discovery"))
-
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/os-services", ""),
-		suite.FixturePath("nova_os_services"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/os-hypervisors/detail", ""),
-		suite.FixturePath("nova_os_hypervisors"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/flavors/detail", ""),
-		suite.FixturePath("nova_os_flavors"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/os-availability-zone", ""),
-		suite.FixturePath("nova_os_availability_zones"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/os-security-groups", ""),
-		suite.FixturePath("nova_os_security_groups"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/os-aggregates", ""),
-		suite.FixturePath("nova_os_aggregates"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/servers/detail?all_tenants=true", ""),
-		suite.FixturePath("nova_os_servers"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/compute/limits", ""),
-		suite.FixturePath("nova_os_limits"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/identity/v3/projects", ""),
-		suite.FixturePath("identity_projects"),
-	)
-
-	suite.StartMetricsHandler()
-
-	for _, metric := range defaultNovaMetrics {
-		suite.Contains(suite.MetricFamilies, "openstack_nova_"+metric.Name)
-	}
-
-	suite.Contains(suite.MetricFamilies, "openstack_nova_up")
-	suite.Equal(float64(1), suite.MetricFamilies["openstack_nova_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-func (suite *NovaTestSuite) TestNovaExporterWithEndpointDown() {
-	suite.StartMetricsHandler()
-
-	suite.Contains(suite.MetricFamilies, "openstack_nova_up")
-	suite.Equal(float64(0), suite.MetricFamilies["openstack_nova_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-type NeutronTestSuite struct {
-	BaseOpenStackTestSuite
-}
-
-func (suite *NeutronTestSuite) TestNeutronExporter() {
-
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/", ""),
-		suite.FixturePath("neutron_api_discovery"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/floatingips", ""),
-		suite.FixturePath("neutron_floating_ips"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/agents", ""),
-		suite.FixturePath("neutron_agents"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/networks", ""),
-		suite.FixturePath("neutron_networks"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/security-groups", ""),
-		suite.FixturePath("neutron_security_groups"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/subnets", ""),
-		suite.FixturePath("neutron_subnets"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/ports", ""),
-		suite.FixturePath("neutron_ports"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/network-ip-availabilities", ""),
-		suite.FixturePath("neutron_network_ip_availabilities"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/neutron/v2.0/routers", ""),
-		suite.FixturePath("neutron_routers"),
-	)
-
-	suite.StartMetricsHandler()
-
-	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultNeutronMetrics {
-		suite.Contains(suite.MetricFamilies, "openstack_neutron_"+metric.Name)
-	}
-
-	suite.Contains(suite.MetricFamilies, "openstack_neutron_up")
-	suite.Equal(float64(1), suite.MetricFamilies["openstack_neutron_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-func (suite *NeutronTestSuite) TestNeutronExporterWithEndpointDown() {
-	suite.StartMetricsHandler()
-
-	suite.Contains(suite.MetricFamilies, "openstack_neutron_up")
-	suite.Equal(float64(0), suite.MetricFamilies["openstack_neutron_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-type GlanceTestSuite struct {
-	BaseOpenStackTestSuite
-}
-
-func (suite *GlanceTestSuite) TestGlanceExporter() {
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/glance/", ""),
-		suite.FixturePath("glance_api_discovery"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/glance/v2/images", ""),
-		suite.FixturePath("glance_images"),
-	)
-
-	suite.StartMetricsHandler()
-
-	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultGlanceMetrics {
-		suite.Contains(suite.MetricFamilies, "openstack_glance_"+metric.Name)
-	}
-
-	suite.Contains(suite.MetricFamilies, "openstack_glance_up")
-	suite.Equal(float64(1), suite.MetricFamilies["openstack_glance_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-func (suite *GlanceTestSuite) TestGlanceExporterWithEndpointDown() {
-	suite.StartMetricsHandler()
-
-	suite.Contains(suite.MetricFamilies, "openstack_glance_up")
-	suite.Equal(float64(0), suite.MetricFamilies["openstack_glance_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-type CinderTestSuite struct {
-	BaseOpenStackTestSuite
-}
-
-func (suite *CinderTestSuite) TestCinderExporter() {
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/volumes/", ""),
-		suite.FixturePath("cinder_api_discovery"),
-	)
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/volumes/volumes/detail?all_tenants=true", ""),
-		suite.FixturePath("cinder_volumes"),
-	)
-
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/volumes/snapshots", ""),
-		suite.FixturePath("cinder_snapshots"),
-	)
-
-	suite.SetResponseFromFixture("GET", 200,
-		suite.MakeURL("/volumes/os-services", ""),
-		suite.FixturePath("cinder_os_services"),
-	)
-	suite.StartMetricsHandler()
-
-	//Check that all the default metrics are contained on the response
-	for _, metric := range defaultCinderMetrics {
-		suite.Contains(suite.MetricFamilies, "openstack_cinder_"+metric.Name)
-	}
-
-	suite.Contains(suite.MetricFamilies, "openstack_cinder_up")
-	suite.Equal(float64(1), suite.MetricFamilies["openstack_cinder_up"].GetMetric()[0].GetGauge().GetValue())
-}
-
-func (suite *CinderTestSuite) TestCinderExporterWithEndpointDown() {
-	suite.StartMetricsHandler()
-
-	suite.Contains(suite.MetricFamilies, "openstack_cinder_up")
-	suite.Equal(float64(0), suite.MetricFamilies["openstack_cinder_up"].GetMetric()[0].GetGauge().GetValue())
 }
 
 func TestOpenStackSuites(t *testing.T) {

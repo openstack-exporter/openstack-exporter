@@ -27,8 +27,8 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports", Fn: ListPorts},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
-	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
-	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "cidr", "subnet_name", "project_id"}},
+	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
+	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
 }
 
 func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NeutronExporter, error) {
@@ -190,7 +190,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
 				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, SubnetIPAvailability.CIDR,
+				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
 				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
 
 			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
@@ -199,7 +199,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			}
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
 				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, SubnetIPAvailability.CIDR,
+				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
 				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
 		}
 	}

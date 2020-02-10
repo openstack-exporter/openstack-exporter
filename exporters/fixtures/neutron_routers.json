@@ -1,44 +1,83 @@
 {
-    "router": {
-        "admin_state_up": true,
-        "availability_zone_hints": [],
-        "availability_zones": [
-            "nova"
-        ],
-        "created_at": "2018-03-19T19:17:04Z",
-        "description": "",
-        "distributed": false,
-        "external_gateway_info": {
-            "enable_snat": true,
-            "external_fixed_ips": [
+    "router": [
+        {
+            "admin_state_up": true,
+            "availability_zone_hints": [],
+            "availability_zones": [
+                "nova"
+            ],
+            "created_at": "2018-03-19T19:17:04Z",
+            "description": "",
+            "distributed": false,
+            "external_gateway_info": {
+                "enable_snat": true,
+                "external_fixed_ips": [
+                    {
+                        "ip_address": "172.24.4.6",
+                        "subnet_id": "b930d7f6-ceb7-40a0-8b81-a425dd994ccf"
+                    },
+                    {
+                        "ip_address": "2001:db8::9",
+                        "subnet_id": "0c56df5d-ace5-46c8-8f4c-45fa4e334d18"
+                    }
+                ],
+                "network_id": "ae34051f-aa6c-4c75-abf5-50dc9ac99ef3"
+            },
+            "flavor_id": "f7b14d9a-b0dc-4fbe-bb14-a0f4970a69e0",
+            "ha": false,
+            "id": "f8a44de0-fc8e-45df-93c7-f79bf3b01c95",
+            "name": "router1",
+            "revision_number": 1,
+            "routes": [
                 {
-                    "ip_address": "172.24.4.6",
-                    "subnet_id": "b930d7f6-ceb7-40a0-8b81-a425dd994ccf"
-                },
-                {
-                    "ip_address": "2001:db8::9",
-                    "subnet_id": "0c56df5d-ace5-46c8-8f4c-45fa4e334d18"
+                    "destination": "179.24.1.0/24",
+                    "nexthop": "172.24.3.99"
                 }
             ],
-            "network_id": "ae34051f-aa6c-4c75-abf5-50dc9ac99ef3"
+            "status": "ACTIVE",
+            "updated_at": "2018-03-19T19:17:22Z",
+            "project_id": "0bd18306d801447bb457a46252d82d13",
+            "tenant_id": "0bd18306d801447bb457a46252d82d13",
+            "service_type_id": null,
+            "tags": [
+                "tag1,tag2"
+            ],
+            "conntrack_helpers": []
         },
-        "flavor_id": "f7b14d9a-b0dc-4fbe-bb14-a0f4970a69e0",
-        "ha": false,
-        "id": "f8a44de0-fc8e-45df-93c7-f79bf3b01c95",
-        "name": "router1",
-        "revision_number": 1,
-        "routes": [
-            {
-                "destination": "179.24.1.0/24",
-                "nexthop": "172.24.3.99"
-            }
-        ],
-        "status": "ACTIVE",
-        "updated_at": "2018-03-19T19:17:22Z",
-        "project_id": "0bd18306d801447bb457a46252d82d13",
-        "tenant_id": "0bd18306d801447bb457a46252d82d13",
-        "service_type_id": null,
-        "tags": ["tag1,tag2"],
-        "conntrack_helpers": []
-    }
+        {
+            "admin_state_up": true,
+            "availability_zone_hints": [],
+            "availability_zones": [
+                "nova"
+            ],
+            "created_at": "2018-05-28T15:52:43Z",
+            "description": "",
+            "distributed": true,
+            "external_gateway_info": {
+                "enable_snat": true,
+                "external_fixed_ips": [
+                    {
+                        "ip_address": "10.0.0.8",
+                        "subnet_id": "58689be2-f2fc-436c-af3a-acb157ce5cb0"
+                    }
+                ],
+                "network_id": "6507357c-48ad-4715-b79b-496dbbdf95ec"
+            },
+            "flavor_id": "f7b14d9a-b0dc-4fbe-bb14-a0f4970a69e0",
+            "ha": true,
+            "id": "9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f",
+            "name": "router2",
+            "revision_number": 1,
+            "routes": "destination='192.168.32.0/24', gateway='192.168.36.10'",
+            "status": "N/A",
+            "updated_at": "2019-06-29T17:53:11Z",
+            "project_id": "d91418ac90044a91bfadb7b0d21666f1",
+            "tenant_id": "0bd18306d801447bb457a46252d82d13",
+            "service_type_id": null,
+            "tags": [
+                "tag1,tag2"
+            ],
+            "conntrack_helpers": []
+        }
+    ]
 }

@@ -1,0 +1,20 @@
+{
+    "loadbalancers": [
+        {
+            "name": "lb1",
+            "provisioning_status": "ACTIVE",
+            "tenant_id": "3427c6640406418e8368081fd4fff18c",
+            "vip_address": "172.16.36.93",
+            "provider": "haproxy",
+            "id": "00f3453d-8738-4eb6-b362-a4ec8dfaeea6"
+        },
+        {
+            "name": "lb2",
+            "provisioning_status": "ACTIVE",
+            "tenant_id": "807911f7cc834838b3c6eddbb71024fa",
+            "vip_address": "172.16.36.32",
+            "provider": "haproxy",
+            "id": "02814fe3-369f-4b2a-abec-d94ce45303ce"
+        }
+    ]
+}

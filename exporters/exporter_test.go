@@ -79,6 +79,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/ports":                      "neutron_ports",
 	"/neutron/v2.0/network-ip-availabilities":  "neutron_network_ip_availabilities",
 	"/neutron/v2.0/routers":                    "neutron_routers",
+	"/neutron/v2.0/lbaas/loadbalancers":        "neutron_loadbalancers",
 	"/volumes":                                 "cinder_api_discovery",
 	"/volumes/volumes/detail?all_tenants=true": "cinder_volumes",
 	"/volumes/snapshots":                       "cinder_snapshots",

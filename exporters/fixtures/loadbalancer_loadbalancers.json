@@ -1,0 +1,33 @@
+{
+    "loadbalancers": [
+        {
+            "description": "My favorite load balancer",
+            "admin_state_up": true,
+            "project_id": "e3cd678b11784734bc366148aa37580e",
+            "provisioning_status": "ACTIVE",
+            "flavor_id": "",
+            "vip_subnet_id": "d4af86e1-0051-488c-b7a0-527f97490c9a",
+            "listeners": [
+                {
+                    "id": "023f2e34-7806-443b-bfae-16c324569a3d"
+                }
+            ],
+            "vip_address": "203.0.113.50",
+            "vip_network_id": "d0d217df-3958-4fbf-a3c2-8dad2908c709",
+            "vip_port_id": "b4ca07d1-a31e-43e2-891a-7d14f419f342",
+            "provider": "octavia",
+            "pools": [
+                {
+                    "id": "9aa16cdc-8d18-47b9-aba9-ec044531a79f"
+                }
+            ],
+            "created_at": "2017-02-28T00:41:44",
+            "updated_at": "2017-02-28T00:43:30",
+            "id": "607226db-27ef-4d41-ae89-f2a800e9c2db",
+            "operating_status": "ONLINE",
+            "name": "best_load_balancer",
+            "vip_qos_policy_id": "ec4f78ca-8da8-4e99-8a1a-e3b94595a7a3",
+            "tags": []
+        }
+    ]
+}

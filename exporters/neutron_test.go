@@ -21,7 +21,10 @@ openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neu
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-openvswitch-agent"} 1
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
-openstack_neutron_floating_ips 3
+openstack_neutron_floating_ips 4
+# HELP openstack_neutron_floating_ips_associated_not_active floating_ips_associated_not_active
+# TYPE openstack_neutron_floating_ips_associated_not_active gauge
+openstack_neutron_floating_ips_associated_not_active 1
 # HELP openstack_neutron_loadbalancers loadbalancers
 # TYPE openstack_neutron_loadbalancers gauge
 openstack_neutron_loadbalancers 2

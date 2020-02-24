@@ -23,6 +23,7 @@ type NeutronExporter struct {
 
 var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips", Fn: ListFloatingIps},
+	{Name: "floating_ips_associated_not_active", Fn: ListFloatingIpsAssociatedNotActive},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
@@ -71,6 +72,35 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
 		prometheus.GaugeValue, float64(len(allFloatingIPs)))
+
+	return nil
+}
+
+// ListFloatingIpsAssociatedNotActive : count total number of instantiated FloatingIPs that are associated to private IP but not in ACTIVE state
+func ListFloatingIpsAssociatedNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allFloatingIPs []floatingips.FloatingIP
+
+	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allFloatingIPs, err = floatingips.ExtractFloatingIPs(allPagesFloatingIPs)
+	if err != nil {
+		return err
+	}
+
+	failedFIPs := 0
+	for _, fip := range allFloatingIPs {
+		if fip.FixedIP != "" {
+			if fip.Status != "ACTIVE" {
+				failedFIPs = failedFIPs + 1
+			}
+		}
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips_associated_not_active"].Metric,
+		prometheus.GaugeValue, float64(failedFIPs))
 
 	return nil
 }

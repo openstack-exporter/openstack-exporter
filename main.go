@@ -16,6 +16,7 @@ var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 func main() {
 	var (
+		logLevel        = kingpin.Flag("log.level", "Log level: [debug, info, warn, error, fatal]").Default("info").String()
 		bind            = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 		metrics         = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
 		osClientConfig  = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
@@ -36,6 +37,12 @@ func main() {
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+
+	err := log.Base().SetLevel(*logLevel)
+	if err != nil {
+		log.Errorf("Cannot init set logger level: %s", err)
+		os.Exit(-1)
+	}
 
 	log.Infof("Starting openstack exporter version %s for cloud: %s", version.Info(), *cloud)
 	log.Infoln("Build context", version.BuildContext())

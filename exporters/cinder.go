@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
@@ -53,6 +54,8 @@ var defaultCinderMetrics = []Metric{
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}, Fn: ListCinderAgentState},
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil},
+	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
+	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 }
 
 func NewCinderExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*CinderExporter, error) {
@@ -144,5 +147,29 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
 	}
 
+	return nil
+}
+
+func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	listOpts := schedulerstats.ListOpts{
+		Detail: true,
+	}
+
+	allPages, err := schedulerstats.List(exporter.Client, listOpts).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allStats, err := schedulerstats.ExtractStoragePools(allPages)
+	if err != nil {
+		return err
+	}
+
+	for _, stat := range allStats {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_capacity_free_gb"].Metric, prometheus.GaugeValue,
+			float64(stat.Capabilities.FreeCapacityGB), stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_capacity_total_gb"].Metric, prometheus.GaugeValue,
+			float64(stat.Capabilities.TotalCapacityGB), stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName)
+	}
 	return nil
 }

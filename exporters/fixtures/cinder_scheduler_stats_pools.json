@@ -1,0 +1,29 @@
+{
+  "pools": [
+    {
+      "name": "i666testhost@FastPool01",
+      "capabilities": {
+        "pool_name": "FastPool01",
+        "location_info": "FastPool01|DHC3123523",
+        "compression_support": "True",
+        "deduplication_support": "False",
+        "fast_support": "True",
+        "thick_provisioning_support": true,
+        "provisioned_capacity_gb": 33422.797,
+        "timestamp": "2019-01-11T00:14:26.829133",
+        "allocated_capacity_gb": 32929,
+        "volume_backend_name": "VNX_Pool",
+        "thin_provisioning_support": true,
+        "free_capacity_gb": 636.316,
+        "driver_version": "06.00.00",
+        "total_capacity_gb": 1692.429,
+        "fast_cache_enabled": "True",
+        "max_over_subscription_ratio": 1.0,
+        "vendor_name": "EMC",
+        "reserved_percentage": 21,
+        "consistencygroup_support": "True",
+        "storage_protocol": "FC"
+      }
+    }
+  ]
+}

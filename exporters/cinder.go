@@ -51,7 +51,7 @@ func mapVolumeStatus(volStatus string) int {
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone"}, Fn: ListCinderAgentState},
+	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil},
 }
 
@@ -141,7 +141,7 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 			state = 1
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone)
+			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
 	}
 
 	return nil

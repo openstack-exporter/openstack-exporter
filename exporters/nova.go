@@ -72,10 +72,10 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
-	{Name: "limits_vcpus_max", Labels: []string{"tenant"}, Fn: ListComputeLimits},
-	{Name: "limits_vcpus_used", Labels: []string{"tenant"}},
-	{Name: "limits_memory_max", Labels: []string{"tenant"}},
-	{Name: "limits_memory_used", Labels: []string{"tenant"}},
+	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
+	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}},
+	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}},
+	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}},
 }
 
 func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NovaExporter, error) {
@@ -314,16 +314,16 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name, p.ID)
 	}
 
 	return nil

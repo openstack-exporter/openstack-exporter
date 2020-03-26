@@ -13,6 +13,7 @@ type ObjectStoreExporter struct {
 
 var defaultObjectStoreMetrics = []Metric{
 	{Name: "objects", Labels: []string{"container_name"}, Fn: ListContainers},
+	{Name: "bytes", Labels: []string{"container_name"}, Fn: nil},
 }
 
 func NewObjectStoreExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*ObjectStoreExporter, error) {
@@ -42,6 +43,8 @@ func ListContainers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		for _, c := range containerList {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["objects"].Metric,
 				prometheus.GaugeValue, float64(c.Count), c.Name)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["bytes"].Metric,
+				prometheus.GaugeValue, float64(c.Bytes), c.Name)
 		}
 		return true, nil
 	})

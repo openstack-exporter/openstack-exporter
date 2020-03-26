@@ -3,7 +3,6 @@ package exporters
 import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/containers"
-	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/objects"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -34,26 +33,15 @@ func NewObjectStoreExporter(client *gophercloud.ServiceClient, prefix string, di
 }
 
 func ListContainers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	err := containers.List(exporter.Client, containers.ListOpts{Full: false}).EachPage(func(page pagination.Page) (bool, error) {
-		containerList, err := containers.ExtractNames(page)
+	err := containers.List(exporter.Client, containers.ListOpts{Full: true}).EachPage(func(page pagination.Page) (bool, error) {
+		containerList, err := containers.ExtractInfo(page)
 		if err != nil {
 			return false, err
 		}
 
 		for _, c := range containerList {
-			err := objects.List(exporter.Client, c, objects.ListOpts{Full: false}).EachPage(func(page pagination.Page) (bool, error) {
-				objectList, err := objects.ExtractNames(page)
-				if err != nil {
-					return false, err
-				}
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["objects"].Metric,
-					prometheus.GaugeValue, float64(len(objectList)), c)
-				return true, nil
-			})
-
-			if err != nil {
-				return false, err
-			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["objects"].Metric,
+				prometheus.GaugeValue, float64(c.Count), c.Name)
 		}
 		return true, nil
 	})

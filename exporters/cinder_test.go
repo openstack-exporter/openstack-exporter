@@ -17,6 +17,12 @@ var cinderExpectedUp = `
 openstack_cinder_agent_state{adminState="enabled",hostname="devstack",service="cinder-backup",zone="nova"} 1
 openstack_cinder_agent_state{adminState="enabled",hostname="devstack",service="cinder-scheduler",zone="nova"} 1
 openstack_cinder_agent_state{adminState="enabled",hostname="devstack@lvmdriver-1",service="cinder-volume",zone="nova"} 1
+# HELP openstack_cinder_pool_capacity_free_gb pool_capacity_free_gb
+# TYPE openstack_cinder_pool_capacity_free_gb gauge
+openstack_cinder_pool_capacity_free_gb{name="i666testhost@FastPool01",vendor_name="EMC",volume_backend_name="VNX_Pool"} 636.316
+# HELP openstack_cinder_pool_capacity_total_gb pool_capacity_total_gb
+# TYPE openstack_cinder_pool_capacity_total_gb gauge
+openstack_cinder_pool_capacity_total_gb{name="i666testhost@FastPool01",vendor_name="EMC",volume_backend_name="VNX_Pool"} 1692.429
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
 openstack_cinder_snapshots 1

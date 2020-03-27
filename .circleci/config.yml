@@ -101,7 +101,7 @@ jobs:
       - run: sed -i -e "s/\$GRADE/devel/g" snap/snapcraft.yaml
       - run:
           name: "Build edge snap"
-          command: /snap/bin/snapcraft --destructive-mode
+          command: PATH=/snap/bin /snap/bin/snapcraft --destructive-mode
 
       - persist_to_workspace:
           root: .

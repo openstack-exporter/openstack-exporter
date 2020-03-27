@@ -14,10 +14,10 @@ type NovaTestSuite struct {
 var novaExpectedUp = `
 # HELP openstack_nova_agent_state agent_state
 # TYPE openstack_nova_agent_state counter
-openstack_nova_agent_state{adminState="disabled",hostname="host1",id="1",service="nova-scheduler",zone="internal"} 1
-openstack_nova_agent_state{adminState="disabled",hostname="host1",id="2",service="nova-compute",zone="nova"} 1
-openstack_nova_agent_state{adminState="disabled",hostname="host2",id="4",service="nova-compute",zone="nova"} 0
-openstack_nova_agent_state{adminState="enabled",hostname="host2",id="3",service="nova-scheduler",zone="internal"} 0
+openstack_nova_agent_state{adminState="disabled",disabledReason="test1",hostname="host1",id="1",service="nova-scheduler",zone="internal"} 1
+openstack_nova_agent_state{adminState="disabled",disabledReason="test2",hostname="host1",id="2",service="nova-compute",zone="nova"} 1
+openstack_nova_agent_state{adminState="disabled",disabledReason="test4",hostname="host2",id="4",service="nova-compute",zone="nova"} 0
+openstack_nova_agent_state{adminState="enabled",disabledReason="",hostname="host2",id="3",service="nova-scheduler",zone="internal"} 0
 # HELP openstack_nova_availability_zones availability_zones
 # TYPE openstack_nova_availability_zones gauge
 openstack_nova_availability_zones 1

@@ -14,9 +14,9 @@ type CinderTestSuite struct {
 var cinderExpectedUp = `
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
-openstack_cinder_agent_state{adminState="enabled",hostname="devstack",service="cinder-backup",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",hostname="devstack",service="cinder-scheduler",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",hostname="devstack@lvmdriver-1",service="cinder-volume",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",zone="nova"} 1
 # HELP openstack_cinder_pool_capacity_free_gb pool_capacity_free_gb
 # TYPE openstack_cinder_pool_capacity_free_gb gauge
 openstack_cinder_pool_capacity_free_gb{name="i666testhost@FastPool01",vendor_name="EMC",volume_backend_name="VNX_Pool"} 636.316

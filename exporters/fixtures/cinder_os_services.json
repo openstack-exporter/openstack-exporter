@@ -6,7 +6,7 @@
     "state": "up",
     "updated_at": "2017-06-29T05:50:35.000000",
     "host": "devstack",
-    "disabled_reason": null
+    "disabled_reason": "Test1"
   },
     {
       "status": "enabled",
@@ -15,7 +15,7 @@
       "state": "up",
       "updated_at": "2017-06-29T05:50:42.000000",
       "host": "devstack",
-      "disabled_reason": null
+      "disabled_reason": "Test2"
     },
     {
       "status": "enabled",

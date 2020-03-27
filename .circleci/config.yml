@@ -92,6 +92,7 @@ jobs:
       - checkout
       - run: sudo apt -yyq update
       - run: sudo apt -yyq install snapd
+      - run: sudo apt-get remove --auto-remove golang
       - run: sudo snap refresh core
       - run: sudo snap refresh core18
       - run: sudo snap install go --classic

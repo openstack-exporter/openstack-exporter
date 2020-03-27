@@ -91,7 +91,8 @@ jobs:
     steps:
       - checkout
       - run: sudo apt -yyq update
-      - run: sudo snap install snapd
+      - run: sudo apt -yyq install snapd
+      - run: sudo snap refresh core
       - run: sudo snap refresh core18
       - run: sudo snap install snapcraft --classic
       - run: sed -i -e "s/\$VERSION/latest/g" snap/snapcraft.yaml

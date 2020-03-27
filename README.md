@@ -24,8 +24,9 @@ docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
 ```
 ### Latest Docker release images
 ```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:v0.9.0
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:v0.9.0
+docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:v1.0.0
+docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:v1.0.0
+
 ```
 ### Snaps
 

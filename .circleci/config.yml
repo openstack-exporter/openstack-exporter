@@ -129,6 +129,7 @@ jobs:
       - checkout
       - run: sudo apt -yyq update
       - run: sudo apt -yyq install snapd
+      - run: sudo apt-get remove --auto-remove golang golang-go
       - run: sudo snap refresh core
       - run: sudo snap refresh core18
       - run: sudo snap install go --classic
@@ -137,7 +138,7 @@ jobs:
       - run: sed -i -e "s/\$GRADE/stable/g" snap/snapcraft.yaml
       - run:
           name: "Build edge snap"
-          command: /snap/bin/snapcraft --destructive-mode
+          command: PATH=/snap/bin:$PATH /snap/bin/snapcraft --destructive-mode
 
       - persist_to_workspace:
           root: .

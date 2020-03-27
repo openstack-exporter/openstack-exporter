@@ -94,6 +94,7 @@ jobs:
       - run: sudo apt -yyq install snapd
       - run: sudo snap refresh core
       - run: sudo snap refresh core18
+      - run: sudo snap install go --classic
       - run: sudo snap install snapcraft --classic
       - run: sed -i -e "s/\$VERSION/latest/g" snap/snapcraft.yaml
       - run: sed -i -e "s/\$GRADE/devel/g" snap/snapcraft.yaml
@@ -125,6 +126,11 @@ jobs:
       image: ubuntu-1604:201903-01
     steps:
       - checkout
+      - run: sudo apt -yyq update
+      - run: sudo apt -yyq install snapd
+      - run: sudo snap refresh core
+      - run: sudo snap refresh core18
+      - run: sudo snap install go --classic
       - run: sudo snap install snapcraft --classic
       - run: sed -i -e "s/\$VERSION/${CIRCLE_TAG}/g" snap/snapcraft.yaml
       - run: sed -i -e "s/\$GRADE/stable/g" snap/snapcraft.yaml

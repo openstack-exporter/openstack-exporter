@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra"}
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 func main() {

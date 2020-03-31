@@ -212,6 +212,12 @@ openstack_cinder_snapshots{region="Region"} 0.0
 # HELP openstack_cinder_volumes volumes
 # TYPE openstack_cinder_volumes gauge
 openstack_cinder_volumes{region="Region"} 8.0
+# HELP openstack_container_infra_cluster_status cluster_status
+# TYPE openstack_container_infra_cluster_status gauge
+openstack_container_infra_cluster_status{master_count="1",name="k8s",node_count="1",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1
+# HELP openstack_container_infra_total_clusters total_clusters
+# TYPE openstack_container_infra_total_clusters gauge
+openstack_container_infra_total_clusters 1
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
 openstack_glance_images{region="Region"} 18.0

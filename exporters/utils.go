@@ -114,6 +114,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		return openstack.NewComputeV2(pClient, eo)
 	case "container":
 		return openstack.NewContainerV1(pClient, eo)
+	case "container-infra":
+		return openstack.NewContainerInfraV1(pClient, eo)
 	case "database":
 		return openstack.NewDBV1(pClient, eo)
 	case "dns":

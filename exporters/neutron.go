@@ -9,6 +9,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/loadbalancers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
@@ -27,9 +28,10 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
-	{Name: "ports", Fn: ListPorts},
-	{Name: "ports_no_ips", Fn: ListPortsNoIPs},
-	{Name: "ports_lb_not_active", Fn: ListPortsLBsNotActive},
+	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type"}, Fn: ListPorts},
+	{Name: "ports"},
+	{Name: "ports_no_ips"},
+	{Name: "ports_lb_not_active"},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "routers_not_active", Fn: ListRoutersNotActive},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
@@ -193,78 +195,54 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	return nil
 }
 
-// ListPorts : count total number of instantiated Ports
+// PortBinding represents a port which includes port bindings
+type PortBinding struct {
+	ports.Port
+	portsbinding.PortsBindingExt
+}
+
+// ListPorts generates metrics about ports inside the OpenStack cloud
 func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allPorts []ports.Port
+	var allPorts []PortBinding
 
 	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
 
-	allPorts, err = ports.ExtractPorts(allPagesPorts)
+	err = ports.ExtractPortsInto(allPagesPorts, &allPorts)
 	if err != nil {
 		return err
 	}
 
+	portsWithNoIP := float64(0)
+	lbaasPortsInactive := float64(0)
+
+	for _, port := range allPorts {
+		if port.Status == "ACTIVE" && len(port.FixedIPs) == 0 {
+			portsWithNoIP++
+		}
+
+		if port.DeviceOwner == "neutron:LOADBALANCERV2" && port.Status != "ACTIVE" {
+			lbaasPortsInactive++
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
+			prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner, port.Status, port.VIFType)
+	}
+
+	// NOTE(mnaser): We should deprecate this and users can replace it by
+	//               count(openstack_neutron_port)
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports"].Metric,
 		prometheus.GaugeValue, float64(len(allPorts)))
 
-	return nil
-}
-
-// ListPortsNoIPs : count total number of ACTIVE Ports with no IP
-func ListPortsNoIPs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allPorts []ports.Port
-	var opts = ports.ListOpts{Status: "ACTIVE"}
-
-	allPagesPorts, err := ports.List(exporter.Client, opts).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allPorts, err = ports.ExtractPorts(allPagesPorts)
-	if err != nil {
-		return err
-	}
-
-	failedPorts := 0
-	for _, port := range allPorts {
-		if len(port.FixedIPs) == 0 {
-			failedPorts = failedPorts + 1
-		}
-	}
+	// NOTE(mnaser): We should deprecate this and users can replace it by:
+	//               count(openstack_neutron_port{device_owner="neutron:LOADBALANCERV2",status!="ACTIVE"})
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports_lb_not_active"].Metric,
+		prometheus.GaugeValue, lbaasPortsInactive)
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports_no_ips"].Metric,
-		prometheus.GaugeValue, float64(failedPorts))
-
-	return nil
-}
-
-// ListPortsLBsNotActive : count total number of LB Ports that are not in ACTIVE state
-func ListPortsLBsNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allPorts []ports.Port
-	var opts = ports.ListOpts{DeviceOwner: "neutron:LOADBALANCERV2"}
-
-	allPagesPorts, err := ports.List(exporter.Client, opts).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allPorts, err = ports.ExtractPorts(allPagesPorts)
-	if err != nil {
-		return err
-	}
-
-	failedPorts := 0
-	for _, port := range allPorts {
-		if port.Status != "ACTIVE" {
-			failedPorts = failedPorts + 1
-		}
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["ports_lb_not_active"].Metric,
-		prometheus.GaugeValue, float64(failedPorts))
+		prometheus.GaugeValue, portsWithNoIP)
 
 	return nil
 }

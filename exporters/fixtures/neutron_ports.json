@@ -132,11 +132,11 @@
             "port_security_enabled": true,
             "trunk_details": null,
             "security_group_ids": "2ccd3d98-af37-4969-bff2-9b2b6f9b3dd6",
-            "binding_host_id": "host11111",
-            "binding_profile": "",
-            "binding_vif_type": "ovs",
-            "binding_vif_details": "datapath_type='system', ovs_hybrid_plug='True', port_filter='True'",
-            "binding_vnic_type": "normal"
+            "binding:host_id": "host11111",
+            "binding:profile": {},
+            "binding:vif_type": "ovs",
+            "binding:vif_details": {"port_filter":true,"bridge_name":"br-int","datapath_type":"system","ovs_hybrid_plug":true},
+            "binding:vnic_type": "normal"
         }
     ]
 }

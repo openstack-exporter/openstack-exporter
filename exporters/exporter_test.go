@@ -25,18 +25,18 @@ type BaseOpenStackTestSuite struct {
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
-	httpmock.RegisterResponder(method, url, func(request *http.Request) (*http.Response, error) {
-		data, _ := ioutil.ReadFile(file)
-		return &http.Response{
-			Body: ioutil.NopCloser(bytes.NewReader(data)),
-			Header: http.Header{
-				"Content-Type":    []string{"application/json"},
-				"X-Subject-Token": []string{"1234"},
-			},
-			StatusCode: statusCode,
-			Request:    request,
-		}, nil
-	})
+	data, _ := ioutil.ReadFile(file)
+	response := &http.Response{
+		Body: ioutil.NopCloser(bytes.NewReader(data)),
+		Header: http.Header{
+			"Content-Type":    []string{"application/json"},
+			"X-Subject-Token": []string{"1234"},
+		},
+		StatusCode: statusCode,
+	}
+
+	responder := httpmock.ResponderFromResponse(response).Once()
+	httpmock.RegisterResponder(method, url, responder)
 }
 
 func (suite *BaseOpenStackTestSuite) MakeURL(resource string, port string) string {

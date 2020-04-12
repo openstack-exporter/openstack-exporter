@@ -24,7 +24,7 @@ type NeutronExporter struct {
 
 var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips", Fn: ListFloatingIps},
-	{Name: "floating_ips_associated_not_active", Fn: ListFloatingIpsAssociatedNotActive},
+	{Name: "floating_ips_associated_not_active"},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
@@ -33,12 +33,12 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports_no_ips"},
 	{Name: "ports_lb_not_active"},
 	{Name: "routers", Fn: ListRouters},
-	{Name: "routers_not_active", Fn: ListRoutersNotActive},
+	{Name: "routers_not_active"},
 	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
 	{Name: "loadbalancers", Fn: ListLBs},
-	{Name: "loadbalancers_not_active", Fn: ListLBsNotActive},
+	{Name: "loadbalancers_not_active"},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -59,27 +59,8 @@ func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string, disabl
 	return &exporter, nil
 }
 
-// ListFloatingIps : count total number of instantiated FloatingIPs
+// ListFloatingIps : count total number of instantiated FloatingIPs and those that are associated to private IP but not in ACTIVE state
 func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allFloatingIPs []floatingips.FloatingIP
-
-	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allFloatingIPs, err = floatingips.ExtractFloatingIPs(allPagesFloatingIPs)
-	if err != nil {
-		return err
-	}
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
-		prometheus.GaugeValue, float64(len(allFloatingIPs)))
-
-	return nil
-}
-
-// ListFloatingIpsAssociatedNotActive : count total number of instantiated FloatingIPs that are associated to private IP but not in ACTIVE state
-func ListFloatingIpsAssociatedNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFloatingIPs []floatingips.FloatingIP
 
 	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
@@ -101,6 +82,8 @@ func ListFloatingIpsAssociatedNotActive(exporter *BaseOpenStackExporter, ch chan
 		}
 	}
 
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips"].Metric,
+		prometheus.GaugeValue, float64(len(allFloatingIPs)))
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ips_associated_not_active"].Metric,
 		prometheus.GaugeValue, float64(failedFIPs))
 
@@ -286,28 +269,8 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 	return nil
 }
 
-// ListRouters : count total number of instantiated Routers
+// ListRouters : count total number of instantiated Routers and those that are not in ACTIVE state
 func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allRouters []routers.Router
-
-	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allRouters, err = routers.ExtractRouters(allPagesRouters)
-	if err != nil {
-		return err
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,
-		prometheus.GaugeValue, float64(len(allRouters)))
-
-	return nil
-}
-
-// ListRoutersNotActive : count total number of instantiated Routers that are not in ACTIVE state
-func ListRoutersNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRouters []routers.Router
 
 	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
@@ -327,34 +290,16 @@ func ListRoutersNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		}
 	}
 
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,
+		prometheus.GaugeValue, float64(len(allRouters)))
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers_not_active"].Metric,
 		prometheus.GaugeValue, float64(failedRouters))
 
 	return nil
 }
 
-// ListLBs : count total number of instantiated LoadBalancers
+// ListLBs : count total number of instantiated LoadBalancers and those that are not in ACTIVE state
 func ListLBs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allLBs []loadbalancers.LoadBalancer
-
-	allPagesLBs, err := loadbalancers.List(exporter.Client, loadbalancers.ListOpts{}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allLBs, err = loadbalancers.ExtractLoadBalancers(allPagesLBs)
-	if err != nil {
-		return err
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers"].Metric,
-		prometheus.GaugeValue, float64(len(allLBs)))
-
-	return nil
-}
-
-// ListLBsNotActive : count total number of instantiated LoadBalancers that are not in ACTIVE state
-func ListLBsNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allLBs []loadbalancers.LoadBalancer
 
 	allPagesLBs, err := loadbalancers.List(exporter.Client, loadbalancers.ListOpts{}).AllPages()
@@ -374,6 +319,8 @@ func ListLBsNotActive(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		}
 	}
 
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers"].Metric,
+		prometheus.GaugeValue, float64(len(allLBs)))
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers_not_active"].Metric,
 		prometheus.GaugeValue, float64(failedLBs))
 

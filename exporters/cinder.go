@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -211,7 +210,6 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		return err
 	}
 
-	fmt.Print(allProjects)
 	for _, p := range allProjects {
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()

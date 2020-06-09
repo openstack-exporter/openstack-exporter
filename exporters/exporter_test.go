@@ -86,6 +86,14 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/snapshots":                             "cinder_snapshots",
 	"/volumes/os-services":                           "cinder_os_services",
 	"/volumes/scheduler-stats/get_pools?detail=true": "cinder_scheduler_stats_pools",
+	"/volumes/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/2db68fed84324f29bb73130c6c2094fb?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/3d594eb0f04741069dbbb521635b21c7?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/43ebde53fc314b1c9ea2b8c5dc744927?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d?usage=true": "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e?usage=true": "cinder_os_quota_sets",
 }
 
 func (suite *BaseOpenStackTestSuite) SetupTest() {

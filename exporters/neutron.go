@@ -245,6 +245,11 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 	}
 
 	for _, NetworkIPAvailabilities := range allNetworkIPAvailabilities {
+		projectID := NetworkIPAvailabilities.ProjectID
+		if projectID == "" && NetworkIPAvailabilities.TenantID != "" {
+			projectID = NetworkIPAvailabilities.TenantID
+		}
+
 		for _, SubnetIPAvailability := range NetworkIPAvailabilities.SubnetIPAvailabilities {
 			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
 			if err != nil {
@@ -253,7 +258,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
 				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
 				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
+				SubnetIPAvailability.SubnetName, projectID)
 
 			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
 			if err != nil {
@@ -262,7 +267,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
 				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
 				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, NetworkIPAvailabilities.ProjectID)
+				SubnetIPAvailability.SubnetName, projectID)
 		}
 	}
 

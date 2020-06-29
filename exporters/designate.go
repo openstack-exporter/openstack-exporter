@@ -13,29 +13,6 @@ type DesignateExporter struct {
 	BaseOpenStackExporter
 }
 
-// var volume_status = []string{
-// 	"creating",
-// 	"available",
-// 	"reserved",
-// 	"attaching",
-// 	"detaching",
-// 	"in-use",
-// 	"maintenance",
-// 	"deleting",
-// 	"awaiting-transfer",
-// 	"error",
-// 	"error_deleting",
-// 	"backing-up",
-// 	"restoring-backup",
-// 	"error_backing-up",
-// 	"error_restoring",
-// 	"error_extending",
-// 	"downloading",
-// 	"uploading",
-// 	"retyping",
-// 	"extending",
-// }
-
 var zone_status = []string{
 	"pending",
 	"active",

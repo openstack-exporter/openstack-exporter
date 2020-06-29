@@ -175,6 +175,10 @@ openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939a
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
 openstack_cinder_volume_status|region="RegionOne""id", "name", "status", "bootable", "tenant_id", "size", "volume_type"|4.0 (float) 
+openstack_designate_zones| region="RegionOne"|4.0 (float)
+openstack_designate_zone_status| region="RegionOne""id", "name", "status", "tenant_id", "type"|4.0 (float)
+openstack_designate_recordsets| region="RegionOne"|4.0 (float)
+openstack_designate_recordsets_status| region="RegionOne""id", "name", "status", "zone_id", "zone_name", "type"|4.0 (float)
 openstack_identity_domains|region="RegionOne"|1.0 (float)
 openstack_identity_users|region="RegionOne"|30.0 (float)
 openstack_identity_projects|region="RegionOne"|33.0 (float)
@@ -234,6 +238,21 @@ openstack_cinder_snapshots{region="Region"} 0.0
 # HELP openstack_cinder_volumes volumes
 # TYPE openstack_cinder_volumes gauge
 openstack_cinder_volumes{region="Region"} 8.0
+# HELP openstack_designate_recordsets recordsets
+# TYPE openstack_designate_recordsets gauge
+openstack_designate_recordsets 1
+# HELP openstack_designate_recordsets_status recordsets_status
+# TYPE openstack_designate_recordsets_status gauge
+openstack_designate_recordsets_status{ZoneName="example.com.",id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f"} 0
+# HELP openstack_designate_up up
+# TYPE openstack_designate_up gauge
+openstack_designate_up 1
+# HELP openstack_designate_zone_status zone_status
+# TYPE openstack_designate_zone_status gauge
+openstack_designate_zone_status{id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"} 1
+# HELP openstack_designate_zones zones
+# TYPE openstack_designate_zones gauge
+openstack_designate_zones 1
 # HELP openstack_container_infra_cluster_status cluster_status
 # TYPE openstack_container_infra_cluster_status gauge
 openstack_container_infra_cluster_status{master_count="1",name="k8s",node_count="1",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1

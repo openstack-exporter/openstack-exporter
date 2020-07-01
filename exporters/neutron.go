@@ -3,7 +3,6 @@ package exporters
 import (
 	"strconv"
 
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
@@ -42,13 +41,11 @@ var defaultNeutronMetrics = []Metric{
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
-func NewNeutronExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NeutronExporter, error) {
+func NewNeutronExporter(config *ExporterConfig) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
-			Name:            "neutron",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "neutron",
+			ExporterConfig: *config,
 		},
 	}
 

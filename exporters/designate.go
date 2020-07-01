@@ -3,7 +3,6 @@ package exporters
 import (
 	"strings"
 
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	"github.com/prometheus/client_golang/prometheus"
@@ -52,13 +51,11 @@ var defaultDesignateMetrics = []Metric{
 	{Name: "recordsets_status", Labels: []string{"id", "name", "status", "zone_id", "zone_name", "type"}, Fn: nil},
 }
 
-func NewDesignateExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*DesignateExporter, error) {
+func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 	exporter := DesignateExporter{
 		BaseOpenStackExporter{
-			Name:            "designate",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			ExporterConfig: *config,
+			Name:           "designate",
 		},
 	}
 	for _, metric := range defaultDesignateMetrics {

@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/containerinfra/v1/clusters"
 	"github.com/prometheus/client_golang/prometheus"
 	"strconv"
@@ -46,13 +45,11 @@ var defaultContainerInfraMetrics = []Metric{
 	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count"}, Fn: nil},
 }
 
-func NewContainerInfraExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*ContainerInfraExporter, error) {
+func NewContainerInfraExporter(config *ExporterConfig) (*ContainerInfraExporter, error) {
 	exporter := ContainerInfraExporter{
 		BaseOpenStackExporter{
-			Name:            "container_infra",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "container_infra",
+			ExporterConfig: *config,
 		},
 	}
 	for _, metric := range defaultContainerInfraMetrics {

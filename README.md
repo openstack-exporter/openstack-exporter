@@ -77,6 +77,7 @@ usage: openstack-exporter [<flags>] <cloud>
 
 Flags:
   -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
+      --log.level="info"         Log level: [debug, info, warn, error, fatal]
       --web.listen-address=":9180"  
                                  address:port to listen on
       --web.telemetry-path="/metrics"  
@@ -85,6 +86,7 @@ Flags:
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
+      --collect-metric-time      time spent collecting each metric
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
@@ -92,6 +94,14 @@ Flags:
       --disable-service.volume   Disable the volume service exporter
       --disable-service.identity  
                                  Disable the identity service exporter
+      --disable-service.object-store
+                                 Disable the object-store service exporter
+      --disable-service.load-balancer
+                                 Disable the load-balancer service exporter
+      --disable-service.container-infra
+                                 Disable the container-infra service exporter
+      --disable-service.dns      Disable the dns service exporter
+      --version                  Show application version.
 
 Args:
   <cloud>  name or id of the cloud to gather metrics from
@@ -185,6 +195,7 @@ openstack_identity_projects|region="RegionOne"|33.0 (float)
 openstack_identity_groups|region="RegionOne"|1.0 (float)
 openstack_identity_regions|region="RegionOne"|1.0 (float)
 openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float) 
+openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
 ## Example metrics
 ```

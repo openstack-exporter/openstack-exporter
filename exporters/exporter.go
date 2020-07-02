@@ -103,15 +103,15 @@ func (exporter *BaseOpenStackExporter) AddMetricCollectTime(collectTimeSeconds f
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric) error {
 	log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
 	now := time.Now()
-	if exporter.CollectTime {
-		defer exporter.AddMetricCollectTime(time.Since(now).Seconds(), metricName, ch)
-	}
 	err := metric.Fn(exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}
 
 	log.Infof("Collected metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
+	if exporter.CollectTime {
+		exporter.AddMetricCollectTime(time.Since(now).Seconds(), metricName, ch)
+	}
 	return nil
 }
 

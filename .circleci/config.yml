@@ -19,7 +19,7 @@ jobs:
 
   build:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-1604:202004-01
     working_directory: /home/circleci/.go_workspace/src/github.com/niedbalski/openstack-exporter
 
     steps:
@@ -87,7 +87,7 @@ jobs:
 
   snap_master_build:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-1604:202004-01
     steps:
       - checkout
       - run: sudo apt -yyq update
@@ -124,7 +124,7 @@ jobs:
 
   snap_tag_build:
     machine:
-      image: ubuntu-1604:201903-01
+      image: ubuntu-1604:202004-01
     steps:
       - checkout
       - run: sudo apt -yyq update

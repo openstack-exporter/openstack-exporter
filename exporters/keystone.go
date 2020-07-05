@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -22,13 +21,11 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "regions", Fn: ListRegions},
 }
 
-func NewKeystoneExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*KeystoneExporter, error) {
+func NewKeystoneExporter(config *ExporterConfig) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
-			Name:            "identity",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "identity",
+			ExporterConfig: *config,
 		},
 	}
 

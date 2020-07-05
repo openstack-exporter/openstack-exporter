@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -14,13 +13,11 @@ var defaultGlanceMetrics = []Metric{
 	{Name: "images", Fn: ListImages},
 }
 
-func NewGlanceExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*GlanceExporter, error) {
+func NewGlanceExporter(config *ExporterConfig) (*GlanceExporter, error) {
 	exporter := GlanceExporter{
 		BaseOpenStackExporter{
-			Name:            "glance",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "glance",
+			ExporterConfig: *config,
 		},
 	}
 

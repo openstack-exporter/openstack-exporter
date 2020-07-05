@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
@@ -36,8 +37,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime)
 	if err != nil {
 		return nil, err
 	}
@@ -50,12 +51,17 @@ type PrometheusMetric struct {
 	Fn     ListFunc
 }
 
-type BaseOpenStackExporter struct {
-	Name            string
-	Prefix          string
-	Metrics         map[string]*PrometheusMetric
+type ExporterConfig struct {
 	Client          *gophercloud.ServiceClient
+	Prefix          string
 	DisabledMetrics []string
+	CollectTime     bool
+}
+
+type BaseOpenStackExporter struct {
+	ExporterConfig
+	Name    string
+	Metrics map[string]*PrometheusMetric
 }
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
@@ -81,28 +87,55 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
+func (exporter *BaseOpenStackExporter) AddMetricCollectTime(collectTimeSeconds float64, metricName string, ch chan<- prometheus.Metric) {
+	metricPromatheuslabels := prometheus.Labels{
+		"openstack_service": exporter.GetName(),
+		"openstack_metric":  metricName}
+	metric := prometheus.NewDesc(
+		"openstack_metric_collect_seconds",
+		"Time needed to collect metric from OpenStack API",
+		nil,
+		metricPromatheuslabels)
+	log.Debugf("Adding metric for collecting timings: %+s", metric)
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, collectTimeSeconds)
+}
+
+func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric) error {
+	log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
+	now := time.Now()
+	err := metric.Fn(exporter, ch)
+	if err != nil {
+		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
+	}
+
+	log.Infof("Collected metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
+	if exporter.CollectTime {
+		exporter.AddMetricCollectTime(time.Since(now).Seconds(), metricName, ch)
+	}
+	return nil
+}
+
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
-	serviceUp := true
+	serviceDown := 0
 
 	for name, metric := range exporter.Metrics {
-		log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), name)
 		if metric.Fn == nil {
 			log.Debugf("No function handler set for metric: %s", name)
 			continue
 		}
 
-		err := metric.Fn(exporter, ch)
-		if err != nil {
-			log.Errorln(err)
-			serviceUp = false
+		if err := exporter.RunCollection(metric, name, ch); err != nil {
+			log.Errorf("Failed to collect metric for exporter: %s, error: %s", exporter.Name, err)
+			serviceDown++
 		}
 	}
 
-	if serviceUp {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
-	} else {
+	if serviceDown > 0 {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
+	} else {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
 	}
+
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {
@@ -139,7 +172,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -162,59 +195,73 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
+	exporterConfig := ExporterConfig{
+		Client:          client,
+		Prefix:          prefix,
+		DisabledMetrics: disabledMetrics,
+		CollectTime:     collectTime,
+	}
+
 	switch name {
 	case "network":
 		{
-			exporter, err = NewNeutronExporter(client, prefix, disabledMetrics)
+			exporter, err = NewNeutronExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "compute":
 		{
-			exporter, err = NewNovaExporter(client, prefix, disabledMetrics)
+			exporter, err = NewNovaExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "image":
 		{
-			exporter, err = NewGlanceExporter(client, prefix, disabledMetrics)
+			exporter, err = NewGlanceExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "volume":
 		{
-			exporter, err = NewCinderExporter(client, prefix, disabledMetrics)
+			exporter, err = NewCinderExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "identity":
 		{
-			exporter, err = NewKeystoneExporter(client, prefix, disabledMetrics)
+			exporter, err = NewKeystoneExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "object-store":
 		{
-			exporter, err = NewObjectStoreExporter(client, prefix, disabledMetrics)
+			exporter, err = NewObjectStoreExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "load-balancer":
 		{
-			exporter, err = NewLoadbalancerExporter(client, prefix, disabledMetrics)
+			exporter, err = NewLoadbalancerExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "container-infra":
 		{
-			exporter, err = NewContainerInfraExporter(client, prefix, disabledMetrics)
+			exporter, err = NewContainerInfraExporter(&exporterConfig)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case "dns":
+		{
+			exporter, err = NewDesignateExporter(&exporterConfig)
 			if err != nil {
 				return nil, err
 			}

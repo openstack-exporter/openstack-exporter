@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/containers"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/prometheus/client_golang/prometheus"
@@ -16,13 +15,11 @@ var defaultObjectStoreMetrics = []Metric{
 	{Name: "bytes", Labels: []string{"container_name"}, Fn: nil},
 }
 
-func NewObjectStoreExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*ObjectStoreExporter, error) {
+func NewObjectStoreExporter(config *ExporterConfig) (*ObjectStoreExporter, error) {
 	exporter := ObjectStoreExporter{
 		BaseOpenStackExporter{
-			Name:            "object_store",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "object_store",
+			ExporterConfig: *config,
 		},
 	}
 

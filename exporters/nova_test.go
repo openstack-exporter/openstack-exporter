@@ -1,10 +1,9 @@
 package exporters
 
 import (
-	"strings"
-
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
+	"strings"
 )
 
 type NovaTestSuite struct {
@@ -117,7 +116,6 @@ func (suite *NovaTestSuite) TestNovaExporter() {
 func (suite *NovaTestSuite) TestNovaExporterWithEndpointDown() {
 	suite.teardownFixtures()
 	defer suite.installFixtures()
-
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedDown))
 	assert.NoError(suite.T(), err)
 }

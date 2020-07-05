@@ -64,15 +64,14 @@ var defaultCinderMetrics = []Metric{
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil},
 }
 
-func NewCinderExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*CinderExporter, error) {
+func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
-			Name:            "cinder",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "cinder",
+			ExporterConfig: *config,
 		},
 	}
+
 	for _, metric := range defaultCinderMetrics {
 		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}

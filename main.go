@@ -23,6 +23,7 @@ func main() {
 		osClientConfig  = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
 		prefix          = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
 		endpointType    = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
+		collectTime     = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
 		disabledMetrics = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
 		cloud           = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").Required().String()
 	)
@@ -56,7 +57,7 @@ func main() {
 	enabledExporters := 0
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType)
+			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

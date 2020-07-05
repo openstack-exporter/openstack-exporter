@@ -78,13 +78,11 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}},
 }
 
-func NewNovaExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
-			Name:            "nova",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "nova",
+			ExporterConfig: *config,
 		},
 	}
 	for _, metric := range defaultNovaMetrics {

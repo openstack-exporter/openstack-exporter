@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
 	"github.com/prometheus/client_golang/prometheus"
@@ -58,13 +57,11 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip"}},
 }
 
-func NewLoadbalancerExporter(client *gophercloud.ServiceClient, prefix string, disabledMetrics []string) (*LoadbalancerExporter, error) {
+func NewLoadbalancerExporter(config *ExporterConfig) (*LoadbalancerExporter, error) {
 	exporter := LoadbalancerExporter{
 		BaseOpenStackExporter{
-			Name:            "loadbalancer",
-			Prefix:          prefix,
-			Client:          client,
-			DisabledMetrics: disabledMetrics,
+			Name:           "loadbalancer",
+			ExporterConfig: *config,
 		},
 	}
 	for _, metric := range defaultLoadbalancerMetrics {

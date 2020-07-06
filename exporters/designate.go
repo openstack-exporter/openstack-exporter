@@ -71,7 +71,6 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	if err != nil {
 		return err
 	}
-	exporter.Client.MoreHeaders = map[string]string{}
 
 	allZones, err := zones.ExtractZones(allPagesZones)
 	if err != nil {
@@ -106,6 +105,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
 			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
 			zone.Status, zone.ProjectID, zone.Type)
+
 	}
 
 	return nil

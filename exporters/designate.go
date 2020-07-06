@@ -66,10 +66,12 @@ func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 }
 
 func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 	allPagesZones, err := zones.List(exporter.Client, zones.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
+	exporter.Client.MoreHeaders = map[string]string{}
 
 	allZones, err := zones.ExtractZones(allPagesZones)
 	if err != nil {

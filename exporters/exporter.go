@@ -202,6 +202,22 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		CollectTime:     collectTime,
 	}
 
+	// In case we have to have additional header for Designate
+	// will be used separate client
+	clientDns, err := NewServiceClient(name, &opts, transport, endpointType)
+	if err != nil {
+		return nil, err
+	}
+
+	clientDns.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+
+	exporterDnsConfig := ExporterConfig{
+		Client:          clientDns,
+		Prefix:          prefix,
+		DisabledMetrics: disabledMetrics,
+		CollectTime:     collectTime,
+	}
+
 	switch name {
 	case "network":
 		{
@@ -261,7 +277,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		}
 	case "dns":
 		{
-			exporter, err = NewDesignateExporter(&exporterConfig)
+			exporter, err = NewDesignateExporter(&exporterDnsConfig)
 			if err != nil {
 				return nil, err
 			}

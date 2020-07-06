@@ -195,6 +195,8 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
+	client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+
 	exporterConfig := ExporterConfig{
 		Client:          client,
 		Prefix:          prefix,

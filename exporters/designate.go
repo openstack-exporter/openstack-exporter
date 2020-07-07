@@ -58,6 +58,9 @@ func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 			Name:           "designate",
 		},
 	}
+	// This header needed for colletiong zone of all projects
+	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+
 	for _, metric := range defaultDesignateMetrics {
 		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
@@ -66,7 +69,6 @@ func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 }
 
 func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 	allPagesZones, err := zones.List(exporter.Client, zones.ListOpts{}).AllPages()
 	if err != nil {
 		return err

@@ -9,7 +9,7 @@ The openstack-exporter can be deployed using the following mechanisms:
 
 * Via docker images directly from our repositories
 * Via snaps
-* By using [kolla-ansible](https://github.com/opentack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
+* By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
 
 ### Containers and binaries build status

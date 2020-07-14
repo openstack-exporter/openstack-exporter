@@ -1,0 +1,644 @@
+{
+  "nodes": [
+    {
+      "target_power_state": null,
+      "automated_clean": null,
+      "inspect_interface": "no-inspect",
+      "links": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2",
+          "rel": "bookmark"
+        }
+      ],
+      "target_provision_state": null,
+      "deploy_step": {},
+      "storage_interface": "noop",
+      "conductor_group": "",
+      "protected_reason": null,
+      "maintenance_reason": null,
+      "states": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/states",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/states",
+          "rel": "bookmark"
+        }
+      ],
+      "traits": [],
+      "provision_state": "available",
+      "clean_step": {},
+      "vendor_interface": "ipmitool",
+      "description": null,
+      "uuid": "c9f98cc9-25e9-424e-8a89-002989054ec2",
+      "console_enabled": true,
+      "extra": {},
+      "raid_config": {},
+      "provision_updated_at": "2019-07-12T05:14:03+00:00",
+      "power_state": "power off",
+      "last_error": null,
+      "target_raid_config": {},
+      "network_interface": "neutron",
+      "inspection_started_at": null,
+      "inspection_finished_at": null,
+      "maintenance": true,
+      "conductor": "https://ironic01.openstack.example.org",
+      "power_interface": "ipmitool",
+      "driver": "ipmi",
+      "updated_at": "2020-06-22T17:11:51+00:00",
+      "volume": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/volume",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/volume",
+          "rel": "bookmark"
+        }
+      ],
+      "raid_interface": "agent",
+      "rescue_interface": "no-rescue",
+      "boot_interface": "pxe",
+      "reservation": null,
+      "management_interface": "ipmitool",
+      "properties": {
+        "memory_mb": 131072,
+        "cpu_arch": "x86_64",
+        "local_gb": 128,
+        "cpus": 48,
+        "capabilities": "boot_option:local,sw_tag:0123456,sw_port:Te1/2/1"
+      },
+      "bios_interface": "no-bios",
+      "instance_uuid": null,
+      "name": "r1-05",
+      "driver_info": {
+        "ipmi_terminal_port": 30101,
+        "ipmi_username": "root",
+        "deploy_kernel": "7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",
+        "ipmi_address": "10.10.0.101",
+        "deploy_ramdisk": "e9c96d45-a4c8-4165-8753-9d8f32779e99",
+        "ipmi_password": "******"
+      },
+      "resource_class": "baremetal",
+      "fault": null,
+      "created_at": "2015-06-08T12:04:01+00:00",
+      "portgroups": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/portgroups",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/portgroups",
+          "rel": "bookmark"
+        }
+      ],
+      "deploy_interface": "iscsi",
+      "ports": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/ports",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/ports",
+          "rel": "bookmark"
+        }
+      ],
+      "console_interface": "ipmitool-socat",
+      "protected": false,
+      "driver_internal_info": {
+        "agent_url": "http://10.0.0.27:9999",
+        "deploy_steps": null,
+        "agent_version": "3.0.0"
+      },
+      "chassis_uuid": "e502b695-a037-4613-a9ec-dd2fefa4eff5",
+      "owner": null,
+      "instance_info": {},
+      "allocation_uuid": null
+    },
+    {
+      "target_power_state": null,
+      "automated_clean": null,
+      "inspect_interface": "no-inspect",
+      "links": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d5641882-f7e5-4b92-9423-7e8157586218",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d5641882-f7e5-4b92-9423-7e8157586218",
+          "rel": "bookmark"
+        }
+      ],
+      "target_provision_state": null,
+      "deploy_step": {},
+      "storage_interface": "noop",
+      "conductor_group": "",
+      "protected_reason": null,
+      "maintenance_reason": null,
+      "states": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d5641882-f7e5-4b92-9423-7e8157586218/states",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d5641882-f7e5-4b92-9423-7e8157586218/states",
+          "rel": "bookmark"
+        }
+      ],
+      "traits": [],
+      "provision_state": "error",
+      "clean_step": {},
+      "vendor_interface": "ipmitool",
+      "description": null,
+      "uuid": "d5641882-f7e5-4b92-9423-7e8157586218",
+      "console_enabled": true,
+      "extra": {},
+      "raid_config": {},
+      "provision_updated_at": "2020-07-14T06:36:37+00:00",
+      "power_state": "power off",
+      "last_error": null,
+      "target_raid_config": {},
+      "network_interface": "neutron",
+      "inspection_started_at": null,
+      "inspection_finished_at": null,
+      "maintenance": true,
+      "conductor": "https://ironic01.openstack.example.org",
+      "power_interface": "ipmitool",
+      "driver": "ipmi",
+      "updated_at": "2020-07-14T06:36:38+00:00",
+      "volume": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d5641882-f7e5-4b92-9423-7e8157586218/volume",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d5641882-f7e5-4b92-9423-7e8157586218/volume",
+          "rel": "bookmark"
+        }
+      ],
+      "raid_interface": "agent",
+      "rescue_interface": "no-rescue",
+      "boot_interface": "pxe",
+      "reservation": null,
+      "management_interface": "ipmitool",
+      "properties": {
+        "memory_mb": 131072,
+        "cpu_arch": "x86_64",
+        "local_gb": 128,
+        "cpus": 48,
+        "capabilities": "boot_option:local,sw_tag:0123456,sw_port:Te1/2/2"
+      },
+      "bios_interface": "no-bios",
+      "instance_uuid": null,
+      "name": "r1-01",
+      "driver_info": {
+        "ipmi_terminal_port": 30102,
+        "ipmi_username": "root",
+        "deploy_kernel": "7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",
+        "ipmi_address": "10.10.0.102",
+        "deploy_ramdisk": "e9c96d45-a4c8-4165-8753-9d8f32779e99",
+        "ipmi_password": "******"
+      },
+      "resource_class": "baremetal",
+      "fault": null,
+      "created_at": "2015-06-09T09:55:01+00:00",
+      "portgroups": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d5641882-f7e5-4b92-9423-7e8157586218/portgroups",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d5641882-f7e5-4b92-9423-7e8157586218/portgroups",
+          "rel": "bookmark"
+        }
+      ],
+      "deploy_interface": "iscsi",
+      "ports": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d5641882-f7e5-4b92-9423-7e8157586218/ports",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d5641882-f7e5-4b92-9423-7e8157586218/ports",
+          "rel": "bookmark"
+        }
+      ],
+      "console_interface": "ipmitool-socat",
+      "protected": false,
+      "driver_internal_info": {
+        "agent_url": "http://10.0.0.58:9999",
+        "deploy_steps": null,
+        "agent_version": "3.0.0",
+        "last_power_state_change": "2020-07-14T06:36:20.158662",
+        "agent_last_heartbeat": "2020-07-14T06:24:43.116681"
+      },
+      "chassis_uuid": "3d3c84db-88e8-4130-b082-ed344ac09be0",
+      "owner": null,
+      "instance_info": {},
+      "allocation_uuid": null
+    },
+    {
+      "target_power_state": null,
+      "automated_clean": null,
+      "inspect_interface": "no-inspect",
+      "links": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/f50dcc35-4913-4667-a9fa-d130659c5661",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/f50dcc35-4913-4667-a9fa-d130659c5661",
+          "rel": "bookmark"
+        }
+      ],
+      "target_provision_state": null,
+      "deploy_step": {},
+      "storage_interface": "noop",
+      "conductor_group": "",
+      "protected_reason": null,
+      "maintenance_reason": null,
+      "states": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/states",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/states",
+          "rel": "bookmark"
+        }
+      ],
+      "traits": [],
+      "provision_state": "available",
+      "clean_step": {},
+      "vendor_interface": "ipmitool",
+      "description": null,
+      "uuid": "f50dcc35-4913-4667-a9fa-d130659c5661",
+      "console_enabled": false,
+      "extra": {
+        "hammer_error_resets": [
+          "2018-12-11T20:00:04.092302+00:00"
+        ]
+      },
+      "raid_config": {},
+      "provision_updated_at": "2020-07-14T15:28:12+00:00",
+      "power_state": "power off",
+      "last_error": null,
+      "target_raid_config": {},
+      "network_interface": "neutron",
+      "inspection_started_at": null,
+      "inspection_finished_at": null,
+      "maintenance": false,
+      "conductor": "https://ironic01.openstack.example.org",
+      "power_interface": "ipmitool",
+      "driver": "ipmi",
+      "updated_at": "2020-07-14T15:28:14+00:00",
+      "volume": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/volume",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/volume",
+          "rel": "bookmark"
+        }
+      ],
+      "raid_interface": "agent",
+      "rescue_interface": "no-rescue",
+      "boot_interface": "pxe",
+      "reservation": null,
+      "management_interface": "ipmitool",
+      "properties": {
+        "memory_mb": 131072,
+        "cpu_arch": "x86_64",
+        "local_gb": 128,
+        "cpus": 48,
+        "capabilities": "boot_option:local,sw_tag:0123456,sw_port:Te1/7/3"
+      },
+      "bios_interface": "no-bios",
+      "instance_uuid": null,
+      "name": "r1-02",
+      "driver_info": {
+        "ipmi_terminal_port": 30131,
+        "ipmi_username": "root",
+        "deploy_kernel": "7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",
+        "ipmi_address": "10.10.0.131",
+        "deploy_ramdisk": "e9c96d45-a4c8-4165-8753-9d8f32779e99",
+        "ipmi_password": "******"
+      },
+      "resource_class": "baremetal",
+      "fault": null,
+      "created_at": "2015-06-12T10:47:11+00:00",
+      "portgroups": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/portgroups",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/portgroups",
+          "rel": "bookmark"
+        }
+      ],
+      "deploy_interface": "iscsi",
+      "ports": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/ports",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/f50dcc35-4913-4667-a9fa-d130659c5661/ports",
+          "rel": "bookmark"
+        }
+      ],
+      "console_interface": "ipmitool-socat",
+      "protected": false,
+      "driver_internal_info": {
+        "agent_url": "http://10.0.0.127:9999",
+        "deploy_steps": null,
+        "agent_version": "3.0.0",
+        "last_power_state_change": "2020-07-14T15:19:17.085408",
+        "agent_last_heartbeat": "2020-07-14T15:16:45.404241"
+      },
+      "chassis_uuid": "a771c716-ee9b-4aa5-bc7c-c60883d10003",
+      "owner": null,
+      "instance_info": {},
+      "allocation_uuid": null
+    },
+    {
+      "target_power_state": null,
+      "automated_clean": null,
+      "inspect_interface": "no-inspect",
+      "links": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f",
+          "rel": "bookmark"
+        }
+      ],
+      "target_provision_state": null,
+      "deploy_step": {},
+      "storage_interface": "noop",
+      "conductor_group": "",
+      "protected_reason": null,
+      "maintenance_reason": null,
+      "states": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/states",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/states",
+          "rel": "bookmark"
+        }
+      ],
+      "traits": [],
+      "provision_state": "active",
+      "clean_step": {},
+      "vendor_interface": "ipmitool",
+      "description": null,
+      "uuid": "d381bea3-8768-4f12-a9b3-abf750ba918f",
+      "console_enabled": true,
+      "extra": {
+        "hammer_error_resets": [
+          "2018-05-10T12:38:40.803234+00:00"
+        ]
+      },
+      "raid_config": {},
+      "provision_updated_at": "2020-07-03T03:34:41+00:00",
+      "power_state": "power on",
+      "last_error": null,
+      "target_raid_config": {},
+      "network_interface": "neutron",
+      "inspection_started_at": null,
+      "inspection_finished_at": null,
+      "maintenance": false,
+      "conductor": "https://ironic01.openstack.example.org",
+      "power_interface": "ipmitool",
+      "driver": "ipmi",
+      "updated_at": "2020-07-07T22:53:58+00:00",
+      "volume": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/volume",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/volume",
+          "rel": "bookmark"
+        }
+      ],
+      "raid_interface": "agent",
+      "rescue_interface": "no-rescue",
+      "boot_interface": "pxe",
+      "reservation": null,
+      "management_interface": "ipmitool",
+      "properties": {
+        "memory_mb": 131072,
+        "cpu_arch": "x86_64",
+        "local_gb": 128,
+        "cpus": 48,
+        "capabilities": "boot_option:local,sw_tag:0123456,sw_port:Te1/12/1"
+      },
+      "bios_interface": "no-bios",
+      "instance_uuid": "31b5f585-104b-497a-bb72-b5376aaa089f",
+      "name": "r1-03",
+      "driver_info": {
+        "ipmi_terminal_port": 30241,
+        "ipmi_username": "root",
+        "deploy_kernel": "7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",
+        "ipmi_address": "10.10.0.183",
+        "deploy_ramdisk": "e9c96d45-a4c8-4165-8753-9d8f32779e99",
+        "ipmi_password": "******"
+      },
+      "resource_class": "baremetal",
+      "fault": null,
+      "created_at": "2015-06-12T10:47:23+00:00",
+      "portgroups": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/portgroups",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/portgroups",
+          "rel": "bookmark"
+        }
+      ],
+      "deploy_interface": "iscsi",
+      "ports": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/ports",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/d381bea3-8768-4f12-a9b3-abf750ba918f/ports",
+          "rel": "bookmark"
+        }
+      ],
+      "console_interface": "ipmitool-socat",
+      "protected": false,
+      "driver_internal_info": {
+        "deploy_boot_mode": "bios",
+        "last_power_state_change": "2020-07-03T03:34:25.612624",
+        "is_whole_disk_image": true,
+        "root_uuid_or_disk_id": "0x0000826d",
+        "agent_url": "http://10.0.0.118:9999",
+        "deploy_steps": null,
+        "agent_last_heartbeat": "2020-07-03T03:32:27.351216",
+        "agent_version": "3.0.0"
+      },
+      "chassis_uuid": "679d03b4-7bdb-48d3-ae19-1c29615caf7a",
+      "owner": null,
+      "instance_info": {
+        "root_gb": "20",
+        "display_name": "node-2",
+        "image_source": "e6d7dd49-3ecc-4da8-a2ba-e40ddfab7931",
+        "memory_mb": "1",
+        "vcpus": "1",
+        "local_gb": "128",
+        "swap_mb": "0",
+        "nova_host_id": "ironic01"
+      },
+      "allocation_uuid": null
+    },
+    {
+      "target_power_state": null,
+      "automated_clean": null,
+      "inspect_interface": "no-inspect",
+      "links": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957",
+          "rel": "bookmark"
+        }
+      ],
+      "target_provision_state": null,
+      "deploy_step": {},
+      "storage_interface": "noop",
+      "conductor_group": "",
+      "protected_reason": null,
+      "maintenance_reason": null,
+      "states": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/states",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/states",
+          "rel": "bookmark"
+        }
+      ],
+      "traits": [],
+      "provision_state": "active",
+      "clean_step": {},
+      "vendor_interface": "ipmitool",
+      "description": null,
+      "uuid": "0129d2fc-0e5c-4b5b-a73b-01844d913957",
+      "console_enabled": true,
+      "extra": {},
+      "raid_config": {},
+      "provision_updated_at": "2020-06-30T19:06:51+00:00",
+      "power_state": "power on",
+      "last_error": null,
+      "target_raid_config": {},
+      "network_interface": "neutron",
+      "inspection_started_at": null,
+      "inspection_finished_at": null,
+      "maintenance": false,
+      "conductor": "https://ironic01.openstack.example.org",
+      "power_interface": "ipmitool",
+      "driver": "ipmi",
+      "updated_at": "2020-06-30T19:06:51+00:00",
+      "volume": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/volume",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/volume",
+          "rel": "bookmark"
+        }
+      ],
+      "raid_interface": "agent",
+      "rescue_interface": "no-rescue",
+      "boot_interface": "pxe",
+      "reservation": null,
+      "management_interface": "ipmitool",
+      "properties": {
+        "memory_mb": 131072,
+        "cpu_arch": "x86_64",
+        "local_gb": 128,
+        "cpus": 48,
+        "capabilities": "boot_option:local,sw_tag:0123456,sw_port:Te1/6/1"
+      },
+      "bios_interface": "no-bios",
+      "instance_uuid": "c0034f14-7937-41d5-b0f1-28d0d4e96426",
+      "name": "r1-04",
+      "driver_info": {
+        "ipmi_terminal_port": 30117,
+        "ipmi_username": "root",
+        "deploy_kernel": "7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",
+        "ipmi_address": "10.10.0.117",
+        "deploy_ramdisk": "e9c96d45-a4c8-4165-8753-9d8f32779e99",
+        "ipmi_password": "******"
+      },
+      "resource_class": "baremetal",
+      "fault": null,
+      "created_at": "2015-06-12T10:47:35+00:00",
+      "portgroups": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/portgroups",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/portgroups",
+          "rel": "bookmark"
+        }
+      ],
+      "deploy_interface": "iscsi",
+      "ports": [
+        {
+          "href": "https://openstack.example.org:6385/v1/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/ports",
+          "rel": "self"
+        },
+        {
+          "href": "https://openstack.example.org:6385/nodes/0129d2fc-0e5c-4b5b-a73b-01844d913957/ports",
+          "rel": "bookmark"
+        }
+      ],
+      "console_interface": "ipmitool-socat",
+      "protected": false,
+      "driver_internal_info": {
+        "deploy_boot_mode": "bios",
+        "last_power_state_change": "2020-06-30T19:06:34.700536",
+        "is_whole_disk_image": true,
+        "root_uuid_or_disk_id": "0x000138af",
+        "agent_url": "http://10.0.0.153:9999",
+        "deploy_steps": null,
+        "agent_version": "3.0.0",
+        "agent_last_heartbeat": "2020-06-30T19:04:26.907887"
+      },
+      "chassis_uuid": "e7aa1abc-49b6-43ff-8e64-d1820d678107",
+      "owner": null,
+      "instance_info": {
+        "root_gb": "20",
+        "display_name": "node-1",
+        "image_source": "9845cd98-5fcb-45ef-83e2-0d348a374997",
+        "memory_mb": "1",
+        "vcpus": "1",
+        "local_gb": "128",
+        "swap_mb": "0",
+        "nova_host_id": "ironic01"
+      },
+      "allocation_uuid": null
+    }
+  ]
+}

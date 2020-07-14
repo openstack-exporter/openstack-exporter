@@ -81,6 +81,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/network-ip-availabilities":        "neutron_network_ip_availabilities",
 	"/neutron/v2.0/routers":                          "neutron_routers",
 	"/neutron/v2.0/lbaas/loadbalancers":              "neutron_loadbalancers",
+	"/ironic/nodes":                                  "ironic_nodes",
 	"/volumes":                                       "cinder_api_discovery",
 	"/volumes/volumes/detail?all_tenants=true":       "cinder_volumes",
 	"/volumes/snapshots":                             "cinder_snapshots",
@@ -153,4 +154,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &GlanceTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "image"}})
 	suite.Run(t, &ContainerInfraTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "container-infra"}})
 	suite.Run(t, &DesignateTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "dns"}})
+	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
 }

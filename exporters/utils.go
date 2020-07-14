@@ -108,6 +108,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	endpointOpts[service] = eo
 
 	switch service {
+	case "baremetal":
+		return openstack.NewBareMetalV1(pClient, eo)
 	case "clustering":
 		return openstack.NewClusteringV1(pClient, eo)
 	case "compute":

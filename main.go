@@ -57,7 +57,7 @@ func main() {
 	enabledExporters := 0
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime)
+			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, nil)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

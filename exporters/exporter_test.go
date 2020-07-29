@@ -99,6 +99,8 @@ var fixtures map[string]string = map[string]string{
 	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
 }
 
+const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
+
 func (suite *BaseOpenStackTestSuite) SetupTest() {
 	httpmock.Activate()
 	suite.Prefix = "openstack"
@@ -108,7 +110,10 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false)
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, func() (string, error) {
+		return DEFAULT_UUID, nil
+	})
+
 	if err != nil {
 		panic(err)
 	}

@@ -7,7 +7,7 @@
             "heartbeat_timestamp": "2017-09-12 19:40:08",
             "admin_state_up": true,
             "alive": true,
-            "id": " 04c62b91-b799-48b7-9cd5-2982db6df9c6",
+            "id": "04c62b91-b799-48b7-9cd5-2982db6df9c6",
             "topic": "N/A",
             "host": "agenthost1",
             "agent_type": "Open vSwitch agent",

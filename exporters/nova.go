@@ -9,6 +9,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
@@ -71,7 +72,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "uuid", "availability_zone", "flavor_id"}},
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id"}},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}},
@@ -247,6 +248,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	type ServerWithExt struct {
 		servers.Server
 		availabilityzones.ServerAvailabilityZoneExt
+		extendedserverattributes.ServerAttributesExt
 	}
 
 	var allServers []ServerWithExt
@@ -268,7 +270,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	for _, server := range allServers {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
 			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
 	}
 
 	return nil

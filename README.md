@@ -1,4 +1,4 @@
-# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci] 
+# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci]
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
@@ -9,7 +9,7 @@ The openstack-exporter can be deployed using the following mechanisms:
 
 * Via docker images directly from our repositories
 * Via snaps
-* By using [kolla-ansible](https://github.com/opentack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
+* By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
 
 ### Containers and binaries build status
@@ -78,11 +78,11 @@ usage: openstack-exporter [<flags>] <cloud>
 Flags:
   -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
       --log.level="info"         Log level: [debug, info, warn, error, fatal]
-      --web.listen-address=":9180"  
+      --web.listen-address=":9180"
                                  address:port to listen on
-      --web.telemetry-path="/metrics"  
+      --web.telemetry-path="/metrics"
                                  uri path to expose metrics
-      --os-client-config="/etc/openstack/clouds.yaml"  
+      --os-client-config="/etc/openstack/clouds.yaml"
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
@@ -92,7 +92,7 @@ Flags:
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
       --disable-service.volume   Disable the volume service exporter
-      --disable-service.identity  
+      --disable-service.identity
                                  Disable the identity service exporter
       --disable-service.object-store
                                  Disable the object-store service exporter
@@ -101,6 +101,8 @@ Flags:
       --disable-service.container-infra
                                  Disable the container-infra service exporter
       --disable-service.dns      Disable the dns service exporter
+      --disable-service.baremetal
+                                 Disable the baremetal service exporter
       --version                  Show application version.
 
 Args:
@@ -184,17 +186,17 @@ openstack_cinder_limits_volume_max_gb|tenant="demo-project",tenant_id="0c4e939ac
 openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
-openstack_cinder_volume_status|region="RegionOne""id", "name", "status", "bootable", "tenant_id", "size", "volume_type"|4.0 (float) 
+openstack_cinder_volume_status|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"|4.0 (float)
 openstack_designate_zones| region="RegionOne"|4.0 (float)
-openstack_designate_zone_status| region="RegionOne""id", "name", "status", "tenant_id", "type"|4.0 (float)
-openstack_designate_recordsets| region="RegionOne"|4.0 (float)
-openstack_designate_recordsets_status| region="RegionOne""id", "name", "status", "zone_id", "zone_name", "type"|4.0 (float)
+openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"|4.0 (float)
+openstack_designate_recordsets| region="RegionOne",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."|4.0 (float)
+openstack_designate_recordsets_status| region="RegionOne",id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f",zone_name="example.com."|4.0 (float)
 openstack_identity_domains|region="RegionOne"|1.0 (float)
 openstack_identity_users|region="RegionOne"|30.0 (float)
 openstack_identity_projects|region="RegionOne"|33.0 (float)
 openstack_identity_groups|region="RegionOne"|1.0 (float)
 openstack_identity_regions|region="RegionOne"|1.0 (float)
-openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float) 
+openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
 ## Example metrics
@@ -251,10 +253,10 @@ openstack_cinder_snapshots{region="Region"} 0.0
 openstack_cinder_volumes{region="Region"} 8.0
 # HELP openstack_designate_recordsets recordsets
 # TYPE openstack_designate_recordsets gauge
-openstack_designate_recordsets 1
+openstack_designate_recordsets{tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."} 1
 # HELP openstack_designate_recordsets_status recordsets_status
 # TYPE openstack_designate_recordsets_status gauge
-openstack_designate_recordsets_status{ZoneName="example.com.",id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f"} 0
+openstack_designate_recordsets_status{id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f",zone_name="example.com."} 0
 # HELP openstack_designate_up up
 # TYPE openstack_designate_up gauge
 openstack_designate_up 1
@@ -288,6 +290,16 @@ openstack_identity_regions{region="Region"} 1.0
 # HELP openstack_identity_users users
 # TYPE openstack_identity_users gauge
 openstack_identity_users{region="Region"} 39.0
+# HELP openstack_ironic_node node
+# TYPE openstack_ironic_node gauge
+openstack_ironic_node{console_enabled="true",id="f6965a47-324f-41fa-995e-0011333aa79e",maintenance="false",name="r1-02",power_state="power off",provision_state="available"} 1
+openstack_ironic_node{console_enabled="true",id="a016f9c9-3faf-425b-88a4-a16e4308d72d",maintenance="false",name="r1-04",power_state="power off",provision_state="available"} 1
+openstack_ironic_node{console_enabled="true",id="0fbd1d8c-2842-4d90-b1e0-43e13c195fd5",maintenance="false",name="r1-05",power_state="power off",provision_state="available"} 1
+openstack_ironic_node{console_enabled="true",id="3fc2e062-7826-46ec-8bd1-695511e30a0c",maintenance="false",name="r1-03",power_state="power off",provision_state="available"} 1
+openstack_ironic_node{console_enabled="true",id="b3d57927-206f-4eed-97a2-33069c12efa7",maintenance="false",name="r1-01",power_state="power off",provision_state="available"} 1
+# HELP openstack_ironic_up up
+# TYPE openstack_ironic_up gauge
+openstack_ironic_up 1
 # HELP openstack_neutron_agent_state agent_state
 # TYPE openstack_neutron_agent_state counter
 openstack_neutron_agent_state{adminState="up",hostname="compute-node-01",region="Region",service="neutron-dhcp-agent"} 1.0

@@ -81,6 +81,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/network-ip-availabilities":        "neutron_network_ip_availabilities",
 	"/neutron/v2.0/routers":                          "neutron_routers",
 	"/neutron/v2.0/lbaas/loadbalancers":              "neutron_loadbalancers",
+	"/ironic/nodes":                                  "ironic_nodes",
 	"/volumes":                                       "cinder_api_discovery",
 	"/volumes/volumes/detail?all_tenants=true":       "cinder_volumes",
 	"/volumes/snapshots":                             "cinder_snapshots",
@@ -98,6 +99,8 @@ var fixtures map[string]string = map[string]string{
 	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
 }
 
+const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
+
 func (suite *BaseOpenStackTestSuite) SetupTest() {
 	httpmock.Activate()
 	suite.Prefix = "openstack"
@@ -107,7 +110,10 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false)
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, func() (string, error) {
+		return DEFAULT_UUID, nil
+	})
+
 	if err != nil {
 		panic(err)
 	}
@@ -153,4 +159,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &GlanceTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "image"}})
 	suite.Run(t, &ContainerInfraTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "container-infra"}})
 	suite.Run(t, &DesignateTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "dns"}})
+	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
 }

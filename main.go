@@ -12,7 +12,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal"}
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 func main() {
@@ -57,7 +57,7 @@ func main() {
 	enabledExporters := 0
 	for service, disabled := range services {
 		if !*disabled {
-			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime)
+			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, nil)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)

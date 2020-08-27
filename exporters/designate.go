@@ -47,7 +47,7 @@ func mapRecordsetStatus(recordsetStatus string) int {
 var defaultDesignateMetrics = []Metric{
 	{Name: "zones", Fn: ListZonesAndRecordsets},
 	{Name: "zone_status", Labels: []string{"id", "name", "status", "tenant_id", "type"}, Fn: nil},
-	{Name: "recordsets", Fn: nil},
+	{Name: "recordsets", Labels: []string{"zone_id", "zone_name", "tenant_id"}, Fn: nil},
 	{Name: "recordsets_status", Labels: []string{"id", "name", "status", "zone_id", "zone_name", "type"}, Fn: nil},
 }
 
@@ -58,6 +58,9 @@ func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 			Name:           "designate",
 		},
 	}
+	// This header needed for colletiong zone of all projects
+	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+
 	for _, metric := range defaultDesignateMetrics {
 		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 	}
@@ -93,7 +96,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
-			prometheus.GaugeValue, float64(len(allRecordsets)))
+			prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
 
 		for _, recordset := range allRecordsets {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
@@ -104,6 +107,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
 			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
 			zone.Status, zone.ProjectID, zone.Type)
+
 	}
 
 	return nil

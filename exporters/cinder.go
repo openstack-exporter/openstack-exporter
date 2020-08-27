@@ -56,7 +56,7 @@ func mapVolumeStatus(volStatus string) int {
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
+	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
@@ -132,6 +132,7 @@ func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 }
 
 func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+
 	var allServices []services.Service
 
 	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
@@ -145,11 +146,17 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	for _, service := range allServices {
 		var state int = 0
+		var id string
+
 		if service.State == "up" {
 			state = 1
 		}
+		if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+			return err
+		}
+
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.CounterValue, float64(state), id, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
 	}
 
 	return nil

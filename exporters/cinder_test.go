@@ -14,9 +14,9 @@ type CinderTestSuite struct {
 var cinderExpectedUp = `
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
-openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
 # HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
 # TYPE openstack_cinder_limits_volume_max_gb gauge
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000

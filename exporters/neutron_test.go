@@ -19,6 +19,12 @@ openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="a09b81fc
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
+# HELP openstack_neutron_floating_ip floating_ip
+# TYPE openstack_neutron_floating_ip gauge
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="61cea855-49cb-4846-997d-801b70c71bdd",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.228",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="2f245a7b-796b-4f26-9cf9-9e82d248fda7",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="d23abc8d-2991-4a55-ba98-2aaea84cc72f",status="ACTIVE"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.42",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="898b198e-49f7-47d6-a7e1-53f626a548e6",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="0303bf18-2c52-479c-bd68-e0ad712a1639",status="ACTIVE"} 1
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
 openstack_neutron_floating_ips 4

@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/gophercloud/gophercloud v0.9.0
-	github.com/gophercloud/utils v0.0.0-20191129022341-463e26ffa30d
+	github.com/gophercloud/utils v0.0.0-20200918191848-da0e919a012a
 	github.com/hashicorp/go-uuid v1.0.1
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/kr/pretty v0.2.0 // indirect

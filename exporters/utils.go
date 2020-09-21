@@ -7,6 +7,7 @@ import (
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/utils/gnocchi"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 )
 
@@ -122,6 +123,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		return openstack.NewDBV1(pClient, eo)
 	case "dns":
 		return openstack.NewDNSV2(pClient, eo)
+	case "gnocchi":
+		return gnocchi.NewGnocchiV1(pClient, eo)
 	case "identity":
 		identityVersion := "3"
 		if v := cloud.IdentityAPIVersion; v != "" {

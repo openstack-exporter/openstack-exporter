@@ -1,0 +1,13 @@
+{
+  "metricd": {
+    "processors": null,
+    "statistics": {}
+  },
+  "storage": {
+    "measures_to_process": {},
+    "summary": {
+      "measures": 0,
+      "metrics": 0
+    }
+  }
+}

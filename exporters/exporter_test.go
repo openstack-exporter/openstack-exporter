@@ -70,6 +70,8 @@ var fixtures map[string]string = map[string]string{
 	"/compute/servers/detail?all_tenants=true":                   "nova_os_servers",
 	"/glance/":                                       "glance_api_discovery",
 	"/glance/v2/images":                              "glance_images",
+	"/gnocchi/v1/metric":                             "gnocchi_metric",
+	"/gnocchi/v1/status":                             "gnocchi_status",
 	"/identity/v3/projects":                          "identity_projects",
 	"/neutron/":                                      "neutron_api_discovery",
 	"/neutron/v2.0/floatingips":                      "neutron_floating_ips",

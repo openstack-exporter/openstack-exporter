@@ -103,6 +103,7 @@ Flags:
       --disable-service.dns      Disable the dns service exporter
       --disable-service.baremetal
                                  Disable the baremetal service exporter
+      --disable-service.gnocchi  Disable the gnocchi service exporter
       --version                  Show application version.
 
 Args:
@@ -275,6 +276,18 @@ openstack_container_infra_total_clusters 1
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
 openstack_glance_images{region="Region"} 18.0
+# HELP openstack_gnocchi_status_measures_to_process status_measures_to_process
+# TYPE openstack_gnocchi_status_measures_to_process gauge
+openstack_gnocchi_status_measures_to_process 291
+# HELP openstack_gnocchi_status_metric_having_measures_to_process status_metric_having_measures_to_process
+# TYPE openstack_gnocchi_status_metric_having_measures_to_process gauge
+openstack_gnocchi_status_metric_having_measures_to_process 291
+# HELP openstack_gnocchi_status_metricd_processors status_metricd_processors
+# TYPE openstack_gnocchi_status_metricd_processors gauge
+openstack_gnocchi_status_metricd_processors 8
+# HELP openstack_gnocchi_total_metrics total_metrics
+# TYPE openstack_gnocchi_total_metrics gauge
+openstack_gnocchi_total_metrics 2759
 # HELP openstack_identity_domains domains
 # TYPE openstack_identity_domains gauge
 openstack_identity_domains{region="Region"} 1.0

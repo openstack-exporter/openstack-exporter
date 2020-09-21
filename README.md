@@ -375,6 +375,11 @@ openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00b
 openstack_neutron_network_ip_availabilities_used{region="Region",network_id="00de2fca-b8e4-42b8-84fa-1d88648e08eb",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="7abf4adfd30548a381554b3a4a08cd5d"} 5.0
 # HELP openstack_neutron_security_groups security_groups
 # TYPE openstack_neutron_security_groups gauge
+# HELP openstack_neutron_port port
+# TYPE openstack_neutron_port gauge
+openstack_neutron_port{admin_state_up="true",binding_vif_type="",device_owner="network:router_gateway",mac_address="fa:16:3e:58:42:ed",network_id="70c1db1f-b701-45bd-96e0-a313ee3430b3",uuid="d80b1a3b-4fc1-49f3-952e-1e2ab7081d8b"} 1
+openstack_neutron_port{admin_state_up="true",binding_vif_type="",device_owner="network:router_interface",mac_address="fa:16:3e:bb:3c:e4",network_id="f27aa545-cbdd-4907-b0c6-c9e8b039dcc2",uuid="f71a6703-d6de-4be1-a91a-a570ede1d159"} 1
+openstack_neutron_port{admin_state_up="true",binding_vif_type="ovs",device_owner="neutron:LOADBALANCERV2",mac_address="fa:16:3e:0b:14:fd",network_id="675c54a5-a9f3-4f5e-a0b4-e026b29c217uuid="f0b24508-eb48-4530-a38b-c042df147101"} 1
 # HELP openstack_neutron_ports{region="Region"} ports
 # TYPE openstack_neutron_ports{region="Region"} gauge
 openstack_neutron_ports 1063.0

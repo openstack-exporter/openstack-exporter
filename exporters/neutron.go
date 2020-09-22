@@ -24,6 +24,7 @@ type NeutronExporter struct {
 var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips", Fn: ListFloatingIps},
 	{Name: "floating_ips_associated_not_active"},
+	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address"}},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
@@ -72,6 +73,8 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	failedFIPs := 0
 	for _, fip := range allFloatingIPs {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ip"].Metric,
+			prometheus.GaugeValue, 1, fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP)
 		if fip.FixedIP != "" {
 			if fip.Status != "ACTIVE" {
 				failedFIPs = failedFIPs + 1

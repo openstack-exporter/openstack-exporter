@@ -1,0 +1,78 @@
+[
+  {
+    "archive_policy": {
+      "aggregation_methods": [
+        "mean",
+        "min",
+        "std",
+        "sum",
+        "max",
+        "count"
+      ],
+      "back_window": 0,
+      "definition": [
+        {
+          "granularity": "0:00:01",
+          "points": 3600,
+          "timespan": "1:00:00"
+        },
+        {
+          "granularity": "0:01:00",
+          "points": 10080,
+          "timespan": "7 days, 0:00:00"
+        },
+        {
+          "granularity": "1:00:00",
+          "points": 8760,
+          "timespan": "365 days, 0:00:00"
+        }
+      ],
+      "name": "high"
+    },
+    "created_by_project_id": "",
+    "created_by_user_id": "admin",
+    "creator": "admin",
+    "id": "5d65c35b-99ee-4e04-b203-b13519b20318",
+    "name": null,
+    "resource_id": null,
+    "unit": null
+  },
+  {
+    "archive_policy": {
+      "aggregation_methods": [
+        "mean",
+        "min",
+        "std",
+        "sum",
+        "max",
+        "count"
+      ],
+      "back_window": 0,
+      "definition": [
+        {
+          "granularity": "0:05:00",
+          "points": 12,
+          "timespan": "1:00:00"
+        },
+        {
+          "granularity": "1:00:00",
+          "points": 24,
+          "timespan": "1 day, 0:00:00"
+        },
+        {
+          "granularity": "1 day, 0:00:00",
+          "points": 30,
+          "timespan": "30 days, 0:00:00"
+        }
+      ],
+      "name": "low"
+    },
+    "created_by_project_id": "",
+    "created_by_user_id": "admin",
+    "creator": "admin",
+    "id": "5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d",
+    "name": null,
+    "resource_id": null,
+    "unit": null
+  }
+]

@@ -19,6 +19,12 @@ openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="a09b81fc
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
+# HELP openstack_neutron_floating_ip floating_ip
+# TYPE openstack_neutron_floating_ip gauge
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="61cea855-49cb-4846-997d-801b70c71bdd",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.228",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="2f245a7b-796b-4f26-9cf9-9e82d248fda7",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="d23abc8d-2991-4a55-ba98-2aaea84cc72f",status="ACTIVE"} 1
+openstack_neutron_floating_ip{floating_ip_address="172.24.4.42",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="898b198e-49f7-47d6-a7e1-53f626a548e6",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="0303bf18-2c52-479c-bd68-e0ad712a1639",status="ACTIVE"} 1
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
 openstack_neutron_floating_ips 4
@@ -48,9 +54,9 @@ openstack_neutron_network_ip_availabilities_used{cidr="fdbf:ac66:9be8::/64",ip_v
 openstack_neutron_networks 0
 # HELP openstack_neutron_port port
 # TYPE openstack_neutron_port gauge
-openstack_neutron_port{binding_vif_type="",device_owner="network:router_gateway",mac_address="fa:16:3e:58:42:ed",network_id="70c1db1f-b701-45bd-96e0-a313ee3430b3",status="ACTIVE",uuid="d80b1a3b-4fc1-49f3-952e-1e2ab7081d8b"} 1
-openstack_neutron_port{binding_vif_type="",device_owner="network:router_interface",mac_address="fa:16:3e:bb:3c:e4",network_id="f27aa545-cbdd-4907-b0c6-c9e8b039dcc2",status="ACTIVE",uuid="f71a6703-d6de-4be1-a91a-a570ede1d159"} 1
-openstack_neutron_port{binding_vif_type="ovs",device_owner="neutron:LOADBALANCERV2",mac_address="fa:16:3e:0b:14:fd",network_id="675c54a5-a9f3-4f5e-a0b4-e026b29c217b",status="N/A",uuid="f0b24508-eb48-4530-a38b-c042df147101"} 1
+openstack_neutron_port{admin_state_up="true",binding_vif_type="",device_owner="network:router_gateway",mac_address="fa:16:3e:58:42:ed",network_id="70c1db1f-b701-45bd-96e0-a313ee3430b3",status="ACTIVE",uuid="d80b1a3b-4fc1-49f3-952e-1e2ab7081d8b"} 1
+openstack_neutron_port{admin_state_up="true",binding_vif_type="",device_owner="network:router_interface",mac_address="fa:16:3e:bb:3c:e4",network_id="f27aa545-cbdd-4907-b0c6-c9e8b039dcc2",status="ACTIVE",uuid="f71a6703-d6de-4be1-a91a-a570ede1d159"} 1
+openstack_neutron_port{admin_state_up="true",binding_vif_type="ovs",device_owner="neutron:LOADBALANCERV2",mac_address="fa:16:3e:0b:14:fd",network_id="675c54a5-a9f3-4f5e-a0b4-e026b29c217b",status="N/A",uuid="f0b24508-eb48-4530-a38b-c042df147101"} 1
 # HELP openstack_neutron_ports ports
 # TYPE openstack_neutron_ports gauge
 openstack_neutron_ports 3

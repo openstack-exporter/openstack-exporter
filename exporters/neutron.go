@@ -28,7 +28,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
-	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type"}, Fn: ListPorts},
+	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type", "admin_state_up"}, Fn: ListPorts},
 	{Name: "ports"},
 	{Name: "ports_no_ips"},
 	{Name: "ports_lb_not_active"},
@@ -221,7 +221,7 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
-			prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner, port.Status, port.VIFType)
+			prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner, port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp))
 	}
 
 	// NOTE(mnaser): We should deprecate this and users can replace it by

@@ -72,6 +72,7 @@ var fixtures map[string]string = map[string]string{
 	"/glance/v2/images":                              "glance_images",
 	"/gnocchi/v1/metric":                             "gnocchi_metric",
 	"/gnocchi/v1/status":                             "gnocchi_status",
+	"/gnocchi/v1/status?details=true":                "gnocchi_status",
 	"/identity/v3/projects":                          "identity_projects",
 	"/neutron/":                                      "neutron_api_discovery",
 	"/neutron/v2.0/floatingips":                      "neutron_floating_ips",
@@ -162,4 +163,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &ContainerInfraTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "container-infra"}})
 	suite.Run(t, &DesignateTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "dns"}})
 	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
+	suite.Run(t, &GnocchiTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "gnocchi"}})
 }

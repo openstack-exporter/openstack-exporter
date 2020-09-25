@@ -31,12 +31,6 @@ openstack_neutron_floating_ips 4
 # HELP openstack_neutron_floating_ips_associated_not_active floating_ips_associated_not_active
 # TYPE openstack_neutron_floating_ips_associated_not_active gauge
 openstack_neutron_floating_ips_associated_not_active 1
-# HELP openstack_neutron_loadbalancers loadbalancers
-# TYPE openstack_neutron_loadbalancers gauge
-openstack_neutron_loadbalancers 2
-# HELP openstack_neutron_loadbalancers_not_active loadbalancers_not_active
-# TYPE openstack_neutron_loadbalancers_not_active gauge
-openstack_neutron_loadbalancers_not_active 0
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
 openstack_neutron_network_ip_availabilities_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253

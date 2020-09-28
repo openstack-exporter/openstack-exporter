@@ -34,6 +34,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports_lb_not_active"},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "routers_not_active"},
+	{Name: "l3_agent_of_router", Labels: []string{"router_id", "l3_agent_id", "ha_state", "agent_alive", "agent_admin_up", "agent_host"}},
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
@@ -302,6 +303,25 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	for _, router := range allRouters {
 		if router.Status != "ACTIVE" {
 			failedRouters = failedRouters + 1
+		}
+		allPagesL3Agents, err := routers.ListL3Agents(exporter.Client, router.ID).AllPages()
+		if err != nil {
+			return err
+		}
+		l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
+		if err != nil {
+			return err
+		}
+		for _, agent := range l3Agents {
+			var state int
+
+			if agent.Alive {
+				state = 1
+			}
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["l3_agent_of_router"].Metric,
+				prometheus.GaugeValue, float64(state), router.ID, agent.ID,
+				agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
 		}
 	}
 

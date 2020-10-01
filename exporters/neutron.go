@@ -6,7 +6,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/lbaas_v2/loadbalancers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
@@ -38,8 +37,6 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
-	{Name: "loadbalancers", Fn: ListLBs},
-	{Name: "loadbalancers_not_active"},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -329,35 +326,6 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		prometheus.GaugeValue, float64(len(allRouters)))
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers_not_active"].Metric,
 		prometheus.GaugeValue, float64(failedRouters))
-
-	return nil
-}
-
-// ListLBs : count total number of instantiated LoadBalancers and those that are not in ACTIVE state
-func ListLBs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allLBs []loadbalancers.LoadBalancer
-
-	allPagesLBs, err := loadbalancers.List(exporter.Client, loadbalancers.ListOpts{}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allLBs, err = loadbalancers.ExtractLoadBalancers(allPagesLBs)
-	if err != nil {
-		return err
-	}
-
-	failedLBs := 0
-	for _, lb := range allLBs {
-		if lb.ProvisioningStatus != "ACTIVE" {
-			failedLBs = failedLBs + 1
-		}
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers"].Metric,
-		prometheus.GaugeValue, float64(len(allLBs)))
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers_not_active"].Metric,
-		prometheus.GaugeValue, float64(failedLBs))
 
 	return nil
 }

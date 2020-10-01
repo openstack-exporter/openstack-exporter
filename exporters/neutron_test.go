@@ -35,12 +35,6 @@ openstack_neutron_floating_ips_associated_not_active 1
 # TYPE openstack_neutron_l3_agent_of_router gauge
 openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"} 1
 openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="f8a44de0-fc8e-45df-93c7-f79bf3b01c95"} 1
-# HELP openstack_neutron_loadbalancers loadbalancers
-# TYPE openstack_neutron_loadbalancers gauge
-openstack_neutron_loadbalancers 2
-# HELP openstack_neutron_loadbalancers_not_active loadbalancers_not_active
-# TYPE openstack_neutron_loadbalancers_not_active gauge
-openstack_neutron_loadbalancers_not_active 0
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
 openstack_neutron_network_ip_availabilities_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253

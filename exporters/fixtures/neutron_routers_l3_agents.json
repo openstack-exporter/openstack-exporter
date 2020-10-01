@@ -1,0 +1,31 @@
+{
+    "agents": [
+        {
+            "id": "ddbf087c-e38f-4a73-bcb3-c38f2a719a03",
+            "agent_type": "L3 agent",
+            "binary": "neutron-l3-agent",
+            "topic": "l3_agent",
+            "host": "dev-os-ctrl-02",
+            "admin_state_up": true,
+            "created_at": "2020-08-28 15:43:15.216697",
+            "started_at": "2020-09-28 09:46:00.109987",
+            "heartbeat_timestamp": "2020-09-28 18:41:01.521750",
+            "description": null,
+            "resources_synced": null,
+            "availability_zone": "nova",
+            "alive": true,
+            "configurations": {
+                "agent_mode": "legacy",
+                "ex_gw_ports": 1,
+                "floating_ips": 0,
+                "handle_internal_only_routers": true,
+                "interface_driver": "linuxbridge",
+                "interfaces": 1,
+                "log_agent_heartbeats": false,
+                "routers": 3
+            },
+            "resource_versions": {},
+            "ha_state": null
+        }
+    ]
+}

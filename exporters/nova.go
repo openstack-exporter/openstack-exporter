@@ -96,7 +96,7 @@ func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
-	allPagesServices, err := services.List(exporter.Client).AllPages()
+	allPagesServices, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}

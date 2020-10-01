@@ -14,11 +14,11 @@ type NeutronTestSuite struct {
 var neutronExpectedUp = `
 # HELP openstack_neutron_agent_state agent_state
 # TYPE openstack_neutron_agent_state counter
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="840d5d68-5759-4e9e-812f-f3bd19214c7f",service="neutron-dhcp-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="a09b81fc-5a42-46d3-a306-1a5d122a7787",service="neutron-l3-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
 openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
 # HELP openstack_neutron_floating_ip floating_ip
 # TYPE openstack_neutron_floating_ip gauge
 openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
@@ -31,6 +31,10 @@ openstack_neutron_floating_ips 4
 # HELP openstack_neutron_floating_ips_associated_not_active floating_ips_associated_not_active
 # TYPE openstack_neutron_floating_ips_associated_not_active gauge
 openstack_neutron_floating_ips_associated_not_active 1
+# HELP openstack_neutron_l3_agent_of_router l3_agent_of_router
+# TYPE openstack_neutron_l3_agent_of_router gauge
+openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"} 1
+openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="f8a44de0-fc8e-45df-93c7-f79bf3b01c95"} 1
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
 openstack_neutron_network_ip_availabilities_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253
@@ -54,18 +58,18 @@ openstack_neutron_port{admin_state_up="true",binding_vif_type="ovs",device_owner
 # HELP openstack_neutron_ports ports
 # TYPE openstack_neutron_ports gauge
 openstack_neutron_ports 3
-# HELP openstack_neutron_ports_no_ips ports_no_ips
-# TYPE openstack_neutron_ports_no_ips gauge
-openstack_neutron_ports_no_ips 1
 # HELP openstack_neutron_ports_lb_not_active ports_lb_not_active
 # TYPE openstack_neutron_ports_lb_not_active gauge
 openstack_neutron_ports_lb_not_active 1
+# HELP openstack_neutron_ports_no_ips ports_no_ips
+# TYPE openstack_neutron_ports_no_ips gauge
+openstack_neutron_ports_no_ips 1
 # HELP openstack_neutron_routers routers
 # TYPE openstack_neutron_routers gauge
-openstack_neutron_routers 0
+openstack_neutron_routers 2
 # HELP openstack_neutron_routers_not_active routers_not_active
 # TYPE openstack_neutron_routers_not_active gauge
-openstack_neutron_routers_not_active 0
+openstack_neutron_routers_not_active 1
 # HELP openstack_neutron_security_groups security_groups
 # TYPE openstack_neutron_security_groups gauge
 openstack_neutron_security_groups 1

@@ -1,83 +1,66 @@
 {
-    "router": [
+    "routers": [
         {
-            "admin_state_up": true,
-            "availability_zone_hints": [],
-            "availability_zones": [
-                "nova"
-            ],
-            "created_at": "2018-03-19T19:17:04Z",
-            "description": "",
-            "distributed": false,
-            "external_gateway_info": {
-                "enable_snat": true,
-                "external_fixed_ips": [
-                    {
-                        "ip_address": "172.24.4.6",
-                        "subnet_id": "b930d7f6-ceb7-40a0-8b81-a425dd994ccf"
-                    },
-                    {
-                        "ip_address": "2001:db8::9",
-                        "subnet_id": "0c56df5d-ace5-46c8-8f4c-45fa4e334d18"
-                    }
-                ],
-                "network_id": "ae34051f-aa6c-4c75-abf5-50dc9ac99ef3"
-            },
-            "flavor_id": "f7b14d9a-b0dc-4fbe-bb14-a0f4970a69e0",
-            "ha": false,
             "id": "f8a44de0-fc8e-45df-93c7-f79bf3b01c95",
             "name": "router1",
-            "revision_number": 1,
-            "routes": [
-                {
-                    "destination": "179.24.1.0/24",
-                    "nexthop": "172.24.3.99"
-                }
-            ],
-            "status": "ACTIVE",
-            "updated_at": "2018-03-19T19:17:22Z",
-            "project_id": "0bd18306d801447bb457a46252d82d13",
-            "tenant_id": "0bd18306d801447bb457a46252d82d13",
-            "service_type_id": null,
-            "tags": [
-                "tag1,tag2"
-            ],
-            "conntrack_helpers": []
-        },
-        {
+            "tenant_id": "a2a651cc26974de98c9a1f9aa88eb2e6",
             "admin_state_up": true,
-            "availability_zone_hints": [],
+            "status": "ACTIVE",
+            "external_gateway_info": {
+                "network_id": "78620e54-9ec2-4372-8b07-3ac2d02e0288",
+                "external_fixed_ips": [
+                    {
+                        "subnet_id": "d7e199af-a55d-4cad-abb0-20f641c06548",
+                        "ip_address": "10.220.40.171"
+                    }
+                ],
+                "enable_snat": true
+            },
+            "description": "",
             "availability_zones": [
                 "nova"
             ],
-            "created_at": "2018-05-28T15:52:43Z",
-            "description": "",
-            "distributed": true,
-            "external_gateway_info": {
-                "enable_snat": true,
-                "external_fixed_ips": [
-                    {
-                        "ip_address": "10.0.0.8",
-                        "subnet_id": "58689be2-f2fc-436c-af3a-acb157ce5cb0"
-                    }
-                ],
-                "network_id": "6507357c-48ad-4715-b79b-496dbbdf95ec"
-            },
-            "flavor_id": "f7b14d9a-b0dc-4fbe-bb14-a0f4970a69e0",
-            "ha": true,
+            "distributed": false,
+            "ha": false,
+            "availability_zone_hints": [],
+            "routes": [],
+            "flavor_id": null,
+            "tags": [],
+            "created_at": "2020-09-25T10:12:25Z",
+            "updated_at": "2020-09-25T10:12:26Z",
+            "revision_number": 3,
+            "project_id": "a2a651cc26974de98c9a1f9aa88eb2e6"
+        },
+        {
             "id": "9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f",
             "name": "router2",
-            "revision_number": 1,
-            "routes": "destination='192.168.32.0/24', gateway='192.168.36.10'",
+            "tenant_id": "a2a651cc26974de98c9a1f9aa88eb2e6",
+            "admin_state_up": true,
             "status": "N/A",
-            "updated_at": "2019-06-29T17:53:11Z",
-            "project_id": "d91418ac90044a91bfadb7b0d21666f1",
-            "tenant_id": "0bd18306d801447bb457a46252d82d13",
-            "service_type_id": null,
-            "tags": [
-                "tag1,tag2"
+            "external_gateway_info": {
+                "network_id": "78620e54-9ec2-4372-8b07-3ac2d02e0288",
+                "external_fixed_ips": [
+                    {
+                        "subnet_id": "d7e199af-a55d-4cad-abb0-20f641c06548",
+                        "ip_address": "10.220.40.200"
+                    }
+                ],
+                "enable_snat": true
+            },
+            "description": "",
+            "availability_zones": [
+                "nova"
             ],
-            "conntrack_helpers": []
+            "distributed": false,
+            "ha": false,
+            "availability_zone_hints": [],
+            "routes": [],
+            "flavor_id": null,
+            "tags": [],
+            "created_at": "2020-09-28T18:37:17Z",
+            "updated_at": "2020-09-28T18:37:18Z",
+            "revision_number": 3,
+            "project_id": "a2a651cc26974de98c9a1f9aa88eb2e6"
         }
     ]
 }

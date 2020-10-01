@@ -167,6 +167,7 @@ openstack_neutron_security_groups|region="RegionOne"|10.0 (float)
 openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|253.0 (float)
 openstack_neutron_network_ip_availabilities_used|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|151.0 (float)
 openstack_neutron_routers|region="RegionOne"|134.0 (float)
+openstack_neutron_l3_agent_of_router|region="RegionOne",agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"|1.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
@@ -382,6 +383,13 @@ openstack_neutron_floating_ip{floating_ip_address="172.24.4.42",floating_network
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
 openstack_neutron_floating_ips{region="Region"} 22.0
+# HELP openstack_neutron_floating_ips_associated_not_active floating_ips_associated_not_active
+# TYPE openstack_neutron_floating_ips_associated_not_active gauge
+openstack_neutron_floating_ips_associated_not_active 1
+# HELP openstack_neutron_l3_agent_of_router l3_agent_of_router
+# TYPE openstack_neutron_l3_agent_of_router gauge
+openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"} 1
+openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="f8a44de0-fc8e-45df-93c7-f79bf3b01c95"} 1
 # HELP openstack_neutron_networks networks
 # TYPE openstack_neutron_networks gauge
 openstack_neutron_networks{region="Region"} 130.0

@@ -1,0 +1,17 @@
+{
+    "links": {
+        "next": null,
+        "previous": null,
+        "self": "http://example.com/identity/v3/regions"
+    },
+    "regions": [
+        {
+            "description": "",
+            "id": "RegionOne",
+            "links": {
+                "self": "http://example.com/identity/v3/regions/RegionOne"
+            },
+            "parent_region_id": null
+        }
+    ]
+}

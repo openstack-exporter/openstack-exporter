@@ -1,0 +1,18 @@
+{
+    "domains": [
+        {
+            "description": "Owns users and tenants (i.e. projects) available on Identity API v2.",
+            "enabled": true,
+            "id": "default",
+            "links": {
+                "self": "http://example.com/v3/domains/default"
+            },
+            "name": "Default"
+        }
+    ],
+    "links": {
+        "next": null,
+        "previous": null,
+        "self": "http://example.com/v3/domains"
+    }
+}

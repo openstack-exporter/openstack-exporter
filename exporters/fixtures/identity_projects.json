@@ -20,7 +20,7 @@
         },
         {
             "is_domain": false,
-            "description": null,
+            "description": "This is a demo project.",
             "domain_id": "default",
             "enabled": true,
             "id": "0cbd49cbf76d405d9c86562e1d579bd3",

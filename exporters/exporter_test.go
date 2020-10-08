@@ -74,6 +74,10 @@ var fixtures map[string]string = map[string]string{
 	"/gnocchi/v1/status":                      "gnocchi_status",
 	"/gnocchi/v1/status?details=true":         "gnocchi_status",
 	"/identity/v3/projects":                   "identity_projects",
+	"/identity/v3/domains":                    "identity_domains",
+	"/identity/v3/users":                      "identity_users",
+	"/identity/v3/groups":                     "identity_groups",
+	"/identity/v3/regions":                    "identity_regions",
 	"/neutron/":                               "neutron_api_discovery",
 	"/neutron/v2.0/floatingips":               "neutron_floating_ips",
 	"/neutron/v2.0/agents":                    "neutron_agents",
@@ -166,4 +170,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &DesignateTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "dns"}})
 	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
 	suite.Run(t, &GnocchiTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "gnocchi"}})
+	suite.Run(t, &KeystoneTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "identity"}})
 }

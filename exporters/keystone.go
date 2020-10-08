@@ -1,6 +1,8 @@
 package exporters
 
 import (
+	"strconv"
+
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -18,6 +20,7 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "users", Fn: ListUsers},
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
+	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name"}},
 	{Name: "regions", Fn: ListRegions},
 }
 
@@ -69,6 +72,11 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
+	for _, p := range allProjects {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
+			prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
+			p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name)
+	}
 
 	return nil
 }

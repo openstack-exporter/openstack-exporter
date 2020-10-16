@@ -103,7 +103,8 @@ Flags:
       --disable-service.dns      Disable the dns service exporter
       --disable-service.baremetal
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service exporter
+      --disable-service.gnocchi  Disable the gnocchi service 
+      --disable-slow-metrics     disable slow metrics for performance reasons
       --version                  Show application version.
 
 Args:
@@ -143,17 +144,26 @@ clouds:
 Please fill pull requests or issues under Github. Feel free to request any metrics
 that might be missing.
 
-### Communication
-
-Please join us at #openstack-exporter at Freenode
-
 ## Metrics
 
-The neutron/nova metrics contains the *_state metrics, which are separated
-by service/agent name.
+#### Slow metrics
 
-Please note that by convention resources metrics such as memory or storage are returned in bytes.
+There are some metrics that depending on the cloud deployment size, can be slow to be
+collected because iteration over different projects is required. Those metrics are marked as `slow` and can be disabled with the command
+line parameter `--disable-slow-metrics`.
 
+Currently flagged as slow metrics are:
+
+Name | Exporter
+-----|------------
+limits_vcpus_max | nova
+limits_vcpus_used | nova
+limits_memory_max | nova
+limits_memory_used | nova
+limits_volume_max_gb | cinder
+limits_volume_used_gb |  cinder
+
+#### Metrics collected
 
 Name     | Sample Labels | Sample Value | Description
 ---------|---------------|--------------|------------
@@ -913,3 +923,11 @@ openstack_object_store_up 1
 
 [buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield
 [circleci]: https://circleci.com/gh/openstack-exporter/openstack-exporter
+
+### Communication
+
+Please join us at #openstack-exporter at Freenode
+
+## Metrics
+
+Please note that by convention resources metrics such as memory or storage are returned in bytes.

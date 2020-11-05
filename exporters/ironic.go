@@ -14,7 +14,7 @@ type IronicExporter struct {
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled"}, Fn: ListNodes},
+	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled", "resource_class"}, Fn: ListNodes},
 }
 
 // NewIronicExporter : returns a pointer to IronicExporter
@@ -41,7 +41,7 @@ func NewIronicExporter(config *ExporterConfig) (*IronicExporter, error) {
 
 // ListNodes : list nodes
 func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.List(exporter.Client, nodes.ListOpts{}).AllPages()
+	allPagesNodes, err := nodes.ListDetail(exporter.Client, nodes.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -54,7 +54,7 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	for _, node := range allNodes {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
-			strconv.FormatBool(node.Maintenance), strconv.FormatBool(node.ConsoleEnabled))
+			strconv.FormatBool(node.Maintenance), strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass)
 	}
 
 	return nil

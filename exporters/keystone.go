@@ -33,7 +33,9 @@ func NewKeystoneExporter(config *ExporterConfig) (*KeystoneExporter, error) {
 	}
 
 	for _, metric := range defaultKeystoneMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		if !exporter.isSlowMetric(&metric) {
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		}
 	}
 
 	return &exporter, nil

@@ -25,7 +25,9 @@ func NewGnocchiExporter(config *ExporterConfig) (*GnocchiExporter, error) {
 		},
 	}
 	for _, metric := range defaultGnocchiMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		if !exporter.isSlowMetric(&metric) {
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		}
 	}
 	return &exporter, nil
 }

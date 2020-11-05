@@ -53,7 +53,9 @@ func NewContainerInfraExporter(config *ExporterConfig) (*ContainerInfraExporter,
 		},
 	}
 	for _, metric := range defaultContainerInfraMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		if !exporter.isSlowMetric(&metric) {
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		}
 	}
 	return &exporter, nil
 }

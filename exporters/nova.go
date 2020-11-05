@@ -73,10 +73,10 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id"}},
-	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits},
-	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}},
-	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}},
-	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}},
+	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
+	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 }
 
 func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
@@ -87,7 +87,9 @@ func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 		},
 	}
 	for _, metric := range defaultNovaMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		if !exporter.isSlowMetric(&metric) {
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		}
 	}
 
 	return &exporter, nil

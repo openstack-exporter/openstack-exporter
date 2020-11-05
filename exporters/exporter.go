@@ -17,6 +17,7 @@ type Metric struct {
 	Name   string
 	Labels []string
 	Fn     ListFunc
+	Slow   bool
 }
 
 const (
@@ -38,8 +39,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, uuidGenFunc)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, enableSlowMetrics bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, enableSlowMetrics, uuidGenFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -53,11 +54,12 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client          *gophercloud.ServiceClient
-	Prefix          string
-	DisabledMetrics []string
-	CollectTime     bool
-	UUIDGenFunc     func() (string, error)
+	Client             *gophercloud.ServiceClient
+	Prefix             string
+	DisabledMetrics    []string
+	CollectTime        bool
+	UUIDGenFunc        func() (string, error)
+	DisableSlowMetrics bool
 }
 
 type BaseOpenStackExporter struct {
@@ -140,6 +142,10 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 
 }
 
+func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
+	return exporter.ExporterConfig.DisableSlowMetrics && metric.Slow
+}
+
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {
 
 	if exporter.MetricIsDisabled(name) {
@@ -174,7 +180,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -202,11 +208,12 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:          client,
-		Prefix:          prefix,
-		DisabledMetrics: disabledMetrics,
-		CollectTime:     collectTime,
-		UUIDGenFunc:     uuidGenFunc,
+		Client:             client,
+		Prefix:             prefix,
+		DisabledMetrics:    disabledMetrics,
+		CollectTime:        collectTime,
+		UUIDGenFunc:        uuidGenFunc,
+		DisableSlowMetrics: disableSlowMetrics,
 	}
 
 	switch name {

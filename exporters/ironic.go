@@ -3,6 +3,7 @@ package exporters
 import (
 	"strconv"
 
+	"github.com/gophercloud/gophercloud/openstack/baremetal/apiversions"
 	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -27,6 +28,12 @@ func NewIronicExporter(config *ExporterConfig) (*IronicExporter, error) {
 
 	for _, metric := range defaultIronicMetrics {
 		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+	}
+
+	// Set Microversion workaround
+	microversion, err := apiversions.Get(config.Client, "v1").Extract()
+	if err == nil {
+		exporter.Client.Microversion = microversion.Version
 	}
 
 	return &exporter, nil

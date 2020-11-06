@@ -24,7 +24,9 @@ func NewObjectStoreExporter(config *ExporterConfig) (*ObjectStoreExporter, error
 	}
 
 	for _, metric := range defaultObjectStoreMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		if !exporter.isSlowMetric(&metric) {
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		}
 	}
 
 	return &exporter, nil

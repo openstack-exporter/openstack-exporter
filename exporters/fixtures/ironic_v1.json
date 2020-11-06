@@ -1,0 +1,72 @@
+{
+    "media_types": [
+        {
+            "base": "application/json",
+            "type": "application/vnd.openstack.ironic.v1+json"
+        }
+    ],
+    "version": {
+        "status": "CURRENT",
+        "min_version": "1.1",
+        "version": "1.58",
+        "id": "v1",
+        "links": [
+            {
+                "href": "http://test.cloud:6385/v1/",
+                "rel": "self"
+            }
+        ]
+    },
+    "links": [
+        {
+            "href": "http://test.cloud:6385/v1/",
+            "rel": "self"
+        },
+        {
+            "href": "https://docs.openstack.org//ironic/latest/contributor//webapi.html",
+            "type": "text/html",
+            "rel": "describedby"
+        }
+    ],
+    "drivers": [
+        {
+            "href": "http://test.cloud:6385/v1/drivers/",
+            "rel": "self"
+        },
+        {
+            "href": "http://test.cloud:6385/drivers/",
+            "rel": "bookmark"
+        }
+    ],
+    "ports": [
+        {
+            "href": "http://test.cloud:6385/v1/ports/",
+            "rel": "self"
+        },
+        {
+            "href": "http://test.cloud:6385/ports/",
+            "rel": "bookmark"
+        }
+    ],
+    "chassis": [
+        {
+            "href": "http://test.cloud:6385/v1/chassis/",
+            "rel": "self"
+        },
+        {
+            "href": "http://test.cloud:6385/chassis/",
+            "rel": "bookmark"
+        }
+    ],
+    "nodes": [
+        {
+            "href": "http://test.cloud:6385/v1/nodes/",
+            "rel": "self"
+        },
+        {
+            "href": "http://test.cloud:6385/nodes/",
+            "rel": "bookmark"
+        }
+    ],
+    "id": "v1"
+}

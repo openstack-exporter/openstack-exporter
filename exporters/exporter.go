@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
@@ -44,7 +46,6 @@ func EnableExporter(service, prefix, cloud string, disabledMetrics []string, end
 	if err != nil {
 		return nil, err
 	}
-	prometheus.MustRegister(exporter)
 	return &exporter, nil
 }
 
@@ -196,6 +197,10 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		log.Infoln("SSL verification disabled on transport")
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
+	}
+
+	if transport != nil {
+		transport.Proxy = http.ProxyFromEnvironment
 	}
 
 	client, err := NewServiceClient(name, &opts, transport, endpointType)

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -28,14 +29,27 @@ var (
 	collectTime        = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
 	disabledMetrics    = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
 	disableSlowMetrics = kingpin.Flag("disable-slow-metrics", "disable slow metrics for performance reasons").Default("false").Bool()
+	cloud              = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
+	allClouds          = kingpin.Flag("all-clouds", "Toggle the multiple cloud scrapping mode under /probe?cloud=").Default("false").Bool()
 )
 
 func main() {
+
+	services := make(map[string]*bool)
+
+	for _, service := range defaultEnabledServices {
+		flagName := fmt.Sprintf("disable-service.%s", service)
+		flagHelp := fmt.Sprintf("Disable the %s service exporter", service)
+		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
+	}
 
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
+	if *cloud == "" && !*allClouds {
+		log.Fatalln("openstack-exporter: error: required argument 'cloud' or flag --all-clouds not provided, try --help")
+	}
 	err := log.Base().SetLevel(*logLevel)
 	if err != nil {
 		log.Errorf("Cannot init set logger level: %s", err)
@@ -49,7 +63,6 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
-	http.Handle(*metrics, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte(`<html>
              <head><title>OpenStack Exporter</title></head>
@@ -62,7 +75,11 @@ func main() {
 			log.Error(err)
 		}
 	})
-	http.HandleFunc("/probe", probeHandler)
+	if *allClouds {
+		http.HandleFunc("/probe", probeHandler)
+	} else {
+		http.HandleFunc("/metrics", metricHandler(services))
+	}
 
 	log.Infoln("Starting HTTP server on", *bind)
 	log.Fatal(http.ListenAndServe(*bind, nil))
@@ -105,6 +122,42 @@ func probeHandler(w http.ResponseWriter, r *http.Request) {
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	h.ServeHTTP(w, r)
+}
+
+func metricHandler(services map[string]*bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		log.Infof("Starting openstack exporter version %s for cloud: %s", version.Info(), *cloud)
+		log.Infoln("Build context", version.BuildContext())
+
+		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
+			log.Debugf("Setting Env var OS_CLIENT_CONFIG_FILE = %s", *osClientConfig)
+			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
+		}
+
+		registry := prometheus.NewPedanticRegistry()
+		enabledExporters := 0
+		for service, disabled := range services {
+			if !*disabled {
+				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
+				if err != nil {
+					// Log error and continue with enabling other exporters
+					log.Errorf("enabling exporter for service %s failed: %s", service, err)
+					continue
+				}
+				registry.MustRegister(*exp)
+				log.Infof("Enabled exporter for service: %s", service)
+				enabledExporters++
+			}
+		}
+
+		if enabledExporters == 0 {
+			log.Errorln("No exporter has been enabled, exiting")
+			os.Exit(-1)
+		}
+
+		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
+	}
 }
 
 func removeElements(slice []string, drop []string) []string {

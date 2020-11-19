@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/hashicorp/go-uuid"
-
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"

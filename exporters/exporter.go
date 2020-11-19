@@ -198,10 +198,6 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	}
 
-	if transport != nil {
-		transport.Proxy = http.ProxyFromEnvironment
-	}
-
 	client, err := NewServiceClient(name, &opts, transport, endpointType)
 	if err != nil {
 		return nil, err

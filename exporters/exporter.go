@@ -3,12 +3,12 @@ package exporters
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/hashicorp/go-uuid"
 	"net/http"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/hashicorp/go-uuid"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/log"
 )

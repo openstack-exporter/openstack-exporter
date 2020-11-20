@@ -26,6 +26,7 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 	}
 
 	if transport != nil {
+		transport.Proxy = http.ProxyFromEnvironment
 		client.HTTPClient.Transport = transport
 	}
 

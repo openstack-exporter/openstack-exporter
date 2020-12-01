@@ -188,6 +188,7 @@ openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
 openstack_nova_server_status|region="RegionOne",hostname="compute-01""id", "name", "tenant_id", "user_id", "address_ipv4",                                                                     	"address_ipv6", "host_id", "uuid", "availability_zone"|0.0 (float)
 openstack_nova_running_vms|region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd"|12.0 (float)
+openstack_nova_free_disk_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|1230.0 (float)
 openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|100.0 (float)
 openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|30.0 (float)
 openstack_nova_memory_used_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|40000.0 (float)
@@ -562,6 +563,8 @@ openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-45",re
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors{region="Region"} 6.0
+# TYPE openstack_nova_free_disk_bytes gauge
+openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
 # HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes
 # TYPE openstack_nova_local_storage_available_bytes gauge
 openstack_nova_local_storage_available_bytes{aggregate="",hostname="compute-node-01",region="Region"} 1.07823006482432e+14

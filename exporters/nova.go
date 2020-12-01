@@ -71,6 +71,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "memory_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id"}},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
@@ -162,7 +163,6 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val
 		}
-
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
@@ -186,6 +186,10 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
+			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+
 	}
 
 	return nil

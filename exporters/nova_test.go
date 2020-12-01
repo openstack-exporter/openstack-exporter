@@ -1,9 +1,10 @@
 package exporters
 
 import (
+	"strings"
+
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
-	"strings"
 )
 
 type NovaTestSuite struct {
@@ -26,6 +27,9 @@ openstack_nova_current_workload{aggregates="",availability_zone="",hostname="hos
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors 7
+# HELP openstack_nova_free_disk_bytes free_disk_bytes
+# TYPE openstack_nova_free_disk_bytes gauge
+openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
 # HELP openstack_nova_limits_memory_max limits_memory_max
 # TYPE openstack_nova_limits_memory_max gauge
 openstack_nova_limits_memory_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 51200
@@ -99,7 +103,6 @@ openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host
 # HELP openstack_nova_vcpus_used vcpus_used
 # TYPE openstack_nova_vcpus_used gauge
 openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
-
 `
 
 var novaExpectedDown = `

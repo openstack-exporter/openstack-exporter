@@ -53,7 +53,9 @@ and must by specified with the `--os-client-config` flag.
 
 Other options as the binding address/port can by explored with the --help flag.
 
-By default the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
+The exporter can operate in 2 modes
+- A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+- A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
 
 You can build it by yourself by cloning this repository and run:
 
@@ -89,13 +91,36 @@ Flags:
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --collect-metric-time      time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --disable-slow-metrics     disable slow metrics for performance reasons
+      --all-clouds               Toggle the multiple cloud scrapping mode under /probe?cloud=
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+      --disable-service.network  Disable the network service exporter
+      --disable-service.compute  Disable the compute service exporter
+      --disable-service.image    Disable the image service exporter
+      --disable-service.volume   Disable the volume service exporter
+      --disable-service.identity
+                                 Disable the identity service exporter
+      --disable-service.object-store
+                                 Disable the object-store service exporter
+      --disable-service.load-balancer
+                                 Disable the load-balancer service exporter
+      --disable-service.container-infra
+                                 Disable the container-infra service exporter
+      --disable-service.dns      Disable the dns service exporter
+      --disable-service.baremetal
+                                 Disable the baremetal service exporter
+      --disable-service.gnocchi  Disable the gnocchi service
       --version                  Show application version.
+
+Args:
+  <cloud>  name or id of the cloud to gather metrics from
 ```
 
 ### Scrape options
 
+In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
+To select multi cloud more the -all-cloud flag need to be used
+In that case metrics and clouds are specified in the http scrape request as described below.
 Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape request.
 
 Query Parameter | Description

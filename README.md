@@ -56,6 +56,7 @@ Other options as the binding address/port can by explored with the --help flag.
 The exporter can operate in 2 modes
 - A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
 - A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
+  And where `/metrics` URL is serving own exporter metrics 
 
 You can build it by yourself by cloning this repository and run:
 

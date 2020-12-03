@@ -77,8 +77,9 @@ func main() {
 	})
 	if *allClouds {
 		http.HandleFunc("/probe", probeHandler)
+		http.Handle("/metrics", promhttp.Handler())
 	} else {
-		http.HandleFunc("/metrics", metricHandler(services))
+		http.HandleFunc(*metrics, metricHandler(services))
 	}
 
 	log.Infoln("Starting HTTP server on", *bind)

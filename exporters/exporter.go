@@ -100,7 +100,7 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 
 	log.Infof("Collected metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
 	if exporter.CollectTime {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), exporter.GetName(), metricName)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
 	return nil
 }
@@ -149,7 +149,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 		}
 		exporter.Metrics["openstack_metric_collect_seconds"] = &PrometheusMetric{
 			Metric: prometheus.NewDesc(
-				"openstack_metric_collect_seconds", "Time needed to collect metric from OpenStack API", []string{"openstack_service", "openstack_metric"}, nil),
+				"openstack_metric_collect_seconds", "Time needed to collect metric from OpenStack API", []string{"openstack_metric"}, prometheus.Labels{"openstack_service": exporter.GetName()}),
 			Fn: nil,
 		}
 	}

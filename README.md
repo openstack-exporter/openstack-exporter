@@ -54,6 +54,7 @@ and must by specified with the `--os-client-config` flag.
 Other options as the binding address/port can by explored with the --help flag.
 
 The exporter can operate in 2 modes
+
 - A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
 - A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
   And where `/metrics` URL is serving own exporter metrics 
@@ -62,10 +63,17 @@ You can build it by yourself by cloning this repository and run:
 
 ```sh
 make common-build
-./openstack-exporter --os-client-config /etc/openstack/clouds.yaml
+```
+Multi cloud mode
+```sh
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --all-clouds
 curl "http://localhost:9180/probe?cloud=region.mycludprovider.org"
 ```
-
+or Legacy mode
+```sh
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml myregion.cloud.org
+curl "http://localhost:9180/metrics" +
+```
 Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
 details):
 
@@ -120,7 +128,7 @@ Args:
 ### Scrape options
 
 In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
-To select multi cloud more the -all-cloud flag need to be used
+To select multi cloud the -all-cloud flag need to be used
 In that case metrics and clouds are specified in the http scrape request as described below.
 Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape request.
 

@@ -30,7 +30,7 @@ var (
 	disabledMetrics    = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
 	disableSlowMetrics = kingpin.Flag("disable-slow-metrics", "disable slow metrics for performance reasons").Default("false").Bool()
 	cloud              = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
-	allClouds          = kingpin.Flag("all-clouds", "Toggle the multiple cloud scrapping mode under /probe?cloud=").Default("false").Bool()
+	multiCloud         = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 )
 
 func main() {
@@ -47,8 +47,8 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 
-	if *cloud == "" && !*allClouds {
-		log.Fatalln("openstack-exporter: error: required argument 'cloud' or flag --all-clouds not provided, try --help")
+	if *cloud == "" && !*multiCloud {
+		log.Fatalln("openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
 	}
 	err := log.Base().SetLevel(*logLevel)
 	if err != nil {
@@ -75,10 +75,12 @@ func main() {
 			log.Error(err)
 		}
 	})
-	if *allClouds {
+	if *multiCloud {
 		http.HandleFunc("/probe", probeHandler)
 		http.Handle("/metrics", promhttp.Handler())
+		log.Infoln("openstack exporter started in multi cloud mode (/probe?cloud=)")
 	} else {
+		log.Infoln("openstack exporter started in legacy mode")
 		http.HandleFunc(*metrics, metricHandler(services))
 	}
 

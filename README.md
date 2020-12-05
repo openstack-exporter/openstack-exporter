@@ -66,7 +66,7 @@ make common-build
 ```
 Multi cloud mode
 ```sh
-./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --all-clouds
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --multi-cloud
 curl "http://localhost:9180/probe?cloud=region.mycludprovider.org"
 ```
 or Legacy mode
@@ -101,7 +101,7 @@ Flags:
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --collect-metric-time      time spent collecting each metric
       --disable-slow-metrics     disable slow metrics for performance reasons
-      --all-clouds               Toggle the multiple cloud scrapping mode under /probe?cloud=
+      --multi-cloud               Toggle the multiple cloud scraping mode under /probe?cloud=
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
@@ -128,7 +128,7 @@ Args:
 ### Scrape options
 
 In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
-To select multi cloud the -all-cloud flag need to be used
+To select multi cloud the --multi-cloud flag need to be used
 In that case metrics and clouds are specified in the http scrape request as described below.
 Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape request.
 

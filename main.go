@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -75,8 +78,9 @@ func main() {
 		os.Exit(-1)
 	}
 
-	http.Handle(*metrics, promhttp.Handler())
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	sm := http.NewServeMux()
+	sm.Handle(*metrics, promhttp.Handler())
+	sm.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte(`<html>
              <head><title>OpenStack Exporter</title></head>
              <body>
@@ -89,6 +93,29 @@ func main() {
 		}
 	})
 
+	tcp := ip4or6(*bind)
+
+	l, err := net.Listen(tcp, *bind)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Infoln("Starting HTTP server on", *bind)
-	log.Fatal(http.ListenAndServe(*bind, nil))
+	log.Fatal(http.Serve(l, sm))
+}
+
+func ip4or6(s string) string {
+	re := regexp.MustCompile(":\\d*$")
+	found := re.FindAllString(s, 1)
+	s = strings.TrimSuffix(s, found[0])
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case '.':
+			return "tcp4"
+		case ':':
+			return "tcp6"
+		}
+	}
+	return "tcp"
+
 }

@@ -44,7 +44,6 @@ func EnableExporter(service, prefix, cloud string, disabledMetrics []string, end
 	if err != nil {
 		return nil, err
 	}
-	prometheus.MustRegister(exporter)
 	return &exporter, nil
 }
 
@@ -91,19 +90,6 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *BaseOpenStackExporter) AddMetricCollectTime(collectTimeSeconds float64, metricName string, ch chan<- prometheus.Metric) {
-	metricPromatheuslabels := prometheus.Labels{
-		"openstack_service": exporter.GetName(),
-		"openstack_metric":  metricName}
-	metric := prometheus.NewDesc(
-		"openstack_metric_collect_seconds",
-		"Time needed to collect metric from OpenStack API",
-		nil,
-		metricPromatheuslabels)
-	log.Debugf("Adding metric for collecting timings: %+s", metric)
-	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, collectTimeSeconds)
-}
-
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric) error {
 	log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
 	now := time.Now()
@@ -114,7 +100,7 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 
 	log.Infof("Collected metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
 	if exporter.CollectTime {
-		exporter.AddMetricCollectTime(time.Since(now).Seconds(), metricName, ch)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
 	return nil
 }
@@ -159,6 +145,11 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 			Metric: prometheus.NewDesc(
 				prometheus.BuildFQName(exporter.GetName(), "", "up"),
 				"up", nil, constLabels),
+			Fn: nil,
+		}
+		exporter.Metrics["openstack_metric_collect_seconds"] = &PrometheusMetric{
+			Metric: prometheus.NewDesc(
+				"openstack_metric_collect_seconds", "Time needed to collect metric from OpenStack API", []string{"openstack_metric"}, prometheus.Labels{"openstack_service": exporter.GetName()}),
 			Fn: nil,
 		}
 	}

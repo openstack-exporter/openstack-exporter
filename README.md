@@ -53,20 +53,33 @@ and must by specified with the `--os-client-config` flag.
 
 Other options as the binding address/port can by explored with the --help flag.
 
-By default the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+The exporter can operate in 2 modes
+
+- A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+- A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
+  And where `/metrics` URL is serving own exporter metrics 
 
 You can build it by yourself by cloning this repository and run:
 
 ```sh
 make common-build
-./openstack-exporter --os-client-config /etc/openstack/clouds.yaml region.mycludprovider.org
 ```
-
+Multi cloud mode
+```sh
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --multi-cloud
+curl "http://localhost:9180/probe?cloud=region.mycludprovider.org"
+```
+or Legacy mode
+```sh
+./openstack-exporter --os-client-config /etc/openstack/clouds.yaml myregion.cloud.org
+curl "http://localhost:9180/metrics" +
+```
 Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
 details):
 
 ```sh
-docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it quay.io/niedbalski/openstack-exporter-linux-amd64:master my-cloud.org
+docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it -p 9180:9180 quay.io/niedbalski/openstack-exporter-linux-amd64:master
+curl "http://localhost:9180/probe?cloud=my-cloud.org"
 ```
 
 ### Command line options
@@ -87,6 +100,8 @@ Flags:
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --collect-metric-time      time spent collecting each metric
+      --disable-slow-metrics     disable slow metrics for performance reasons
+      --multi-cloud               Toggle the multiple cloud scraping mode under /probe?cloud=
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
@@ -103,12 +118,36 @@ Flags:
       --disable-service.dns      Disable the dns service exporter
       --disable-service.baremetal
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service 
-      --disable-slow-metrics     disable slow metrics for performance reasons
+      --disable-service.gnocchi  Disable the gnocchi service
       --version                  Show application version.
 
 Args:
   <cloud>  name or id of the cloud to gather metrics from
+```
+
+### Scrape options
+
+In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
+To select multi cloud the --multi-cloud flag need to be used
+In that case metrics and clouds are specified in the http scrape request as described below.
+Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape request.
+
+Query Parameter | Description
+--- | ---
+`cloud` | Name or id of the cloud to gather metrics from (as specified in the `clouds.yaml`)
+`include_services` | A comma separated list of services for which metrics will be scraped. Defaults to all services: "network,compute,image,volume,identity,object-store,load-balancer,container-infra,dns,baremetal,gnocchi"
+`exclude_services` | A comma separated list of services for which metrics will *not* be scraped. Default is empty: ""
+
+Examples:
+```
+## Scrape all services from `test.cloud`
+curl "https://localhost:9180/probe?cloud=test.cloud"
+
+## Scrape only `network` and `compute` services from `test.cloud`
+curl "https://localhost:9180/probe?cloud=test.cloud&include_services=network,compute"
+
+## Scrape all services except `load-balancer` and `dns` from `test.cloud`
+curl "https://localhost:9180/probe?cloud=test.cloud&exclude_services=load-balancer,dns"
 ```
 
 ### OpenStack configuration

@@ -119,7 +119,7 @@ func main() {
 }
 
 func ip4or6(s string) string {
-	re := regexp.MustCompile(":\\d*$")
+	re := regexp.MustCompile(`:\d*$`)
 	found := re.FindAllString(s, 1)
 	s = strings.TrimSuffix(s, found[0])
 	for i := 0; i < len(s); i++ {

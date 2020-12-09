@@ -78,6 +78,8 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 }
 
 func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
@@ -330,6 +332,12 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
 			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.TotalInstancesUsed), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
 	}
 
 	return nil

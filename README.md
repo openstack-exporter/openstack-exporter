@@ -203,6 +203,7 @@ limits_instances_max | nova
 limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+volume_status | cinder
 
 #### Metrics collected
 

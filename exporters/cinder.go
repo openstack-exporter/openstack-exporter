@@ -57,7 +57,8 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
-	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil},
+	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil, Slow: true},
+	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
@@ -109,6 +110,42 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
 			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
 			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
+	}
+
+	volume_status_counter := map[string]int{
+		"creating":          0,
+		"available":         0,
+		"reserved":          0,
+		"attaching":         0,
+		"detaching":         0,
+		"in-use":            0,
+		"maintenance":       0,
+		"deleting":          0,
+		"awaiting-transfer": 0,
+		"error":             0,
+		"error_deleting":    0,
+		"backing-up":        0,
+		"restoring-backup":  0,
+		"error_backing-up":  0,
+		"error_restoring":   0,
+		"error_extending":   0,
+		"downloading":       0,
+		"uploading":         0,
+		"retyping":          0,
+		"extending":         0,
+	}
+
+	for _, volume := range allVolumes {
+		volume_status_counter[volume.Status]++
+	}
+
+	// Volume status counter metrics
+	for status, count := range volume_status_counter {
+		ch <- prometheus.MustNewConstMetric(
+			exporter.Metrics["volume_status_counter"].Metric,
+			prometheus.GaugeValue,
+			float64(count),
+			status)
 	}
 
 	return nil

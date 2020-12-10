@@ -201,6 +201,7 @@ limits_memory_max | nova
 limits_memory_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+volume_status | cinder
 
 #### Metrics collected
 

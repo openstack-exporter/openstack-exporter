@@ -199,8 +199,11 @@ limits_vcpus_max | nova
 limits_vcpus_used | nova
 limits_memory_max | nova
 limits_memory_used | nova
+limits_instances_max | nova
+limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+volume_status | cinder
 
 #### Metrics collected
 
@@ -234,6 +237,8 @@ openstack_nova_limits_vcpus_max|tenant="demo-project"|128.0 (float)
 openstack_nova_limits_vcpus_used|tenant="demo-project"|32.0 (float)
 openstack_nova_limits_memory_max|tenant="demo-project"|40000.0 (float)
 openstack_nova_limits_memory_used|tenant="demo-project"|40000.0 (float)
+openstack_nova_limits_instances_max|tenant="demo-project"|15.0 (float)
+openstack_nova_limits_instances_used|tenant="demo-project"|5.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_cinder_limits_volume_max_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)
 openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)

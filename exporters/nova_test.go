@@ -30,6 +30,26 @@ openstack_nova_flavors 7
 # HELP openstack_nova_free_disk_bytes free_disk_bytes
 # TYPE openstack_nova_free_disk_bytes gauge
 openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
+# HELP openstack_nova_limits_instances_max limits_instances_max
+# TYPE openstack_nova_limits_instances_max gauge
+openstack_nova_limits_instances_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 10
+openstack_nova_limits_instances_max{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 10
+openstack_nova_limits_instances_max{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 10
+openstack_nova_limits_instances_max{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 10
+openstack_nova_limits_instances_max{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 10
+openstack_nova_limits_instances_max{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 10
+openstack_nova_limits_instances_max{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 10
+openstack_nova_limits_instances_max{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 10
+# HELP openstack_nova_limits_instances_used limits_instances_used
+# TYPE openstack_nova_limits_instances_used gauge
+openstack_nova_limits_instances_used{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
+openstack_nova_limits_instances_used{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
+openstack_nova_limits_instances_used{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_nova_limits_instances_used{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
+openstack_nova_limits_instances_used{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
+openstack_nova_limits_instances_used{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
+openstack_nova_limits_instances_used{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
+openstack_nova_limits_instances_used{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
 # HELP openstack_nova_limits_memory_max limits_memory_max
 # TYPE openstack_nova_limits_memory_max gauge
 openstack_nova_limits_memory_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 51200

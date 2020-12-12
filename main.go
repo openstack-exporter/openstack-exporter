@@ -6,7 +6,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 
 	"github.com/openstack-exporter/openstack-exporter/exporters"
@@ -65,28 +64,7 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
-	enabledExporters := 0
-	for service, disabled := range services {
-		if !*disabled {
-			_, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
-			if err != nil {
-				// Log error and continue with enabling other exporters
-				log.Errorf("enabling exporter for service %s failed: %s", service, err)
-				continue
-			}
-			log.Infof("Enabled exporter for service: %s", service)
-			enabledExporters++
-		}
-	}
-
-	if enabledExporters == 0 {
-		log.Errorln("No exporter has been enabled, exiting")
-		os.Exit(-1)
-	}
-
-	sm := http.NewServeMux()
-	sm.Handle(*metrics, promhttp.Handler())
-	sm.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte(`<html>
              <head><title>OpenStack Exporter</title></head>
              <body>
@@ -107,31 +85,14 @@ func main() {
 		http.HandleFunc(*metrics, metricHandler(services))
 	}
 
-	tcp := ip4or6(*bind)
-
+	tcp := exporters.IP4or6(*bind)
 	l, err := net.Listen(tcp, *bind)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	log.Infoln("Starting HTTP server on", *bind)
-	log.Fatal(http.Serve(l, sm))
-}
-
-func ip4or6(s string) string {
-	re := regexp.MustCompile(`:\d*$`)
-	found := re.FindAllString(s, 1)
-	s = strings.TrimSuffix(s, found[0])
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '.':
-			return "tcp4"
-		case ':':
-			return "tcp6"
-		}
-	}
-	return "tcp"
-
+	log.Fatal(http.Serve(l, nil))
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request) {
@@ -155,7 +116,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
-	services = removeElements(services, excludeServices)
+	services = exporters.RemoveElements(services, excludeServices)
 
 	log.Infof("Enabled services: %v", services)
 
@@ -207,21 +168,4 @@ func metricHandler(services map[string]*bool) http.HandlerFunc {
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)
 	}
-}
-
-func removeElements(slice []string, drop []string) []string {
-	res := []string{}
-	for _, s := range slice {
-		keep := true
-		for _, d := range drop {
-			if s == d {
-				keep = false
-				break
-			}
-		}
-		if keep {
-			res = append(res, s)
-		}
-	}
-	return res
 }

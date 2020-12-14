@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -84,8 +85,14 @@ func main() {
 		http.HandleFunc(*metrics, metricHandler(services))
 	}
 
+	tcp := exporters.IP4or6(*bind)
+	l, err := net.Listen(tcp, *bind)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Infoln("Starting HTTP server on", *bind)
-	log.Fatal(http.ListenAndServe(*bind, nil))
+	log.Fatal(http.Serve(l, nil))
 }
 
 func probeHandler(w http.ResponseWriter, r *http.Request) {
@@ -109,7 +116,7 @@ func probeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
-	services = removeElements(services, excludeServices)
+	services = exporters.RemoveElements(services, excludeServices)
 
 	log.Infof("Enabled services: %v", services)
 
@@ -161,21 +168,4 @@ func metricHandler(services map[string]*bool) http.HandlerFunc {
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)
 	}
-}
-
-func removeElements(slice []string, drop []string) []string {
-	res := []string{}
-	for _, s := range slice {
-		keep := true
-		for _, d := range drop {
-			if s == d {
-				keep = false
-				break
-			}
-		}
-		if keep {
-			res = append(res, s)
-		}
-	}
-	return res
 }

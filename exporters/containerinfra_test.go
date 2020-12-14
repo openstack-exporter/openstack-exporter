@@ -23,21 +23,7 @@ openstack_container_infra_total_clusters 1
 openstack_container_infra_up 1
 `
 
-var containerInfraExpectedDown = `
-# HELP openstack_container_infra_up up
-# TYPE openstack_container_infra_up gauge
-openstack_container_infra_up 0
-`
-
 func (suite *ContainerInfraTestSuite) TestContainerInfraExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(containerInfraExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *ContainerInfraTestSuite) TestContainerInfraExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(containerInfraExpectedDown))
 	assert.NoError(suite.T(), err)
 }

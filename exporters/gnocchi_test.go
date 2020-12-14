@@ -26,24 +26,10 @@ openstack_gnocchi_status_metric_having_measures_to_process 0
 openstack_gnocchi_status_metricd_processors 0
 # HELP openstack_gnocchi_up up
 # TYPE openstack_gnocchi_up gauge
-openstack_gnocchi_up 0
-`
-
-var gnocchiExpectedDown = `
-# HELP openstack_gnocchi_up up
-# TYPE openstack_gnocchi_up gauge
-openstack_gnocchi_up 0
+openstack_gnocchi_up 1
 `
 
 func (suite *GnocchiTestSuite) TestGnocchiExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(gnocchiExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *GnocchiTestSuite) TestGnocchiExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(gnocchiExpectedDown))
 	assert.NoError(suite.T(), err)
 }

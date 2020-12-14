@@ -42,21 +42,7 @@ openstack_identity_up 1
 openstack_identity_users 2
 `
 
-var keystoneExpectedDown = `
-# HELP openstack_identity_up up
-# TYPE openstack_identity_up gauge
-openstack_identity_up 0
-`
-
 func (suite *KeystoneTestSuite) TestKeystoneExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(keystoneExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *KeystoneTestSuite) TestKeystoneExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(keystoneExpectedDown))
 	assert.NoError(suite.T(), err)
 }

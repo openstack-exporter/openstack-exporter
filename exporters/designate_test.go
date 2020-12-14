@@ -29,21 +29,7 @@ openstack_designate_zone_status{id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="
 openstack_designate_zones 1
 `
 
-var designateExpectedDown = `
-# HELP openstack_designate_up up
-# TYPE openstack_designate_up gauge
-openstack_designate_up 0
-`
-
 func (suite *DesignateTestSuite) TestDesignateExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(designateExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *DesignateTestSuite) TestDesignateExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(designateExpectedDown))
 	assert.NoError(suite.T(), err)
 }

@@ -81,21 +81,7 @@ openstack_neutron_subnets 2
 openstack_neutron_up 1
 `
 
-var neutronExpectedDown = `
-# HELP openstack_neutron_up up
-# TYPE openstack_neutron_up gauge
-openstack_neutron_up 0
-`
-
 func (suite *NeutronTestSuite) TestNeutronExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(neutronExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *NeutronTestSuite) TestNeutronExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(neutronExpectedDown))
 	assert.NoError(suite.T(), err)
 }

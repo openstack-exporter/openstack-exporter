@@ -80,21 +80,7 @@ openstack_cinder_volume_status_counter{status="uploading"} 0
 openstack_cinder_volumes 2
 `
 
-var cinderExpectedDown = `
-# HELP openstack_cinder_up up
-# TYPE openstack_cinder_up gauge
-openstack_cinder_up 0
-`
-
 func (suite *CinderTestSuite) TestCinderExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *CinderTestSuite) TestCinderExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedDown))
 	assert.NoError(suite.T(), err)
 }

@@ -125,20 +125,7 @@ openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host
 openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 `
 
-var novaExpectedDown = `
-# HELP openstack_nova_up up
-# TYPE openstack_nova_up gauge
-openstack_nova_up 0
-`
-
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
-	assert.NoError(suite.T(), err)
-}
-
-func (suite *NovaTestSuite) TestNovaExporterWithEndpointDown() {
-	suite.teardownFixtures()
-	defer suite.installFixtures()
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedDown))
 	assert.NoError(suite.T(), err)
 }

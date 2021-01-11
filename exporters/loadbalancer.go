@@ -55,8 +55,6 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "loadbalancer_status", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip"}},
-	{Name: "loadbalancers"},
-	{Name: "loadbalancers_not_active"},
 }
 
 func NewLoadbalancerExporter(config *ExporterConfig) (*LoadbalancerExporter, error) {
@@ -83,19 +81,8 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		return err
 	}
 
-	failedLBs := 0
-	for _, lb := range allLoadbalancers {
-		if lb.ProvisioningStatus != "ACTIVE" {
-			failedLBs = failedLBs + 1
-		}
-	}
-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_loadbalancers"].Metric,
 		prometheus.GaugeValue, float64(len(allLoadbalancers)))
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers"].Metric,
-		prometheus.GaugeValue, float64(len(allLoadbalancers)))
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancers_not_active"].Metric,
-		prometheus.GaugeValue, float64(failedLBs))
 	// Loadbalancer status metrics
 	for _, loadbalancer := range allLoadbalancers {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancer_status"].Metric,
@@ -115,6 +102,7 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_amphorae"].Metric,
 		prometheus.GaugeValue, float64(len(allAmphorae)))
 	// Loadbalancer status metrics

@@ -220,6 +220,11 @@ openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id=
 openstack_neutron_network_ip_availabilities_used|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|151.0 (float)
 openstack_neutron_routers|region="RegionOne"|134.0 (float)
 openstack_neutron_l3_agent_of_router|region="RegionOne",agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"|1.0 (float)
+openstack_loadbalancer_up | | 1 (float)
+openstack_loadbalancer_total_loadbalancers| | 2 (float)
+openstack_loadbalancer_loadbalancer_status | id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"| 0 (float)
+openstack_loadbalancer_total_amphorae| | 2 (float)
+openstack_loadbalancer_amphora_status|compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"| 2.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
@@ -487,6 +492,22 @@ openstack_neutron_security_groups{region="Region"} 114.0
 # HELP openstack_neutron_subnets subnets
 # TYPE openstack_neutron_subnets gauge
 openstack_neutron_subnets{region="Region"} 130.0
+# HELP openstack_loadbalancer_amphora_status amphora_status
+# TYPE openstack_loadbalancer_amphora_status gauge
+openstack_loadbalancer_amphora_status{compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"} 2
+openstack_loadbalancer_amphora_status{compute_id="9cd0f9a2-fe12-42fc-a7e3-5b6fbbe20395",ha_ip="10.0.0.6",id="7f890893-ced0-46ed-8697-33415d070e5a",lb_network_ip="192.168.0.17",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="BACKUP",status="READY"} 2
+# HELP openstack_loadbalancer_loadbalancer_status loadbalancer_status
+# TYPE openstack_loadbalancer_loadbalancer_status gauge
+openstack_loadbalancer_loadbalancer_status{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 0
+# HELP openstack_loadbalancer_total_amphorae total_amphorae
+# TYPE openstack_loadbalancer_total_amphorae gauge
+openstack_loadbalancer_total_amphorae 2
+# HELP openstack_loadbalancer_total_loadbalancers total_loadbalancers
+# TYPE openstack_loadbalancer_total_loadbalancers gauge
+openstack_loadbalancer_total_loadbalancers 1
+# HELP openstack_loadbalancer_up up
+# TYPE openstack_loadbalancer_up gauge
+openstack_loadbalancer_up 1
 # HELP openstack_nova_agent_state agent_state
 # TYPE openstack_nova_agent_state counter
 openstack_nova_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="nova-compute",zone="nova"} 1.0

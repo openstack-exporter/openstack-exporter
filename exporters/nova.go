@@ -14,6 +14,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -80,6 +81,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 }
 
 func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
@@ -338,6 +340,30 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
 			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
+	}
+
+	return nil
+}
+
+// ListUsage add metrics about usage
+func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesUsage, err := usage.AllTenants(exporter.Client, usage.AllTenantsOpts{Detailed: true}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allTenantsUsage, err := usage.ExtractAllTenants(allPagesUsage)
+	if err != nil {
+		return err
+	}
+
+	// Server status metrics
+	for _, tenant := range allTenantsUsage {
+		for _, server := range tenant.ServerUsages {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_local_gb"].Metric,
+				prometheus.GaugeValue, float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
+		}
+
 	}
 
 	return nil

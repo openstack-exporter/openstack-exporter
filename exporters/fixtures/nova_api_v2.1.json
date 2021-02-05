@@ -1,0 +1,27 @@
+{
+  "versions": 
+    {
+       "id": "v2.1",
+       "status": "CURRENT",
+       "version": "2.87",
+       "min_version": "2.1",
+       "updated": "2013-07-23T11:33:21Z",
+       "links": [
+         {
+            "rel": "self",
+            "href": "http://test.cloud:8774/v2.1/"
+         },
+         {
+            "rel": "describedby",
+            "type": "text/html",
+            "href": "http://docs.openstack.org/"
+        }
+        ],
+        "media-types": [
+          {
+             "base": "application/json",
+             "type": "application/vnd.openstack.compute+json;version=2.1"
+         }
+        ]
+    }
+}

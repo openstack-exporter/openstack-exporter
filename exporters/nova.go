@@ -63,7 +63,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
-	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListNovaAgentState},
+	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone", "disabledReason", "UpdatedAt"}, Fn: ListNovaAgentState},
 	{Name: "running_vms", Labels: []string{"hostname", "availability_zone", "aggregates"}, Fn: ListHypervisors},
 	{Name: "current_workload", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone", "aggregates"}},
@@ -118,7 +118,7 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 			state = 1
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason, service.UpdatedAt.String())
 	}
 
 	return nil

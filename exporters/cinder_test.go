@@ -14,9 +14,9 @@ type CinderTestSuite struct {
 var cinderExpectedUp = `
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
-openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
-openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",uuid="` + DEFAULT_UUID + `",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
+openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
 # HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
 # TYPE openstack_cinder_limits_volume_max_gb gauge
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000
@@ -51,8 +51,8 @@ openstack_cinder_snapshots 1
 openstack_cinder_up 1
 # HELP openstack_cinder_volume_status volume_status
 # TYPE openstack_cinder_volume_status gauge
-openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
-openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
+openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
+openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status_counter volume_status_counter
 # TYPE openstack_cinder_volume_status_counter gauge
 openstack_cinder_volume_status_counter{status="attaching"} 0

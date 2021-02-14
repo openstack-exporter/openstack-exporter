@@ -51,14 +51,15 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 }
 
 var fixtures map[string]string = map[string]string{
-	"/container-infra/clusters":                                  "container_infra_clusters",
-	"/compute/":                                                  "nova_api_discovery",
-	"/compute/os-services":                                       "nova_os_services",
-	"/compute/os-hypervisors/detail":                             "nova_os_hypervisors",
-	"/compute/flavors/detail":                                    "nova_os_flavors",
-	"/compute/os-availability-zone":                              "nova_os_availability_zones",
-	"/compute/os-security-groups":                                "nova_os_security_groups",
-	"/compute/os-aggregates":                                     "nova_os_aggregates",
+	"/container-infra/clusters":      "container_infra_clusters",
+	"/compute/":                      "nova_api_discovery",
+	"/compute/v2.1/":                 "nova_api_v2.1",
+	"/compute/os-services":           "nova_os_services",
+	"/compute/os-hypervisors/detail": "nova_os_hypervisors",
+	"/compute/flavors/detail":        "nova_os_flavors",
+	"/compute/os-availability-zone":  "nova_os_availability_zones",
+	"/compute/os-security-groups":    "nova_os_security_groups",
+	"/compute/os-aggregates":         "nova_os_aggregates",
 	"/compute/limits?tenant_id=0c4e939acacf4376bdcd1129f1a054ad": "nova_os_limits",
 	"/compute/limits?tenant_id=0cbd49cbf76d405d9c86562e1d579bd3": "nova_os_limits",
 	"/compute/limits?tenant_id=2db68fed84324f29bb73130c6c2094fb": "nova_os_limits",

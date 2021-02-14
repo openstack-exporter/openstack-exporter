@@ -7,6 +7,7 @@ import (
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
@@ -95,6 +96,10 @@ func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 		if !exporter.isSlowMetric(&metric) {
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
 		}
+	}
+	microversion, err := apiversions.Get(config.Client, "v2.1").Extract()
+	if err == nil {
+		exporter.Client.Microversion = microversion.Version
 	}
 
 	return &exporter, nil

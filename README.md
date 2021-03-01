@@ -264,6 +264,31 @@ openstack_identity_regions|region="RegionOne"|1.0 (float)
 openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
+## Cinder Volume Status Description
+Index | Status
+------|-------
+0 |creating
+1 |available
+2 |reserved
+3 |attaching
+4 |detaching
+5 |in-use
+6 |maintenance
+7 |deleting
+8 |awaiting-transfer
+9 |error
+10 |error_deleting
+11 |backing-up
+12 |restoring-backup
+13 |error_backing-up
+14 |error_restoring
+15 |error_extending
+16 |downloading
+17 |uploading
+18 |retyping
+19 |extending
+
+
 ## Example metrics
 ```
 # HELP openstack_cinder_agent_state agent_state

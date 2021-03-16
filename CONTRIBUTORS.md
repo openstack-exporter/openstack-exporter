@@ -1,6 +1,7 @@
 ### Maintainer
 
 * Jorge Niedbalski (<jnr@metaklass.org>)
+* Alexey Myltsev (<alexey.myltsev@leroymerlin.ru>)
 
 ##### Contributors:
 

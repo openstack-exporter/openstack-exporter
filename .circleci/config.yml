@@ -24,6 +24,7 @@ jobs:
 
     steps:
     - checkout
+    - run: sudo snap refresh 
     - run: sudo snap install go --classic
     - run: GO111MODULE=on /snap/bin/go mod vendor
     - run: GO111MODULE=on /snap/bin/go mod download

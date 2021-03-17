@@ -24,6 +24,11 @@ jobs:
 
     steps:
     - checkout
+    - run: sudo apt -yyq update
+    - run: sudo apt -yyq install snapd
+    - run: sudo apt-get remove --auto-remove golang golang-go
+    - run: sudo snap refresh core
+    - run: sudo snap refresh core18
     - run: sudo snap install go --classic
     - run: GO111MODULE=on /snap/bin/go mod vendor
     - run: GO111MODULE=on /snap/bin/go mod download

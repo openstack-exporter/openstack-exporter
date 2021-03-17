@@ -77,7 +77,7 @@ func main() {
 		}
 	})
 	if *multiCloud {
-		http.HandleFunc("/probe", probeHandler)
+		http.HandleFunc("/probe", probeHandler(services))
 		http.Handle("/metrics", promhttp.Handler())
 		log.Infoln("openstack exporter started in multi cloud mode (/probe?cloud=)")
 	} else {
@@ -95,43 +95,51 @@ func main() {
 	log.Fatal(http.Serve(l, nil))
 }
 
-func probeHandler(w http.ResponseWriter, r *http.Request) {
+func probeHandler(services map[string]*bool) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithCancel(r.Context())
+		defer cancel()
+		r = r.WithContext(ctx)
 
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-	r = r.WithContext(ctx)
+		registry := prometheus.NewPedanticRegistry()
 
-	registry := prometheus.NewPedanticRegistry()
-
-	cloud := r.URL.Query().Get("cloud")
-	if cloud == "" {
-		http.Error(w, "'cloud' parameter is missing", http.StatusBadRequest)
-		return
-	}
-
-	services := defaultEnabledServices
-	includeServices := r.URL.Query().Get("include_services")
-	if includeServices != "" {
-		services = strings.Split(includeServices, ",")
-	}
-
-	excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
-	services = exporters.RemoveElements(services, excludeServices)
-
-	log.Infof("Enabled services: %v", services)
-
-	for _, service := range services {
-		exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
-		if err != nil {
-			log.Errorf("enabling exporter for service %s failed: %s", service, err)
-			continue
+		cloud := r.URL.Query().Get("cloud")
+		if cloud == "" {
+			http.Error(w, "'cloud' parameter is missing", http.StatusBadRequest)
+			return
 		}
-		registry.MustRegister(*exp)
-		log.Infof("Enabled exporter for service: %s", service)
-	}
 
-	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-	h.ServeHTTP(w, r)
+		enabledServices := []string{}
+
+		for service, disabled := range services {
+			if !*disabled {
+				enabledServices = append(enabledServices, service)
+			}
+		}
+
+		includeServices := r.URL.Query().Get("include_services")
+		if includeServices != "" {
+			enabledServices = strings.Split(includeServices, ",")
+		}
+
+		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
+		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
+
+		log.Infof("Enabled services: %v", enabledServices)
+
+		for _, service := range enabledServices {
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
+			if err != nil {
+				log.Errorf("enabling exporter for service %s failed: %s", service, err)
+				continue
+			}
+			registry.MustRegister(*exp)
+			log.Infof("Enabled exporter for service: %s", service)
+		}
+
+		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+		h.ServeHTTP(w, r)
+	}
 }
 
 func metricHandler(services map[string]*bool) http.HandlerFunc {

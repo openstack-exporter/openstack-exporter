@@ -135,7 +135,7 @@ Which cloud (name or id from the `clouds.yaml` file) or what services from the c
 Query Parameter | Description
 --- | ---
 `cloud` | Name or id of the cloud to gather metrics from (as specified in the `clouds.yaml`)
-`include_services` | A comma separated list of services for which metrics will be scraped. Defaults to all services: "network,compute,image,volume,identity,object-store,load-balancer,container-infra,dns,baremetal,gnocchi"
+`include_services` | A comma separated list of services for which metrics will be scraped. It ignore flags for disabling services `--disable-service.*`.
 `exclude_services` | A comma separated list of services for which metrics will *not* be scraped. Default is empty: ""
 
 Examples:
@@ -203,7 +203,6 @@ limits_instances_max | nova
 limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
-volume_status | cinder
 
 #### Metrics collected
 

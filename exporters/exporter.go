@@ -107,10 +107,12 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 	metricsDown := 0
+	metricsCount := len(exporter.Metrics)
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
 			log.Debugf("No function handler set for metric: %s", name)
+			metricsCount--
 			continue
 		}
 
@@ -121,7 +123,7 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	//If all metrics collections fails for a given service, we'll flag it as down.
-	if metricsDown >= len(exporter.Metrics) {
+	if metricsDown >= metricsCount {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)

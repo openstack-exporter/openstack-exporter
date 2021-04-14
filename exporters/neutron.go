@@ -31,6 +31,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports"},
 	{Name: "ports_no_ips"},
 	{Name: "ports_lb_not_active"},
+	{Name: "router", Labels: []string{"id", "name", "project_id", "admin_state_up", "status", "external_network_id"}},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "routers_not_active"},
 	{Name: "l3_agent_of_router", Labels: []string{"router_id", "l3_agent_id", "ha_state", "agent_alive", "agent_admin_up", "agent_host"}},
@@ -322,6 +323,9 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 				prometheus.GaugeValue, float64(state), router.ID, agent.ID,
 				agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
 		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
+			prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
+			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,

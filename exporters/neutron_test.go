@@ -64,6 +64,10 @@ openstack_neutron_ports_lb_not_active 1
 # HELP openstack_neutron_ports_no_ips ports_no_ips
 # TYPE openstack_neutron_ports_no_ips gauge
 openstack_neutron_ports_no_ips 1
+# HELP openstack_neutron_router router
+# TYPE openstack_neutron_router gauge
+openstack_neutron_router{admin_state_up="true",external_network_id="78620e54-9ec2-4372-8b07-3ac2d02e0288",id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f",name="router2",project_id="a2a651cc26974de98c9a1f9aa88eb2e6",status="N/A"} 1
+openstack_neutron_router{admin_state_up="true",external_network_id="78620e54-9ec2-4372-8b07-3ac2d02e0288",id="f8a44de0-fc8e-45df-93c7-f79bf3b01c95",name="router1",project_id="a2a651cc26974de98c9a1f9aa88eb2e6",status="ACTIVE"} 1
 # HELP openstack_neutron_routers routers
 # TYPE openstack_neutron_routers gauge
 openstack_neutron_routers 2

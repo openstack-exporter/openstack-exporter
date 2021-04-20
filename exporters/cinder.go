@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"errors"
-	"strconv"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
@@ -24,7 +23,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
-	{Name: "volume_gb", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: nil},
+	{Name: "volume_gb", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "volume_type", "server_id"}, Fn: nil},
 	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
@@ -77,11 +76,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		if volume.Attachments != nil && len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
+				volume.Status, volume.Bootable, volume.TenantID, volume.VolumeType, volume.Attachments[0].ServerID)
 		} else {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+				volume.Status, volume.Bootable, volume.TenantID, volume.VolumeType, "")
 		}
 	}
 

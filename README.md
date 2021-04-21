@@ -254,6 +254,7 @@ openstack_cinder_limits_volume_max_gb|tenant="demo-project",tenant_id="0c4e939ac
 openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
+openstack_cinder_volume_status|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
 openstack_cinder_volume_gb|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
 openstack_designate_zones| region="RegionOne"|4.0 (float)
 openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"|4.0 (float)
@@ -318,6 +319,10 @@ openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-09",reg
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-09@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-10",region="Region",service="cinder-backup",zone="nova"} 1.0
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-10@rbd-1",region="Region",service="cinder-volume",zone="nova"} 1.0
+# HELP openstack_cinder_volume_status volume_status
+# TYPE openstack_cinder_volume_status gauge
+openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"volume_type="lvmdriver-1"} 5
+openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_gb volume_gb
 # TYPE openstack_cinder_volume_gb gauge
 openstack_cinder_volume_gb{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 2

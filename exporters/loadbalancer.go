@@ -65,7 +65,7 @@ func NewLoadbalancerExporter(config *ExporterConfig) (*LoadbalancerExporter, err
 		},
 	}
 	for _, metric := range defaultLoadbalancerMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 	}
 	return &exporter, nil
 }

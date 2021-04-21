@@ -22,8 +22,11 @@ func NewGlanceExporter(config *ExporterConfig) (*GlanceExporter, error) {
 	}
 
 	for _, metric := range defaultGlanceMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

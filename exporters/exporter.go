@@ -14,10 +14,11 @@ import (
 )
 
 type Metric struct {
-	Name   string
-	Labels []string
-	Fn     ListFunc
-	Slow   bool
+	Name              string
+	Labels            []string
+	Fn                ListFunc
+	Slow              bool
+	DeprecatedVersion string
 }
 
 const (
@@ -35,12 +36,12 @@ type OpenStackExporter interface {
 	prometheus.Collector
 
 	GetName() string
-	AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels)
+	AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels)
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, enableSlowMetrics bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, enableSlowMetrics, uuidGenFunc)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, uuidGenFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -53,12 +54,13 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client             *gophercloud.ServiceClient
-	Prefix             string
-	DisabledMetrics    []string
-	CollectTime        bool
-	UUIDGenFunc        func() (string, error)
-	DisableSlowMetrics bool
+	Client                   *gophercloud.ServiceClient
+	Prefix                   string
+	DisabledMetrics          []string
+	CollectTime              bool
+	UUIDGenFunc              func() (string, error)
+	DisableSlowMetrics       bool
+	DisableDeprecatedMetrics bool
 }
 
 type BaseOpenStackExporter struct {
@@ -135,11 +137,19 @@ func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
 	return exporter.ExporterConfig.DisableSlowMetrics && metric.Slow
 }
 
-func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, constLabels prometheus.Labels) {
+func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
+	return exporter.ExporterConfig.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
+}
+
+func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
 
 	if exporter.MetricIsDisabled(name) {
 		log.Warnf("metric: %s has been disabled on %s exporter, not collecting metrics", name, exporter.Name)
 		return
+	}
+
+	if len(deprecatedVersion) > 0 {
+		log.Warnf("metric: %s has been deprecated on %s exporter and it will be removed in %s release", name, exporter.Name, deprecatedVersion)
 	}
 
 	if exporter.Metrics == nil {
@@ -174,7 +184,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -202,12 +212,13 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:             client,
-		Prefix:             prefix,
-		DisabledMetrics:    disabledMetrics,
-		CollectTime:        collectTime,
-		UUIDGenFunc:        uuidGenFunc,
-		DisableSlowMetrics: disableSlowMetrics,
+		Client:                   client,
+		Prefix:                   prefix,
+		DisabledMetrics:          disabledMetrics,
+		CollectTime:              collectTime,
+		UUIDGenFunc:              uuidGenFunc,
+		DisableSlowMetrics:       disableSlowMetrics,
+		DisableDeprecatedMetrics: disableDeprecatedMetrics,
 	}
 
 	switch name {

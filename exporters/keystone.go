@@ -33,8 +33,11 @@ func NewKeystoneExporter(config *ExporterConfig) (*KeystoneExporter, error) {
 	}
 
 	for _, metric := range defaultKeystoneMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

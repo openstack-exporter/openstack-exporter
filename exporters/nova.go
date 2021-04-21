@@ -93,8 +93,11 @@ func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 		},
 	}
 	for _, metric := range defaultNovaMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 	microversion, err := apiversions.Get(config.Client, "v2.1").Extract()

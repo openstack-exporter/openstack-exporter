@@ -203,6 +203,10 @@ limits_instances_max | nova
 limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+#### Deprecated Metrics 
+Metric name |  Since Version | Removed in Version | Notes
+------------|------------|--------------|-------------------------------------
+openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_cinder_volume_gb
 
 #### Metrics collected
 

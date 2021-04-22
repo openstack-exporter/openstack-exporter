@@ -89,37 +89,38 @@ The current list of command line options (by running --help)
 usage: openstack-exporter [<flags>] <cloud>
 
 Flags:
-  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
-      --log.level="info"         Log level: [debug, info, warn, error, fatal]
+  -h, --help                           Show context-sensitive help (also try --help-long and --help-man).
+      --log.level="info"               Log level: [debug, info, warn, error, fatal]
       --web.listen-address=":9180"
-                                 address:port to listen on
+                                       address:port to listen on
       --web.telemetry-path="/metrics"
-                                 uri path to expose metrics
+                                       uri path to expose metrics
       --os-client-config="/etc/openstack/clouds.yaml"
-                                 Path to the cloud configuration file
-      --prefix="openstack"       Prefix for metrics
-      --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
-      --collect-metric-time      time spent collecting each metric
-      --disable-slow-metrics     disable slow metrics for performance reasons
-      --multi-cloud               Toggle the multiple cloud scraping mode under /probe?cloud=
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
-      --disable-service.network  Disable the network service exporter
-      --disable-service.compute  Disable the compute service exporter
-      --disable-service.image    Disable the image service exporter
-      --disable-service.volume   Disable the volume service exporter
+                                       Path to the cloud configuration file
+      --prefix="openstack"             Prefix for metrics
+      --endpoint-type="public"         Openstack endpoint type to use (i.e: public, internal, admin)
+      --collect-metric-time            Time spent collecting each metric
+      --disable-deprecated-metrics     Disable deprecated metrics
+      --disable-slow-metrics           Disable slow metrics for performance reasons
+      --multi-cloud                    Toggle the multiple cloud scraping mode under /probe?cloud=
+  -d, --disable-metric= ...            multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+      --disable-service.network        Disable the network service exporter
+      --disable-service.compute        Disable the compute service exporter
+      --disable-service.image          Disable the image service exporter
+      --disable-service.volume         Disable the volume service exporter
       --disable-service.identity
-                                 Disable the identity service exporter
+                                       Disable the identity service exporter
       --disable-service.object-store
-                                 Disable the object-store service exporter
+                                       Disable the object-store service exporter
       --disable-service.load-balancer
-                                 Disable the load-balancer service exporter
+                                       Disable the load-balancer service exporter
       --disable-service.container-infra
-                                 Disable the container-infra service exporter
-      --disable-service.dns      Disable the dns service exporter
+                                       Disable the container-infra service exporter
+      --disable-service.dns            Disable the dns service exporter
       --disable-service.baremetal
-                                 Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service
-      --version                  Show application version.
+                                       Disable the baremetal service exporter
+      --disable-service.gnocchi        Disable the gnocchi service
+      --version                        Show application version.
 
 Args:
   <cloud>  name or id of the cloud to gather metrics from

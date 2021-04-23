@@ -68,11 +68,11 @@ jobs:
     - setup_remote_docker
     - attach_workspace:
         at: .
-    - run: make docker DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
+    - run: make docker DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64 s390x"
     - run: docker images
     - run: docker login -u $QUAY_LOGIN -p $QUAY_PASSWORD quay.io
     - run: docker run -i -t --entrypoint "sh" quay.io/niedbalski/openstack-exporter-linux-amd64:master -c 'test -e /bin/openstack-exporter; exit $?'
-    - run: make docker-publish DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
+    - run: make docker-publish DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64 s390x"
 
   docker_tag:
     executor: golang
@@ -81,14 +81,14 @@ jobs:
     - setup_remote_docker
     - attach_workspace:
         at: .
-    - run: make docker DOCKER_IMAGE_TAG=$CIRCLE_TAG DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
+    - run: make docker DOCKER_IMAGE_TAG=$CIRCLE_TAG DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64 s390x"
     - run: docker login -u $QUAY_LOGIN -p $QUAY_PASSWORD quay.io
     - run: |
         if [[ "$CIRCLE_TAG" =~ ^v[0-9]+(\.[0-9]+){2}$ ]]; then
-          make docker-tag-latest DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
+          make docker-tag-latest DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64 s390x"
         fi
     - run: docker run -i -t --entrypoint "sh" quay.io/niedbalski/openstack-exporter-linux-amd64:$CIRCLE_TAG -c 'test -e /bin/openstack-exporter; exit $?'
-    - run: make docker-publish DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64"
+    - run: make docker-publish DOCKER_IMAGE_TAG="$CIRCLE_TAG" DOCKER_REPO=quay.io/niedbalski DOCKER_ARCHS="amd64 arm64 s390x"
 
   snap_master_build:
     machine:

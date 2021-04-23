@@ -149,7 +149,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 
 	if len(deprecatedVersion) > 0 {
-		log.Warnf("metric: %s has been deprecated on %s exporter and it will be removed in %s release", name, exporter.Name, deprecatedVersion)
+		log.Warnf("metric: %s has been deprecated on %s exporter in version %s and it will be removed in next release", name, exporter.Name, deprecatedVersion)
 	}
 
 	if exporter.Metrics == nil {

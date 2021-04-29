@@ -43,7 +43,7 @@ type ContainerInfraExporter struct {
 
 var defaultContainerInfraMetrics = []Metric{
 	{Name: "total_clusters", Fn: ListAllClusters},
-	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count"}, Fn: nil},
+	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count", "project_id"}, Fn: nil},
 }
 
 func NewContainerInfraExporter(config *ExporterConfig) (*ContainerInfraExporter, error) {
@@ -80,7 +80,7 @@ func ListAllClusters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	for _, cluster := range allClusters {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_status"].Metric,
 			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount))
+			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
 	}
 	return nil
 }

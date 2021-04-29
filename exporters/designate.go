@@ -62,8 +62,11 @@ func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
 	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 
 	for _, metric := range defaultDesignateMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

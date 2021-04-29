@@ -21,17 +21,18 @@ var defaultEnabledServices = []string{"network", "compute", "image", "volume", "
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 var (
-	logLevel           = kingpin.Flag("log.level", "Log level: [debug, info, warn, error, fatal]").Default("info").String()
-	bind               = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
-	metrics            = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-	osClientConfig     = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
-	prefix             = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
-	endpointType       = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
-	collectTime        = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
-	disabledMetrics    = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
-	disableSlowMetrics = kingpin.Flag("disable-slow-metrics", "disable slow metrics for performance reasons").Default("false").Bool()
-	cloud              = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
-	multiCloud         = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
+	logLevel                 = kingpin.Flag("log.level", "Log level: [debug, info, warn, error, fatal]").Default("info").String()
+	bind                     = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
+	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
+	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
+	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
+	endpointType             = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
+	collectTime              = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
+	disabledMetrics          = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
+	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
+	disableDeprecatedMetrics = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
+	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
+	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 )
 
 func main() {
@@ -128,7 +129,7 @@ func probeHandler(services map[string]*bool) http.HandlerFunc {
 		log.Infof("Enabled services: %v", enabledServices)
 
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, nil)
 			if err != nil {
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)
 				continue
@@ -156,7 +157,7 @@ func metricHandler(services map[string]*bool) http.HandlerFunc {
 		enabledExporters := 0
 		for service, disabled := range services {
 			if !*disabled {
-				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, nil)
+				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, nil)
 				if err != nil {
 					// Log error and continue with enabling other exporters
 					log.Errorf("enabling exporter for service %s failed: %s", service, err)

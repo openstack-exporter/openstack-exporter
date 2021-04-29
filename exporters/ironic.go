@@ -27,8 +27,11 @@ func NewIronicExporter(config *ExporterConfig) (*IronicExporter, error) {
 	}
 
 	for _, metric := range defaultIronicMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

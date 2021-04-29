@@ -1,9 +1,10 @@
 package exporters
 
 import (
+	"strconv"
+
 	"github.com/gophercloud/gophercloud/openstack/containerinfra/v1/clusters"
 	"github.com/prometheus/client_golang/prometheus"
-	"strconv"
 )
 
 var cluster_status = []string{
@@ -53,8 +54,11 @@ func NewContainerInfraExporter(config *ExporterConfig) (*ContainerInfraExporter,
 		},
 	}
 	for _, metric := range defaultContainerInfraMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 	return &exporter, nil

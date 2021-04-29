@@ -25,8 +25,11 @@ func NewGnocchiExporter(config *ExporterConfig) (*GnocchiExporter, error) {
 		},
 	}
 	for _, metric := range defaultGnocchiMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 	return &exporter, nil

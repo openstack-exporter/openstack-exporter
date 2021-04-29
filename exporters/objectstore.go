@@ -24,8 +24,11 @@ func NewObjectStoreExporter(config *ExporterConfig) (*ObjectStoreExporter, error
 	}
 
 	for _, metric := range defaultObjectStoreMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

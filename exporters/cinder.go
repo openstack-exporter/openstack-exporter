@@ -57,7 +57,8 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
-	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: nil},
+	{Name: "volume_gb", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "volume_type", "server_id"}, Fn: nil},
+	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
 	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
@@ -74,12 +75,50 @@ func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
 	}
 
 	for _, metric := range defaultCinderMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 
 	return &exporter, nil
+}
+
+func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type VolumeWithExt struct {
+		volumes.Volume
+		volumetenants.VolumeTenantExt
+	}
+
+	var allVolumes []VolumeWithExt
+
+	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
+		AllTenants: true,
+	}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
+	if err != nil {
+		return err
+	}
+
+	// Volume status metrics
+	for _, volume := range allVolumes {
+		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
+		} else {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+		}
+	}
+	return nil
 }
 
 func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
@@ -105,16 +144,31 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
 		prometheus.GaugeValue, float64(len(allVolumes)))
 
-	// Volume status metrics
+	// Volume_gb metrics
 	for _, volume := range allVolumes {
 		if volume.Attachments != nil && len(volume.Attachments) > 0 {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, volume.VolumeType, volume.Attachments[0].ServerID)
 		} else {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, volume.VolumeType, "")
+		}
+	}
+
+	// Volume status metrics
+	if !exporter.ExporterConfig.DisableDeprecatedMetrics {
+		for _, volume := range allVolumes {
+			if volume.Attachments != nil && len(volume.Attachments) > 0 {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+					prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+					volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
+			} else {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+					prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+					volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+			}
 		}
 	}
 

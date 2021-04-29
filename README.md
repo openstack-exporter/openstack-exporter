@@ -91,38 +91,40 @@ usage: openstack-exporter [<flags>] <cloud>
 Flags:
   -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
       --log.level="info"         Log level: [debug, info, warn, error, fatal]
-      --web.listen-address=":9180"
+      --web.listen-address=":9180"  
                                  address:port to listen on
-      --web.telemetry-path="/metrics"
+      --web.telemetry-path="/metrics"  
                                  uri path to expose metrics
-      --os-client-config="/etc/openstack/clouds.yaml"
+      --os-client-config="/etc/openstack/clouds.yaml"  
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --collect-metric-time      time spent collecting each metric
-      --disable-slow-metrics     disable slow metrics for performance reasons
-      --multi-cloud               Toggle the multiple cloud scraping mode under /probe?cloud=
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+      --disable-slow-metrics     Disable slow metrics for performance reasons
+      --disable-deprecated-metrics  
+                                 Disable deprecated metrics
+      --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
       --disable-service.volume   Disable the volume service exporter
-      --disable-service.identity
+      --disable-service.identity  
                                  Disable the identity service exporter
-      --disable-service.object-store
+      --disable-service.object-store  
                                  Disable the object-store service exporter
-      --disable-service.load-balancer
+      --disable-service.load-balancer  
                                  Disable the load-balancer service exporter
-      --disable-service.container-infra
+      --disable-service.container-infra  
                                  Disable the container-infra service exporter
       --disable-service.dns      Disable the dns service exporter
-      --disable-service.baremetal
+      --disable-service.baremetal  
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service
+      --disable-service.gnocchi  Disable the gnocchi service exporter
       --version                  Show application version.
 
 Args:
-  <cloud>  name or id of the cloud to gather metrics from
+  [<cloud>]  name or id of the cloud to gather metrics from
 ```
 
 ### Scrape options
@@ -203,6 +205,10 @@ limits_instances_max | nova
 limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+#### Deprecated Metrics 
+Metric name |  Since Version | Removed in Version | Notes
+------------|------------|--------------|-------------------------------------
+openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_cinder_volume_gb
 
 #### Metrics collected
 
@@ -251,6 +257,7 @@ openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939a
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
 openstack_cinder_volume_status|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
+openstack_cinder_volume_gb|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
 openstack_designate_zones| region="RegionOne"|4.0 (float)
 openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"|4.0 (float)
 openstack_designate_recordsets| region="RegionOne",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."|4.0 (float)
@@ -318,6 +325,10 @@ openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-10@rbd-
 # TYPE openstack_cinder_volume_status gauge
 openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
 openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
+# HELP openstack_cinder_volume_gb volume_gb
+# TYPE openstack_cinder_volume_gb gauge
+openstack_cinder_volume_gb{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 2
+openstack_cinder_volume_gb{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
 # TYPE openstack_cinder_limits_volume_max_gb gauge
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000

@@ -111,6 +111,8 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e?usage=true":   "cinder_os_quota_sets",
 	"/designate/v2/zones":                                                  "designate_zones",
 	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets":  "designate_recordsets",
+	"/database/": "trove_api_discovery",
+	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -177,4 +179,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
 	suite.Run(t, &GnocchiTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "gnocchi"}})
 	suite.Run(t, &KeystoneTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "identity"}})
+	suite.Run(t, &TroveTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "database"}})
 }

@@ -120,7 +120,8 @@ Flags:
       --disable-service.dns      Disable the dns service exporter
       --disable-service.baremetal  
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service exporter
+      --disable-service.gnocchi  Disable the gnocchi service
+      --disable-service.database Disable the database service
       --version                  Show application version.
 
 Args:
@@ -269,6 +270,9 @@ openstack_identity_project_info|is_domain="false",description="This is a project
 openstack_identity_groups|region="RegionOne"|1.0 (float)
 openstack_identity_regions|region="RegionOne"|1.0 (float)
 openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float)
+openstack_trove_instance_status|datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"|2 (float)
+openstack_trove_instance_volume_size_gb|datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"|20 (float)
+openstack_trove_instance_volume_used_gb|datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"|0.4 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
 ## Cinder Volume Status Description
@@ -1034,6 +1038,21 @@ openstack_object_store_objects{container_name="test2"} 1
 # HELP openstack_object_store_up up
 # TYPE openstack_object_store_up gauge
 openstack_object_store_up 1
+# HELP openstack_trove_instance_status instance_status
+# TYPE openstack_trove_instance_status gauge
+openstack_trove_instance_status{datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 2
+# HELP openstack_trove_instance_volume_size_gb instance_volume_size_gb
+# TYPE openstack_trove_instance_volume_size_gb gauge
+openstack_trove_instance_volume_size_gb{datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 20
+# HELP openstack_trove_instance_volume_used_gb instance_volume_used_gb
+# TYPE openstack_trove_instance_volume_used_gb gauge
+openstack_trove_instance_volume_used_gb{datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0.4
+# HELP openstack_trove_total_instances total_instances
+# TYPE openstack_trove_total_instances gauge
+openstack_trove_total_instances 1
+# HELP openstack_trove_up up
+# TYPE openstack_trove_up gauge
+openstack_trove_up 1
 ```
 
 [buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield

@@ -1,0 +1,21 @@
+{
+   "instances": [
+      {
+         "status": "ACTIVE",
+         "volume": {
+            "volume_id": "6edbc2f4-1507-44f8-ac0d-eed1d2608d38",
+            "used": 0.4,
+            "size": 20
+         },
+         "id": "0cef87c6-bd23-4f6b-8458-a393c39486d8",
+         "name": "mysql1",
+         "region": "RegionOne",
+         "health_status": "available",
+         "tenant_id": "0cbd49cbf76d405d9c86562e1d579bd3",
+         "datastore": {
+            "version": "5.7",
+            "type": "mysql"
+         }
+      }
+   ]
+}

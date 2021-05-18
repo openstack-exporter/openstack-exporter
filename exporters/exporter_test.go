@@ -1,7 +1,6 @@
 package exporters
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -27,7 +26,7 @@ type BaseOpenStackTestSuite struct {
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
 	data, _ := ioutil.ReadFile(file)
 	response := &http.Response{
-		Body: ioutil.NopCloser(bytes.NewReader(data)),
+		Body: httpmock.NewRespBodyFromBytes(data),
 		Header: http.Header{
 			"Content-Type":    []string{"application/json"},
 			"X-Subject-Token": []string{"1234"},
@@ -35,7 +34,7 @@ func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statu
 		StatusCode: statusCode,
 	}
 
-	responder := httpmock.ResponderFromResponse(response).Once()
+	responder := httpmock.ResponderFromResponse(response).Times(2)
 	httpmock.RegisterResponder(method, url, responder)
 }
 
@@ -70,8 +69,9 @@ var fixtures map[string]string = map[string]string{
 	"/compute/limits?tenant_id=fdb8424c4e4f4c0ba32c52e2de3bd80e": "nova_os_limits",
 	"/compute/servers/detail?all_tenants=true":                   "nova_os_servers",
 	"/compute/os-simple-tenant-usage?detailed=1":                 "nova_os_simple_tenant_usage",
-	"/glance/":                                "glance_api_discovery",
-	"/glance/v2/images":                       "glance_images",
+	"/glance/":          "glance_api_discovery",
+	"/glance/v2/images": "glance_images",
+	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_metric",
 	"/gnocchi/v1/metric":                      "gnocchi_metric",
 	"/gnocchi/v1/status":                      "gnocchi_status",
 	"/gnocchi/v1/status?details=true":         "gnocchi_status",

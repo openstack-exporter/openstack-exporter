@@ -157,21 +157,6 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		}
 	}
 
-	// Volume status metrics
-	if !exporter.ExporterConfig.DisableDeprecatedMetrics {
-		for _, volume := range allVolumes {
-			if volume.Attachments != nil && len(volume.Attachments) > 0 {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-					prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-					volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
-			} else {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-					prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-					volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
-			}
-		}
-	}
-
 	volume_status_counter := map[string]int{
 		"creating":          0,
 		"available":         0,

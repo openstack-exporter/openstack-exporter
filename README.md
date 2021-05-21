@@ -172,6 +172,7 @@ clouds:
      password: {{ keystone_admin_password }}
      project_name: {{ keystone_admin_project }}
      project_domain_name: 'Default'
+     project_domain_id: 'Default' // This can replace "project_domain_name"
      user_domain_name: 'Default'
      auth_url: {{ admin_protocol }}://{{ kolla_internal_fqdn }}:{{ keystone_admin_port }}/v3
      cacert: |

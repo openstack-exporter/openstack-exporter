@@ -16,7 +16,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration"}
 
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 

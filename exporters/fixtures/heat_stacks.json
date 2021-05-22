@@ -1,0 +1,40 @@
+{
+  "stacks": [
+    {
+      "stack_name": "demo-stack1",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "UPDATE_COMPLETE",
+      "id": "0009e826-5ad0-4310-994c-d3d2151eb6fd"
+    },
+    {
+      "stack_name": "demo-stack2",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "CREATE_COMPLETE",
+      "id": "00cb0780-c883-4964-89c3-b79d840b3cbf"
+    },
+    {
+      "stack_name": "demo-stack3",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "CREATE_FAILED",
+      "id": "03438d56-3109-4881-b75e-c8eb83cb9985"
+    },
+    {
+      "stack_name": "demo-stack4",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "UPDATE_FAILED",
+      "id": "1128f6cf-589b-468c-8ba1-9ae7e3f24507"
+    },
+    {
+      "stack_name": "demo-stack5",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "DELETE_IN_PROGRESS",
+      "id": "23f50926-d2ab-4e13-86ee-0c768f8ce426"
+    },
+    {
+      "stack_name": "demo-stack6",
+      "project": "0cbd49cbf76d405d9c86562e1d579bd3",
+      "stack_status": "DELETE_FAILED",
+      "id": "24cb54d6-f060-41b6-b7ae-e4c149b35382"
+    }
+  ]
+}

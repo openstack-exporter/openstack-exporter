@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -235,8 +236,11 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		if service.State == "up" {
 			state = 1
 		}
-		if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
-			return err
+		fmt.Println(exporter.ExporterConfig.DisableCinderAgentUUID)
+		if !exporter.ExporterConfig.DisableCinderAgentUUID {
+			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+				return err
+			}
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,

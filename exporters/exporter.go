@@ -40,8 +40,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, uuidGenFunc)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, uuidGenFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -61,6 +61,7 @@ type ExporterConfig struct {
 	UUIDGenFunc              func() (string, error)
 	DisableSlowMetrics       bool
 	DisableDeprecatedMetrics bool
+	DisableCinderAgentUUID   bool
 }
 
 type BaseOpenStackExporter struct {
@@ -184,7 +185,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -219,6 +220,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		UUIDGenFunc:              uuidGenFunc,
 		DisableSlowMetrics:       disableSlowMetrics,
 		DisableDeprecatedMetrics: disableDeprecatedMetrics,
+		DisableCinderAgentUUID:   disableCinderAgentUUID,
 	}
 
 	switch name {

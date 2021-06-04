@@ -106,7 +106,7 @@ Flags:
       --disable-deprecated-metrics  
                                  Disable deprecated metrics
       --disable-cinder-agent-uuid  
-                                 Disable UUID generation for Cinder agnets
+                                 Disable UUID generation for Cinder agents
       --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter

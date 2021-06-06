@@ -190,17 +190,18 @@ func GetEndpointType(endpointType string) gophercloud.Availability {
 func IP4or6(s string) string {
 	re := regexp.MustCompile(`:\d*$`)
 	found := re.FindAllString(s, 1)
-	s = strings.TrimSuffix(s, found[0])
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '.':
-			return "tcp4"
-		case ':':
-			return "tcp6"
+	if len(found) != 0 {
+		s = strings.TrimSuffix(s, found[0])
+		for i := 0; i < len(s); i++ {
+			switch s[i] {
+			case '.':
+				return "tcp4"
+			case ':':
+				return "tcp6"
+			}
 		}
 	}
 	return "tcp"
-
 }
 
 // RemoveElements remove not needed elements

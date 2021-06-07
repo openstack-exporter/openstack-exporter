@@ -87,6 +87,10 @@ func main() {
 		http.HandleFunc(*metrics, metricHandler(services))
 	}
 
+	if *bind == "" {
+		log.Fatal("--web.listen-address is empty. Please specify address:port to listen on.")
+	}
+
 	tcp := exporters.IP4or6(*bind)
 	l, err := net.Listen(tcp, *bind)
 	if err != nil {

@@ -87,7 +87,8 @@ func main() {
 	}
 
 	if *bind == "" {
-		log.Fatal("--web.listen-address is empty. Please specify address:port to listen on.")
+		log.Info("--web.listen-address is empty. HTTP server will start on :9180")
+		*bind = ":9180"
 	}
 
 	tcp := exporters.IP4or6(*bind)

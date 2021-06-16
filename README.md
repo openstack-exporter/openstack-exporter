@@ -100,10 +100,13 @@ Flags:
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --collect-metric-time      time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e:
+                                 cinder-snapshots)
       --disable-slow-metrics     Disable slow metrics for performance reasons
       --disable-deprecated-metrics  
                                  Disable deprecated metrics
+      --disable-cinder-agent-uuid  
+                                 Disable UUID generation for Cinder agents
       --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
@@ -120,10 +123,11 @@ Flags:
       --disable-service.dns      Disable the dns service exporter
       --disable-service.baremetal  
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service
-      --disable-service.database Disable the database service
-      --disable-service.orchestration
-                                 Disable the orchestration service
+      --disable-service.gnocchi  Disable the gnocchi service exporter
+      --disable-service.database  
+                                 Disable the database service exporter
+      --disable-service.orchestration  
+                                 Disable the orchestration service exporter
       --version                  Show application version.
 
 Args:

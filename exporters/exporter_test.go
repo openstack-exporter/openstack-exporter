@@ -128,7 +128,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, func() (string, error) {
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, func() (string, error) {
 		return DEFAULT_UUID, nil
 	})
 

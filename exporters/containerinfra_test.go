@@ -12,6 +12,12 @@ type ContainerInfraTestSuite struct {
 }
 
 var containerInfraExpectedUp = `
+# HELP openstack_container_infra_cluster_masters cluster_masters
+# TYPE openstack_container_infra_cluster_masters gauge
+openstack_container_infra_cluster_masters{name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1
+# HELP openstack_container_infra_cluster_nodes cluster_nodes
+# TYPE openstack_container_infra_cluster_nodes gauge
+openstack_container_infra_cluster_nodes{master_count="1",name="k8s",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1
 # HELP openstack_container_infra_cluster_status cluster_status
 # TYPE openstack_container_infra_cluster_status gauge
 openstack_container_infra_cluster_status{master_count="1",name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1

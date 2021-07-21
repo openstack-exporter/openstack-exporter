@@ -113,8 +113,13 @@ var fixtures map[string]string = map[string]string{
 	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets":  "designate_recordsets",
 	"/database/": "trove_api_discovery",
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
-	"/orchestration/":       "heat_api_discovery",
-	"/orchestration/stacks": "heat_stacks",
+	"/orchestration/":               "heat_api_discovery",
+	"/orchestration/stacks":         "heat_stacks",
+	"/placement/resource_providers": "resource_providers",
+	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/inventories": "resource_provider_1_inventory",
+	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",
+	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/usages":      "resource_provider_1_usage",
+	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/usages":      "resource_provider_2_usage",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -183,4 +188,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &KeystoneTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "identity"}})
 	suite.Run(t, &TroveTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "database"}})
 	suite.Run(t, &HeatTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "orchestration"}})
+	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 }

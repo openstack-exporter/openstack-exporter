@@ -152,6 +152,8 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		return openstack.NewObjectStorageV1(pClient, eo)
 	case "orchestration":
 		return openstack.NewOrchestrationV1(pClient, eo)
+	case "placement":
+		return openstack.NewPlacementV1(pClient, eo)
 	case "sharev2":
 		return openstack.NewSharedFileSystemV2(pClient, eo)
 	case "volume":

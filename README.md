@@ -128,6 +128,8 @@ Flags:
                                  Disable the database service exporter
       --disable-service.orchestration  
                                  Disable the orchestration service exporter
+      --disable-service.placement  
+                                 Disable the placement service exporter
       --version                  Show application version.
 
 Args:
@@ -285,6 +287,10 @@ openstack_trove_instance_volume_size_gb|datastore_type="mysql",datastore_version
 openstack_trove_instance_volume_used_gb|datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"|0.4 (float)
 openstack_heat_stack_status|id="00cb0780-c883-4964-89c3-b79d840b3cbf",name="demo-stack2",project_id="0cbd49cbf76d405d9c86562e1d579bd3",status="CREATE_COMPLETE"|5 (float)
 openstack_heat_stack_status_counter|status="CREATE_COMPLETE"|1 (float)
+openstack_placement_resource_allocation_ratio|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|1.2 (float)
+openstack_placement_resource_reserved|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|8 (float)
+openstack_placement_resource_total|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|80 (float)
+openstack_placement_resource_usage|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|40 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
 ## Cinder Volume Status Description
@@ -1117,6 +1123,42 @@ openstack_heat_stack_status_counter{status="UPDATE_IN_PROGRESS"} 0
 # HELP openstack_heat_up up
 # TYPE openstack_heat_up gauge
 openstack_heat_up 1
+# HELP openstack_placement_resource_allocation_ratio resource_allocation_ratio
+# TYPE openstack_placement_resource_allocation_ratio gauge
+openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 1.2000000476837158
+openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 1.299999952316284
+2
+openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 3
+openstack_placement_resource_allocation_ratio{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 1.2000000476837158
+openstack_placement_resource_allocation_ratio{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 1
+openstack_placement_resource_allocation_ratio{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 1
+# HELP openstack_placement_resource_reserved resource_reserved
+# TYPE openstack_placement_resource_reserved gauge
+openstack_placement_resource_reserved{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 0
+openstack_placement_resource_reserved{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 8192
+openstack_placement_resource_reserved{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 0
+openstack_placement_resource_reserved{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 0
+openstack_placement_resource_reserved{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 8192
+openstack_placement_resource_reserved{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 0
+# HELP openstack_placement_resource_total resource_total
+# TYPE openstack_placement_resource_total gauge
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 2047
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 772447
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 96
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 2047
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 772447
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 96
+# HELP openstack_placement_resource_usage resource_usage
+# TYPE openstack_placement_resource_usage gauge
+openstack_placement_resource_usage{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 6969
+openstack_placement_resource_usage{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 1945
+openstack_placement_resource_usage{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 10
+openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 0
+openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 0
+openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 0
+# HELP openstack_placement_up up
+# TYPE openstack_placement_up gauge
+openstack_placement_up 1
 ```
 
 [buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield

@@ -3,6 +3,7 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/gophercloud/gophercloud"
@@ -100,9 +101,16 @@ func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
-	microversion, err := apiversions.Get(config.Client, "v2.1").Extract()
-	if err == nil {
-		exporter.Client.Microversion = microversion.Version
+
+	envMicroversion, present := os.LookupEnv("OS_COMPUTE_API_VERSION")
+	if present {
+		exporter.Client.Microversion = envMicroversion
+	} else {
+
+		microversion, err := apiversions.Get(config.Client, "v2.1").Extract()
+		if err == nil {
+			exporter.Client.Microversion = microversion.Version
+		}
 	}
 
 	return &exporter, nil

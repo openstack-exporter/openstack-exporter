@@ -246,7 +246,7 @@ openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
 openstack_nova_server_status|region="RegionOne",hostname="compute-01""id", "name", "tenant_id", "user_id", "address_ipv4",                                                                     	"address_ipv6", "host_id", "uuid", "availability_zone"|0.0 (float)
 openstack_nova_running_vms|region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd"|12.0 (float)
-openstack_nova_server_local_gb| id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"}| 10 (float)
+openstack_nova_server_local_gb| id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"| 10 (float)
 openstack_nova_free_disk_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|1230.0 (float)
 openstack_nova_local_storage_used_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|100.0 (float)
 openstack_nova_local_storage_available_bytes|region="RegionOne",hostname="compute-01",aggregates="shared,ssd"|30.0 (float)
@@ -287,11 +287,11 @@ openstack_trove_instance_volume_size_gb|datastore_type="mysql",datastore_version
 openstack_trove_instance_volume_used_gb|datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"|0.4 (float)
 openstack_heat_stack_status|id="00cb0780-c883-4964-89c3-b79d840b3cbf",name="demo-stack2",project_id="0cbd49cbf76d405d9c86562e1d579bd3",status="CREATE_COMPLETE"|5 (float)
 openstack_heat_stack_status_counter|status="CREATE_COMPLETE"|1 (float)
-openstack_placement_resource_allocation_ratio|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|1.2 (float)
-openstack_placement_resource_reserved|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|8 (float)
-openstack_placement_resource_total|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|80 (float)
-openstack_placement_resource_usage|hostname="compute-01",resourcetype="DISK_GB|PCPU|VCPU|..."}|40 (float)
-openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
+openstack_placement_resource_allocation_ratio|hostname="compute-01",resourcetype="DISK_GB&#124;PCPU&#124;VCPU&#124;..."}|1.2 (float)
+openstack_placement_resource_reserved|hostname="compute-01",resourcetype="DISK_GB&#124;PCPU&#124;VCPU&#124;..."}|8 (float)
+openstack_placement_resource_total|hostname="compute-01",resourcetype="DISK_GB&#124;PCPU&#124;VCPU&#124;..."}|80 (float)
+openstack_placement_resource_usage|hostname="compute-01",resourcetype="DISK_GB&#124;PCPU&#124;VCPU&#124;..."}|40 (float)
+openstack_metric_collect_seconds | openstack_metric="agent_state",openstack_service="openstack_cinder" |1.27843913| Only if --collect-metric-time is passed
 
 ## Cinder Volume Status Description
 Index | Status

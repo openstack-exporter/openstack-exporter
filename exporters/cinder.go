@@ -94,7 +94,8 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	var allVolumes []VolumeWithExt
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
+	client := *exporter.Client
+	allPagesVolumes, err := volumes.List(&client, volumes.ListOpts{
 		AllTenants: true,
 	}).AllPages()
 	if err != nil {
@@ -129,7 +130,8 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	var allVolumes []VolumeWithExt
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
+	client := *exporter.Client
+	allPagesVolumes, err := volumes.List(&client, volumes.ListOpts{
 		AllTenants: true,
 	}).AllPages()
 	if err != nil {
@@ -219,7 +221,8 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	var allServices []services.Service
 
-	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	client := *exporter.Client
+	allPagesService, err := services.List(&client, services.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}

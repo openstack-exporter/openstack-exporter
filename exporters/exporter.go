@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gophercloud/gophercloud"
@@ -109,24 +110,31 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 }
 
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
-	metricsDown := 0
 	metricsCount := len(exporter.Metrics)
+	var wg sync.WaitGroup
 
 	for name, metric := range exporter.Metrics {
-		if metric.Fn == nil {
-			log.Debugf("No function handler set for metric: %s", name)
-			metricsCount--
-			continue
-		}
+		wg.Add(1)
 
-		if err := exporter.RunCollection(metric, name, ch); err != nil {
-			log.Errorf("Failed to collect metric for exporter: %s, error: %s", exporter.Name, err)
-			metricsDown++
-		}
+		go func(name string, metric *PrometheusMetric) {
+			defer wg.Done()
+
+			if metric.Fn == nil {
+				log.Debugf("No function handler set for metric: %s", name)
+				return
+			}
+
+			if err := exporter.RunCollection(metric, name, ch); err != nil {
+				log.Errorf("Failed to collect metric for exporter: %s, error: %s", exporter.Name, err)
+			}
+		}(name, metric)
 	}
 
+	wg.Wait()
+
 	//If all metrics collections fails for a given service, we'll flag it as down.
-	if metricsDown >= metricsCount {
+	metricsUp := len(ch)
+	if metricsCount-metricsUp >= metricsUp {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)

@@ -86,6 +86,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/networks":                  "neutron_networks",
 	"/neutron/v2.0/security-groups":           "neutron_security_groups",
 	"/neutron/v2.0/subnets":                   "neutron_subnets",
+	"/neutron/v2.0/subnetpools":               "neutron_subnet_pools",
 	"/neutron/v2.0/ports":                     "neutron_ports",
 	"/neutron/v2.0/network-ip-availabilities": "neutron_network_ip_availabilities",
 	"/neutron/v2.0/routers":                   "neutron_routers",

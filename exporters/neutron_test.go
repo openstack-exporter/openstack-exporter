@@ -79,7 +79,31 @@ openstack_neutron_routers_not_active 1
 openstack_neutron_security_groups 1
 # HELP openstack_neutron_subnets subnets
 # TYPE openstack_neutron_subnets gauge
-openstack_neutron_subnets 2
+openstack_neutron_subnets 4
+# HELP openstack_neutron_subnets_free subnets_free
+# TYPE openstack_neutron_subnets_free gauge
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 7
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 14
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 28
+openstack_neutron_subnets_free{ip_version="6",prefix="2001:db8::/63",prefix_length="63",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 0
+openstack_neutron_subnets_free{ip_version="6",prefix="2001:db8::/63",prefix_length="64",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 1
+openstack_neutron_subnets_free{ip_version="6",prefix="2001:db8::/63",prefix_length="65",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 2
+# HELP openstack_neutron_subnets_total subnets_total
+# TYPE openstack_neutron_subnets_total gauge
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 8
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 16
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 32
+openstack_neutron_subnets_total{ip_version="6",prefix="2001:db8::/63",prefix_length="63",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 1
+openstack_neutron_subnets_total{ip_version="6",prefix="2001:db8::/63",prefix_length="64",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 2
+openstack_neutron_subnets_total{ip_version="6",prefix="2001:db8::/63",prefix_length="65",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 4
+# HELP openstack_neutron_subnets_used subnets_used
+# TYPE openstack_neutron_subnets_used gauge
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 1
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 0
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 0
+openstack_neutron_subnets_used{ip_version="6",prefix="2001:db8::/63",prefix_length="63",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 0
+openstack_neutron_subnets_used{ip_version="6",prefix="2001:db8::/63",prefix_length="64",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 1
+openstack_neutron_subnets_used{ip_version="6",prefix="2001:db8::/63",prefix_length="65",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="03f761e6-eee0-43fc-a921-8acf64c14988",subnet_pool_name="my-subnet-pool-ipv6"} 0
 # HELP openstack_neutron_up up
 # TYPE openstack_neutron_up gauge
 openstack_neutron_up 1

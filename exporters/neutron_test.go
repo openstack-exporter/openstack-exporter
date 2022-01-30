@@ -14,11 +14,11 @@ type NeutronTestSuite struct {
 var neutronExpectedUp = `
 # HELP openstack_neutron_agent_state agent_state
 # TYPE openstack_neutron_agent_state counter
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="840d5d68-5759-4e9e-812f-f3bd19214c7f",service="neutron-dhcp-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="a09b81fc-5a42-46d3-a306-1a5d122a7787",service="neutron-l3-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="840d5d68-5759-4e9e-812f-f3bd19214c7f",service="neutron-dhcp-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="a09b81fc-5a42-46d3-a306-1a5d122a7787",service="neutron-l3-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
 # HELP openstack_neutron_floating_ip floating_ip
 # TYPE openstack_neutron_floating_ip gauge
 openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1

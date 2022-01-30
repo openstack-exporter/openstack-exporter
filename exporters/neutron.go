@@ -35,7 +35,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "routers", Fn: ListRouters},
 	{Name: "routers_not_active"},
 	{Name: "l3_agent_of_router", Labels: []string{"router_id", "l3_agent_id", "ha_state", "agent_alive", "agent_admin_up", "agent_host"}},
-	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState"}, Fn: ListAgentStates},
+	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "availability_zone"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
 }
@@ -111,6 +111,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	for _, agent := range allAgents {
 		var state int = 0
 		var id string
+		var zone string
 
 		if agent.Alive {
 			state = 1
@@ -128,8 +129,10 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			}
 		}
 
+		zone = agent.AvailabilityZone
+
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), id, agent.Host, agent.Binary, adminState)
+			prometheus.CounterValue, float64(state), id, agent.Host, agent.Binary, adminState, zone)
 	}
 
 	return nil

@@ -224,7 +224,7 @@ openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_ci
 
 Name     | Sample Labels | Sample Value | Description
 ---------|---------------|--------------|------------
-openstack_neutron_agent_state|adminState="up",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"|1 or 0 (bool)
+openstack_neutron_agent_state|adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"|1 or 0 (bool)
 openstack_neutron_floating_ip|region="RegionOne",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"|4.0 (float)
 openstack_neutron_floating_ips|region="RegionOne"|4.0 (float)
 openstack_neutron_networks|region="RegionOne"|25.0 (float)

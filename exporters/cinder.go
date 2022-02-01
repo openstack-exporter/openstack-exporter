@@ -312,7 +312,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		}
 		jsonLimits := quotasets.GetUsage(exporter.Client, p.ID).PrettyPrintJSON()
 		var jsonParse map[string]interface{}
-		json.Unmarshal([]byte(jsonLimits), &jsonParse)
+		_ = json.Unmarshal([]byte(jsonLimits), &jsonParse)
 		quota := jsonParse["quota_set"].(map[string]interface{})
 		for i := range quota {
 			words := strings.Split(i, "_")

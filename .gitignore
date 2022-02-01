@@ -15,3 +15,5 @@ vendor
 
 # Release tarballs
 *.tar.gz
+# IDE dir
+.idea/

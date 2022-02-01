@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -64,6 +65,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_volume_used_volume_type_gb", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
 }
 
 func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
@@ -308,7 +310,22 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		if err != nil {
 			return err
 		}
-
+		jsonLimits := quotasets.GetUsage(exporter.Client, p.ID).PrettyPrintJSON()
+		var jsonParse map[string]interface{}
+		json.Unmarshal([]byte(jsonLimits), &jsonParse)
+		quota := jsonParse["quota_set"].(map[string]interface{})
+		for i := range quota {
+			words := strings.Split(i, "_")
+			if len(words) == 2 {
+				if words[0] == "gigabytes" {
+					disksQuota := quota[i].(map[string]interface{})
+					inUseGb := disksQuota["in_use"].(float64)
+					volType := words[1]
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_volume_type_gb"].Metric,
+						prometheus.GaugeValue, inUseGb, p.Name, p.ID, volType)
+				}
+			}
+		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
 

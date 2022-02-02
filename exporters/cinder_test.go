@@ -37,6 +37,12 @@ openstack_cinder_limits_volume_used_gb{tenant="service",tenant_id="3d594eb0f0474
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
+# HELP openstack_cinder_volume_used_volume_type_gb limits_volume_used_volume_type_gb
+# TYPE openstack_cinder_volume_used_volume_type_gb gauge
+openstack_cinder_volume_used_volume_type_gb{tenant="Demo",tenant_id="7ddd90cef31a40dea6a62b8b6b33dede",volume_type="sas"} 2490
+openstack_cinder_volume_used_volume_type_gb{tenant="Demo",tenant_id="7ddd90cef31a40dea6a62b8b6b33dede",volume_type="sata"} 159
+openstack_cinder_volume_used_volume_type_gb{tenant="Demo",tenant_id="7ddd90cef31a40dea6a62b8b6b33dede",volume_type="ssd"} 3000
+openstack_cinder_volume_used_volume_type_gb{tenant="Demo",tenant_id="7ddd90cef31a40dea6a62b8b6b33dede",volume_type="lvm-driver"} 250 
 # HELP openstack_cinder_pool_capacity_free_gb pool_capacity_free_gb
 # TYPE openstack_cinder_pool_capacity_free_gb gauge
 openstack_cinder_pool_capacity_free_gb{name="i666testhost@FastPool01",vendor_name="EMC",volume_backend_name="VNX_Pool"} 636.316

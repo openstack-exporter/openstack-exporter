@@ -144,7 +144,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
-	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
+	allPagesHypervisors, err := hypervisors.List(exporter.Client, nil).AllPages()
 	if err != nil {
 		return err
 	}

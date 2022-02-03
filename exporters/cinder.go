@@ -3,7 +3,7 @@ package exporters
 import (
 	"encoding/json"
 	"errors"
-    "strconv"
+	"strconv"
 	"strings"
 
 	"github.com/gophercloud/gophercloud"
@@ -368,4 +368,3 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 	return nil
 }
-

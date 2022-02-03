@@ -46,6 +46,26 @@ openstack_cinder_pool_capacity_total_gb{name="i666testhost@FastPool01",vendor_na
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
 openstack_cinder_snapshots 1
+# HELP openstack_cinder_snapshots_count snapshots_count
+# TYPE openstack_cinder_snapshots_count gauge
+openstack_cinder_snapshots_count{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
+openstack_cinder_snapshots_count{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
+openstack_cinder_snapshots_count{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_cinder_snapshots_count{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
+openstack_cinder_snapshots_count{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
+openstack_cinder_snapshots_count{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
+openstack_cinder_snapshots_count{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
+openstack_cinder_snapshots_count{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
+# HELP openstack_cinder_snapshots_count_by_volume_type snapshots_count_by_volume_type
+# TYPE openstack_cinder_snapshots_count_by_volume_type gauge
+openstack_cinder_snapshots_count_by_volume_type{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",volume_type="__DEFAULT__"} 0
+openstack_cinder_snapshots_count_by_volume_type{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",volume_type="__DEFAULT__"} 0
 # HELP openstack_cinder_up up
 # TYPE openstack_cinder_up gauge
 openstack_cinder_up 1
@@ -79,6 +99,16 @@ openstack_cinder_volume_status_counter{status="reserved"} 0
 openstack_cinder_volume_status_counter{status="restoring-backup"} 0
 openstack_cinder_volume_status_counter{status="retyping"} 0
 openstack_cinder_volume_status_counter{status="uploading"} 0
+# HELP openstack_cinder_volume_type_used_gb volume_type_used_gb
+# TYPE openstack_cinder_volume_type_used_gb gauge
+openstack_cinder_volume_type_used_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",volume_type="__DEFAULT__"} 0
+openstack_cinder_volume_type_used_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",volume_type="__DEFAULT__"} 0
 # HELP openstack_cinder_volumes volumes
 # TYPE openstack_cinder_volumes gauge
 openstack_cinder_volumes 2
@@ -88,4 +118,3 @@ func (suite *CinderTestSuite) TestCinderExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
 	assert.NoError(suite.T(), err)
 }
-

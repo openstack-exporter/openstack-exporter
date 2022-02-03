@@ -1,10 +1,8 @@
 package exporters
 
 import (
+	"encoding/json"
 	"errors"
-	"strconv"
-	"strings"
-
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
@@ -15,6 +13,8 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
+	"strconv"
+	"strings"
 )
 
 type CinderExporter struct {
@@ -64,6 +64,9 @@ var defaultCinderMetrics = []Metric{
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "volume_type_used_gb", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
+	{Name: "snapshots_count_by_volume_type", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
+	{Name: "snapshots_count", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
 func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
@@ -308,7 +311,52 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		if err != nil {
 			return err
 		}
-
+		jsonLimits := quotasets.GetUsage(exporter.Client, p.ID).PrettyPrintJSON()
+		var jsonParse map[string]interface{}
+		_ = json.Unmarshal([]byte(jsonLimits), &jsonParse)
+		quota := jsonParse["quota_set"].(map[string]interface{})
+		for i := range quota {
+			words := strings.Split(i, "_")
+			wordsLen := len(words)
+			if wordsLen > 1 {
+				if words[0] == "gigabytes" {
+					if wordsLen == 2 {
+						disksQuota := quota[i].(map[string]interface{})
+						inUseGb := disksQuota["in_use"].(float64)
+						volType := words[1]
+						ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
+							prometheus.GaugeValue, inUseGb, p.Name, p.ID, volType)
+					} else if wordsLen > 2 {
+						jsonHead := strings.Join(words, "_")
+						disksQuota := quota[jsonHead].(map[string]interface{})
+						inUseGb := disksQuota["in_use"].(float64)
+						volType := strings.Join(words[1:], "_")
+						ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
+							prometheus.GaugeValue, inUseGb, p.Name, p.ID, volType)
+					}
+				} else if words[0] == "snapshots" {
+					if wordsLen == 2 {
+						snapsQuota := quota[i].(map[string]interface{})
+						inUseSnaps := snapsQuota["in_use"].(float64)
+						snapVolType := words[1]
+						ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
+							prometheus.GaugeValue, inUseSnaps, p.Name, p.ID, snapVolType)
+					} else if wordsLen > 2 {
+						jsonHead := strings.Join(words, "_")
+						snapsQuota := quota[jsonHead].(map[string]interface{})
+						inUseSnaps := snapsQuota["in_use"].(float64)
+						snapVolType := strings.Join(words[1:], "_")
+						ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
+							prometheus.GaugeValue, inUseSnaps, p.Name, p.ID, snapVolType)
+					}
+				}
+			} else if i == "snapshots" {
+				snapQuota := quota[i].(map[string]interface{})
+				inUseSnapCount := snapQuota["in_use"].(float64)
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count"].Metric,
+					prometheus.GaugeValue, inUseSnapCount, p.Name, p.ID)
+			}
+		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
 
@@ -319,3 +367,4 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 	return nil
 }
+

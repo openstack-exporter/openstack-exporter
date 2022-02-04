@@ -57,6 +57,64 @@
       "subnetpool_id": null,
       "tags": ["tag1,tag2"],
       "updated_at": "2016-10-10T14:35:47Z"
+    },
+    {
+      "name": "pooled-subnet-ipv4",
+      "enable_dhcp": true,
+      "network_id": "d32019d3-bc6e-4319-9c1d-6722fc136a22",
+      "segment_id": null,
+      "project_id": "4fd44f30292945e481c7b8a0c8908869",
+      "tenant_id": "4fd44f30292945e481c7b8a0c8908869",
+      "dns_nameservers": [],
+      "allocation_pools": [
+        {
+          "start": "10.10.0.2",
+          "end": "10.10.0.254"
+        }
+      ],
+      "host_routes": [],
+      "ip_version": 4,
+      "gateway_ip": "10.10.0.1",
+      "cidr": "10.10.0.0/24",
+      "id": "12769bb8-6c3c-11ec-8124-002b67875abf",
+      "created_at": "2016-10-10T14:35:47Z",
+      "description": "",
+      "ipv6_address_mode": null,
+      "ipv6_ra_mode": null,
+      "revision_number": 2,
+      "service_types": [],
+      "subnetpool_id": "f49a1319-423a-4ee6-ba54-1d95a4f6cc68",
+      "tags": ["tag1,tag2"],
+      "updated_at": "2016-10-10T14:35:47Z"
+    },
+    {
+      "name": "pooled-subnet-ipv6",
+      "enable_dhcp": true,
+      "network_id": "d32019d3-bc6e-4319-9c1d-6722fc136a22",
+      "segment_id": null,
+      "project_id": "4fd44f30292945e481c7b8a0c8908869",
+      "tenant_id": "4fd44f30292945e481c7b8a0c8908869",
+      "dns_nameservers": [],
+      "allocation_pools": [
+        {
+          "start": "2001:db8::2",
+          "end": "2001:db8::ffff:ffff:ffff:ffff"
+        }
+      ],
+      "host_routes": [],
+      "ip_version": 6,
+      "gateway_ip": "2001:db8::1",
+      "cidr": "2001:db8::/64",
+      "id": "f73defec-6c43-11ec-a08b-002b67875abf",
+      "created_at": "2016-10-10T14:35:47Z",
+      "description": "",
+      "ipv6_address_mode": "slaac",
+      "ipv6_ra_mode": "slaac",
+      "revision_number": 2,
+      "service_types": [],
+      "subnetpool_id": "03f761e6-eee0-43fc-a921-8acf64c14988",
+      "tags": ["tag1,tag2"],
+      "updated_at": "2016-10-10T14:35:47Z"
     }
   ]
 }

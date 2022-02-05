@@ -3,6 +3,7 @@ package exporters
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -65,9 +66,9 @@ var defaultCinderMetrics = []Metric{
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
-	{Name: "volume_type_used_gb", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
-	{Name: "snapshots_count_by_volume_type", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
+	{Name: "volume_type_used_gb", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: VolumeTypeAndSnapshotUsage, Slow: true},
 	{Name: "snapshots_count", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "snapshots_count_by_volume_type", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
 }
 
 func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
@@ -312,52 +313,6 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		if err != nil {
 			return err
 		}
-		jsonLimits := quotasets.GetUsage(exporter.Client, p.ID).PrettyPrintJSON()
-		var jsonParse map[string]interface{}
-		_ = json.Unmarshal([]byte(jsonLimits), &jsonParse)
-		quota := jsonParse["quota_set"].(map[string]interface{})
-		for i := range quota {
-			words := strings.Split(i, "_")
-			wordsLen := len(words)
-			if wordsLen > 1 {
-				if words[0] == "gigabytes" {
-					if wordsLen == 2 {
-						disksQuota := quota[i].(map[string]interface{})
-						inUseGb := disksQuota["in_use"].(float64)
-						volType := words[1]
-						ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
-							prometheus.GaugeValue, inUseGb, p.Name, p.ID, volType)
-					} else if wordsLen > 2 {
-						jsonHead := strings.Join(words, "_")
-						disksQuota := quota[jsonHead].(map[string]interface{})
-						inUseGb := disksQuota["in_use"].(float64)
-						volType := strings.Join(words[1:], "_")
-						ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
-							prometheus.GaugeValue, inUseGb, p.Name, p.ID, volType)
-					}
-				} else if words[0] == "snapshots" {
-					if wordsLen == 2 {
-						snapsQuota := quota[i].(map[string]interface{})
-						inUseSnaps := snapsQuota["in_use"].(float64)
-						snapVolType := words[1]
-						ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
-							prometheus.GaugeValue, inUseSnaps, p.Name, p.ID, snapVolType)
-					} else if wordsLen > 2 {
-						jsonHead := strings.Join(words, "_")
-						snapsQuota := quota[jsonHead].(map[string]interface{})
-						inUseSnaps := snapsQuota["in_use"].(float64)
-						snapVolType := strings.Join(words[1:], "_")
-						ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
-							prometheus.GaugeValue, inUseSnaps, p.Name, p.ID, snapVolType)
-					}
-				}
-			} else if i == "snapshots" {
-				snapQuota := quota[i].(map[string]interface{})
-				inUseSnapCount := snapQuota["in_use"].(float64)
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count"].Metric,
-					prometheus.GaugeValue, inUseSnapCount, p.Name, p.ID)
-			}
-		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
 
@@ -366,5 +321,114 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 	}
 
+	return nil
+}
+
+func VolumeTypeAndSnapshotUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	type QuotaUsageStruct struct {
+		Allocated int `json:"allocated"`
+		InUse     int `json:"in_use"`
+		Limit     int `json:"limit"`
+		Reserved  int `json:"reserved"`
+	}
+
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["volume"]; ok {
+		eo = v
+	} else {
+		return errors.New("No EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+	for _, p := range allProjects {
+		jsonLimits := quotasets.GetUsage(exporter.Client, p.ID).PrettyPrintJSON()
+		var jsonParse map[string]interface{}
+		err = json.Unmarshal([]byte(jsonLimits), &jsonParse)
+		if err != nil {
+			return err
+		}
+		quota, ok := jsonParse["quota_set"].(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("Unable to find quota_set header in quota-json")
+		}
+		for k, v := range quota {
+			if k != "id" {
+				keySlice := strings.Split(k, "_")
+				keySliceLen := len(keySlice)
+				if keySliceLen > 1 {
+					if keySlice[0] == "gigabytes" {
+						quotaUsageToJson, err := json.Marshal(v)
+						if err != nil {
+							return err
+						}
+						var QuotaUsageDecoded QuotaUsageStruct
+						err = json.Unmarshal(quotaUsageToJson, &QuotaUsageDecoded)
+						if err != nil {
+							return err
+						}
+						if keySliceLen == 2 {
+							volType := keySlice[1]
+							ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
+								prometheus.GaugeValue, float64(QuotaUsageDecoded.InUse), p.Name, p.ID, volType)
+						} else if keySliceLen > 2 {
+							volType := strings.Join(keySlice[1:], "_")
+							ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_used_gb"].Metric,
+								prometheus.GaugeValue, float64(QuotaUsageDecoded.InUse), p.Name, p.ID, volType)
+						}
+					} else if keySlice[0] == "snapshots" {
+						quotaUsageToJson, err := json.Marshal(v)
+						if err != nil {
+							return err
+						}
+						var QuotaUsageDecoded QuotaUsageStruct
+						err = json.Unmarshal(quotaUsageToJson, &QuotaUsageDecoded)
+						if err != nil {
+							return err
+						}
+						if keySliceLen == 2 {
+							volType := keySlice[1]
+							ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
+								prometheus.GaugeValue, float64(QuotaUsageDecoded.InUse), p.Name, p.ID, volType)
+						} else if keySliceLen > 2 {
+							volType := strings.Join(keySlice[1:], "_")
+							ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count_by_volume_type"].Metric,
+								prometheus.GaugeValue, float64(QuotaUsageDecoded.InUse), p.Name, p.ID, volType)
+						}
+					}
+				} else if keySliceLen == 1 {
+					if k == "snapshots" {
+						quotaUsageToJson, err := json.Marshal(v)
+						if err != nil {
+							return nil
+						}
+						var QuotaUsageDecoded QuotaUsageStruct
+						err = json.Unmarshal(quotaUsageToJson, &QuotaUsageDecoded)
+						if err != nil {
+							return err
+						}
+						ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_count"].Metric,
+							prometheus.GaugeValue, float64(QuotaUsageDecoded.InUse), p.Name, p.ID)
+					}
+				}
+			}
+		}
+	}
 	return nil
 }

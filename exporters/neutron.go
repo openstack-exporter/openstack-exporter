@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"math"
 	"strconv"
 
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
@@ -9,10 +10,12 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
+	"inet.af/netaddr"
 )
 
 // NeutronExporter : extends BaseOpenStackExporter
@@ -38,6 +41,9 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "availability_zone"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
+	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
+	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
+	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -338,6 +344,145 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		prometheus.GaugeValue, float64(len(allRouters)))
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers_not_active"].Metric,
 		prometheus.GaugeValue, float64(failedRouters))
+
+	return nil
+}
+
+// subnetpoolWithSubnets : subnetpools.SubnetPool augmented with its subnets
+type subnetpoolWithSubnets struct {
+	subnetpools.SubnetPool
+	subnets []netaddr.IPPrefix
+}
+
+// IPPrefixes : returns a subnetpoolWithSubnets's prefixes converted to netaddr.IPPrefix structs.
+func (s *subnetpoolWithSubnets) IPPrefixes() ([]netaddr.IPPrefix, error) {
+	result := make([]netaddr.IPPrefix, len(s.Prefixes))
+	for i, prefix := range s.Prefixes {
+		ipPrefix, err := netaddr.ParseIPPrefix(prefix)
+		if err != nil {
+			return nil, err
+		}
+		result[i] = ipPrefix
+	}
+
+	return result, nil
+}
+
+// subnetpoolsWithSubnets : builds a slice of subnetpoolWithSubnets from subnetpools.SubnetPool and subnets.Subnet structs
+func subnetpoolsWithSubnets(pools []subnetpools.SubnetPool, subnets []subnets.Subnet) ([]subnetpoolWithSubnets, error) {
+	subnetPrefixes := make(map[string][]netaddr.IPPrefix)
+	for _, subnet := range subnets {
+		if subnet.SubnetPoolID != "" {
+			subnetPrefix, err := netaddr.ParseIPPrefix(subnet.CIDR)
+			if err != nil {
+				return nil, err
+			}
+			subnetPrefixes[subnet.SubnetPoolID] = append(subnetPrefixes[subnet.SubnetPoolID], subnetPrefix)
+		}
+	}
+
+	result := make([]subnetpoolWithSubnets, len(pools))
+	for i, pool := range pools {
+		result[i] = subnetpoolWithSubnets{pool, subnetPrefixes[pool.ID]}
+	}
+	return result, nil
+}
+
+// calculateFreeSubnets : Count how many CIDRs of length prefixLength there are in poolPrefix after removing subnetsInPool
+func calculateFreeSubnets(poolPrefix *netaddr.IPPrefix, subnetsInPool []netaddr.IPPrefix, prefixLength int) (float64, error) {
+	builder := netaddr.IPSetBuilder{}
+	builder.AddPrefix(*poolPrefix)
+
+	for _, subnet := range subnetsInPool {
+		builder.RemovePrefix(subnet)
+	}
+
+	ipset, err := builder.IPSet()
+	if err != nil {
+		return 0, err
+	}
+	count := 0.0
+	for _, prefix := range ipset.Prefixes() {
+		if int(prefix.Bits()) > prefixLength {
+			continue
+		}
+		count += math.Pow(2, float64(prefixLength-int(prefix.Bits())))
+	}
+	return count, nil
+}
+
+// calculateUsedSubnets : find all subnets that overlap with ipPrefix and count the different subnet sizes.
+// Finally, return the count that matches prefixLength.
+func calculateUsedSubnets(subnets []netaddr.IPPrefix, ipPrefix netaddr.IPPrefix, prefixLength int) float64 {
+	result := make(map[int]int)
+	for _, subnet := range subnets {
+		if !ipPrefix.Overlaps(subnet) {
+			continue
+		}
+
+		result[int(subnet.Bits())]++
+	}
+	return float64(result[prefixLength])
+}
+
+// ListSubnetsPerPool : Count used/free/total number of subnets per subnet pool
+func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allSubnets, err := subnets.ExtractSubnets(allPagesSubnets)
+	if err != nil {
+		return err
+	}
+
+	allPagesSubnetPools, err := subnetpools.List(exporter.Client, subnetpools.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allSubnetPools, err := subnetpools.ExtractSubnetPools(allPagesSubnetPools)
+	if err != nil {
+		return err
+	}
+
+	subnetPools, err := subnetpoolsWithSubnets(allSubnetPools, allSubnets)
+	if err != nil {
+		return err
+	}
+
+	for _, subnetPool := range subnetPools {
+		ipPrefixes, err := subnetPool.IPPrefixes()
+		if err != nil {
+			return err
+		}
+		for _, ipPrefix := range ipPrefixes {
+			for prefixLength := subnetPool.MinPrefixLen; prefixLength <= subnetPool.MaxPrefixLen; prefixLength++ {
+				if prefixLength < int(ipPrefix.Bits()) {
+					continue
+				}
+
+				totalSubnets := math.Pow(2, float64(prefixLength-int(ipPrefix.Bits())))
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_total"].Metric,
+					prometheus.GaugeValue, totalSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
+					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+
+				usedSubnets := calculateUsedSubnets(subnetPool.subnets, ipPrefix, prefixLength)
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_used"].Metric,
+					prometheus.GaugeValue, usedSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
+					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+
+				freeSubnets, err := calculateFreeSubnets(&ipPrefix, subnetPool.subnets, prefixLength)
+				if err != nil {
+					return err
+				}
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_free"].Metric,
+					prometheus.GaugeValue, freeSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
+					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+			}
+		}
+	}
 
 	return nil
 }

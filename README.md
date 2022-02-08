@@ -230,6 +230,9 @@ openstack_neutron_floating_ips|region="RegionOne"|4.0 (float)
 openstack_neutron_networks|region="RegionOne"|25.0 (float)
 openstack_neutron_ports|region="RegionOne"| 1063.0 (float)
 openstack_neutron_subnets|region="RegionOne"|4.0 (float)
+openstack_neutron_subnets_total|ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"|8 (float)
+openstack_neutron_subnets_used|ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"|1 (float)
+openstack_neutron_subnets_free|ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"|7 (float)
 openstack_neutron_security_groups|region="RegionOne"|10.0 (float)
 openstack_neutron_network_ip_availabilities_total|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|253.0 (float)
 openstack_neutron_network_ip_availabilities_used|region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"|151.0 (float)
@@ -567,6 +570,21 @@ openstack_neutron_security_groups{region="Region"} 114.0
 # HELP openstack_neutron_subnets subnets
 # TYPE openstack_neutron_subnets gauge
 openstack_neutron_subnets{region="Region"} 130.0
+# HELP openstack_neutron_subnets_free subnets_free
+# TYPE openstack_neutron_subnets_free gauge
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 7
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 14
+openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 28
+# HELP openstack_neutron_subnets_total subnets_total
+# TYPE openstack_neutron_subnets_total gauge
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 8
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 16
+openstack_neutron_subnets_total{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 32
+# HELP openstack_neutron_subnets_used subnets_used
+# TYPE openstack_neutron_subnets_used gauge
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 1
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="25",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 0
+openstack_neutron_subnets_used{ip_version="4",prefix="10.10.0.0/21",prefix_length="26",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 0
 # HELP openstack_loadbalancer_amphora_status amphora_status
 # TYPE openstack_loadbalancer_amphora_status gauge
 openstack_loadbalancer_amphora_status{compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"} 2

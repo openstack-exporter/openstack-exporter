@@ -108,6 +108,7 @@ Flags:
       --disable-cinder-agent-uuid  
                                  Disable UUID generation for Cinder agents
       --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
+      --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
@@ -188,6 +189,32 @@ clouds:
             ---- BEGIN CERTIFICATE ---
       ...
     verify: true | false  // disable || enable SSL certificate verification
+```
+
+### OpenStack Domain filtering
+
+The exporter provides the flag `--domain-id`, this restricts some metrics to a specific domain.
+
+*Restricting domain scope can improve scrape time, especially if you use Heat a lot.*
+
+The following metrics are filtered for the domain ID provided (the others remain the same):
+
+```
+# Cinder
+openstack_cinder_limits_volume_max_gb
+openstack_cinder_limits_volume_used_gb
+
+# Keystone
+openstack_identity_projects
+openstack_identity_project_info
+
+# Nova
+openstack_nova_limits_vcpus_max
+openstack_nova_limits_vcpus_used
+openstack_nova_limits_memory_max
+openstack_nova_limits_memory_used
+openstack_nova_limits_instances_max
+openstack_nova_limits_instances_used
 ```
 
 ## Contributing

@@ -322,7 +322,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}

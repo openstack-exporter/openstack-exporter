@@ -292,7 +292,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}

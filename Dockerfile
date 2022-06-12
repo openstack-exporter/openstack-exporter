@@ -1,16 +1,17 @@
-FROM golang:1.18 AS builder
+FROM golang:1.18 AS build
 
-WORKDIR /build
-COPY . /build
+WORKDIR /
+
+COPY . .
 
 RUN go mod download
-RUN go build .
+RUN go build -o /openstack-exporter .
 
-FROM busybox:latest AS openstack-exporter
+FROM gcr.io/distroless/base AS openstack-exporter
 
 LABEL maintainer="Jorge Niedbalski <j@bearmetal.xyz>"
 
-COPY --from=builder /build/openstack-exporter /bin/openstack-exporter
+COPY --from=build /openstack-exporter /bin/openstack-exporter
 
 ENTRYPOINT [ "/bin/openstack-exporter" ]
 EXPOSE 9180

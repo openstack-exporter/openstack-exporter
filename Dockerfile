@@ -1,11 +1,16 @@
-FROM quay.io/prometheus/busybox:latest
+FROM golang:1.18 AS builder
 
-ARG OS=linux
-ARG ARCH=amd64
+WORKDIR /build
+COPY . /build
 
-LABEL maintainer="Jorge Niedbalski <jnr@metaklass.org>"
+RUN go mod download
+RUN go build .
 
-COPY .build/$OS-$ARCH/openstack-exporter /bin/openstack-exporter
+FROM busybox:latest AS openstack-exporter
 
-ENTRYPOINT ["/bin/openstack-exporter"]
-EXPOSE     9180
+LABEL maintainer="Jorge Niedbalski <j@bearmetal.xyz>"
+
+COPY --from=builder /build/openstack-exporter /bin/openstack-exporter
+
+ENTRYPOINT [ "/bin/openstack-exporter" ]
+EXPOSE 9180

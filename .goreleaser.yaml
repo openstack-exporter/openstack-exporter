@@ -5,6 +5,8 @@ before:
 builds:
   - binary: openstack-exporter
     main: ./main.go
+    ldflags:
+      - -linkmode external -extldflags -static
     goos:
       - linux
       - darwin

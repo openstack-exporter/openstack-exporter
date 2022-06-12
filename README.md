@@ -7,31 +7,28 @@ A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang 
 
 The openstack-exporter can be deployed using the following mechanisms:
 
-* Via docker images directly from our repositories
-* Via snaps
 * By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
+* Via docker images, available from our [repository]()
+* Via snaps []()
 
-### Containers and binaries build status
+### Latest Docker main images
 
-amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64) | arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
-
-### Latest Docker master images
+Multi-arch images (amd64, arm64 and s390x)
 
 ```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:master
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
+docker pull ghcr.io/openstack-exporter/openstack-exporter:latest
 ```
-### Latest Docker release images
-```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:v1.6.0
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:v1.6.0
 
+### Release Docker images
+Multi-arch images (amd64, arm64 and s390x)
+
+```sh
+docker pull ghcr.io/openstack-exporter/openstack-exporter:v1.6.0
 ```
 ### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
-
 For installing the latest master build (edge channel):
 
 ```sh

@@ -6,7 +6,7 @@ COPY . .
 
 RUN go mod download && go build -o /openstack-exporter .
 
-FROM gcr.io/distroless/base AS openstack-exporter
+FROM gcr.io/distroless/base:latest AS openstack-exporter
 
 LABEL maintainer="Jorge Niedbalski <j@bearmetal.xyz>"
 

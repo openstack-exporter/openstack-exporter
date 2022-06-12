@@ -4,8 +4,7 @@ WORKDIR /
 
 COPY . .
 
-RUN go mod download
-RUN go build -o /openstack-exporter .
+RUN go mod download && go build -o /openstack-exporter .
 
 FROM gcr.io/distroless/base AS openstack-exporter
 

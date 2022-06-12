@@ -60,11 +60,11 @@ jobs:
 
       - name: Build docker image
         uses: docker/build-push-action@v3
+        if: ${{ github.event_name != 'pull_request' }}
         with:
           context: .
           platforms: linux/amd64, linux/arm64, linux/s390x
           push: true
-          #load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta-github-image.outputs.tags }}
           labels: ${{ steps.meta-github-image.outputs.labels }}
 

@@ -50,6 +50,7 @@ jobs:
           go test -v -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Extract metadata from ghcr image
+        if: ${{ github.event_name != 'pull_request' }}
         id: meta-github-image
         uses: docker/metadata-action@v4
         with:

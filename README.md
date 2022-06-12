@@ -1,4 +1,6 @@
-# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci]
+# OpenStack Exporter for Prometheus
+
+[![CI](https://github.com/openstack-exporter/openstack-exporter/actions/workflows/ci.yaml/badge.svg)](https://github.com/openstack-exporter/openstack-exporter/actions/workflows/ci.yaml)
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
@@ -59,7 +61,7 @@ The exporter can operate in 2 modes
 You can build it by yourself by cloning this repository and run:
 
 ```sh
-make common-build
+go build -o ./openstack-exporter .
 ```
 Multi cloud mode
 ```sh
@@ -75,7 +77,8 @@ Or alternatively you can use the docker images, as follows (check the openstack 
 details):
 
 ```sh
-docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it -p 9180:9180 quay.io/niedbalski/openstack-exporter-linux-amd64:master
+docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it -p 9180:9180 \
+ghcr.io/openstack-exporter/openstack-exporter:latest
 curl "http://localhost:9180/probe?cloud=my-cloud.org"
 ```
 
@@ -1181,9 +1184,6 @@ openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resource
 # TYPE openstack_placement_up gauge
 openstack_placement_up 1
 ```
-
-[buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield
-[circleci]: https://circleci.com/gh/openstack-exporter/openstack-exporter
 
 ### Communication
 

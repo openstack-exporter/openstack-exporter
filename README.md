@@ -26,7 +26,7 @@ docker pull ghcr.io/openstack-exporter/openstack-exporter:latest
 Multi-arch images (amd64, arm64 and s390x)
 
 ```sh
-docker pull ghcr.io/openstack-exporter/openstack-exporter:v1.6.0
+docker pull ghcr.io/openstack-exporter/openstack-exporter:1.6.0
 ```
 ### Snaps
 

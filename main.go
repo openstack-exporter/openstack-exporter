@@ -34,6 +34,7 @@ var (
 	disableCinderAgentUUID   = kingpin.Flag("disable-cinder-agent-uuid", "Disable UUID generation for Cinder agents").Default("false").Bool()
 	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
 	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
+	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
 )
 
 func main() {
@@ -92,6 +93,10 @@ func main() {
 		*bind = ":9180"
 	}
 
+	if *domainID != "" {
+		log.Infoln("Gathering metrics for domain ID", *domainID)
+	}
+
 	tcp := exporters.IP4or6(*bind)
 	l, err := net.Listen(tcp, *bind)
 	if err != nil {
@@ -135,7 +140,7 @@ func probeHandler(services map[string]*bool) http.HandlerFunc {
 		log.Infof("Enabled services: %v", enabledServices)
 
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, nil)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil)
 			if err != nil {
 				log.Errorf("enabling exporter for service %s failed: %s", service, err)
 				continue
@@ -163,7 +168,7 @@ func metricHandler(services map[string]*bool) http.HandlerFunc {
 		enabledExporters := 0
 		for service, disabled := range services {
 			if !*disabled {
-				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, nil)
+				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil)
 				if err != nil {
 					// Log error and continue with enabling other exporters
 					log.Errorf("enabling exporter for service %s failed: %s", service, err)

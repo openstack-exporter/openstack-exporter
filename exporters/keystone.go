@@ -65,7 +65,7 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
-	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allUsers []users.User
 
-	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
+	allPagesUser, err := users.List(exporter.Client, users.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -126,7 +126,7 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allGroups []groups.Group
 
-	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
+	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}

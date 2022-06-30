@@ -1,4 +1,6 @@
-# OpenStack Exporter for Prometheus [![Build Status][buildstatus]][circleci]
+# OpenStack Exporter for Prometheus
+
+[![CI](https://github.com/openstack-exporter/openstack-exporter/actions/workflows/ci.yaml/badge.svg)](https://github.com/openstack-exporter/openstack-exporter/actions/workflows/ci.yaml)
 
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
@@ -7,31 +9,28 @@ A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang 
 
 The openstack-exporter can be deployed using the following mechanisms:
 
-* Via docker images directly from our repositories
-* Via snaps
 * By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
+* Via docker images, available from our [repository]()
+* Via snaps []()
 
-### Containers and binaries build status
+### Latest Docker main images
 
-amd64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64/status "Docker amd64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-amd64) | arm64: [![Docker amd64 repository](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64/status "Docker arm64 Repository on Quay")](https://quay.io/repository/niedbalski/openstack-exporter-linux-arm64)
-
-### Latest Docker master images
+Multi-arch images (amd64, arm64 and s390x)
 
 ```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:master
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:master
+docker pull ghcr.io/openstack-exporter/openstack-exporter:latest
 ```
-### Latest Docker release images
-```sh
-docker pull quay.io/niedbalski/openstack-exporter-linux-amd64:v1.4.0
-docker pull quay.io/niedbalski/openstack-exporter-linux-arm64:v1.4.0
 
+### Release Docker images
+Multi-arch images (amd64, arm64 and s390x)
+
+```sh
+docker pull ghcr.io/openstack-exporter/openstack-exporter:1.6.0
 ```
 ### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
-
 For installing the latest master build (edge channel):
 
 ```sh
@@ -62,7 +61,7 @@ The exporter can operate in 2 modes
 You can build it by yourself by cloning this repository and run:
 
 ```sh
-make common-build
+go build -o ./openstack-exporter .
 ```
 Multi cloud mode
 ```sh
@@ -78,7 +77,8 @@ Or alternatively you can use the docker images, as follows (check the openstack 
 details):
 
 ```sh
-docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it -p 9180:9180 quay.io/niedbalski/openstack-exporter-linux-amd64:master
+docker run -v "$HOME/.config/openstack/clouds.yml":/etc/openstack/clouds.yaml -it -p 9180:9180 \
+ghcr.io/openstack-exporter/openstack-exporter:latest
 curl "http://localhost:9180/probe?cloud=my-cloud.org"
 ```
 
@@ -108,6 +108,7 @@ Flags:
       --disable-cinder-agent-uuid  
                                  Disable UUID generation for Cinder agents
       --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
+      --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --disable-service.network  Disable the network service exporter
       --disable-service.compute  Disable the compute service exporter
       --disable-service.image    Disable the image service exporter
@@ -190,6 +191,32 @@ clouds:
     verify: true | false  // disable || enable SSL certificate verification
 ```
 
+### OpenStack Domain filtering
+
+The exporter provides the flag `--domain-id`, this restricts some metrics to a specific domain.
+
+*Restricting domain scope can improve scrape time, especially if you use Heat a lot.*
+
+The following metrics are filtered for the domain ID provided (the others remain the same):
+
+```
+# Cinder
+openstack_cinder_limits_volume_max_gb
+openstack_cinder_limits_volume_used_gb
+
+# Keystone
+openstack_identity_projects
+openstack_identity_project_info
+
+# Nova
+openstack_nova_limits_vcpus_max
+openstack_nova_limits_vcpus_used
+openstack_nova_limits_memory_max
+openstack_nova_limits_memory_used
+openstack_nova_limits_instances_max
+openstack_nova_limits_instances_used
+```
+
 ## Contributing
 
 Please fill pull requests or issues under Github. Feel free to request any metrics
@@ -224,6 +251,8 @@ openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_ci
 
 Name     | Sample Labels | Sample Value | Description
 ---------|---------------|--------------|------------
+openstack_glance_image_bytes|id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"|1.3167616e+07 (float)
+openstack_glance_images|region="Region"|1.0 (float)
 openstack_neutron_agent_state|adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"|1 or 0 (bool)
 openstack_neutron_floating_ip|region="RegionOne",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"|4.0 (float)
 openstack_neutron_floating_ips|region="RegionOne"|4.0 (float)
@@ -270,7 +299,7 @@ openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939a
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
 openstack_cinder_volume_status|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
-openstack_cinder_volume_gb|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
+openstack_cinder_volume_gb|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
 openstack_designate_zones| region="RegionOne"|4.0 (float)
 openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"|4.0 (float)
 openstack_designate_recordsets| region="RegionOne",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."|4.0 (float)
@@ -352,8 +381,8 @@ openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1
 openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_gb volume_gb
 # TYPE openstack_cinder_volume_gb gauge
-openstack_cinder_volume_gb{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 2
-openstack_cinder_volume_gb{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
+openstack_cinder_volume_gb{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 2
+openstack_cinder_volume_gb{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
 # TYPE openstack_cinder_limits_volume_max_gb gauge
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000
@@ -410,6 +439,10 @@ openstack_container_infra_total_clusters 1
 # HELP openstack_container_infra_up up
 # TYPE openstack_container_infra_up gauge
 openstack_container_infra_up 1
+# HELP openstack_glance_image_bytes image_bytes
+# TYPE openstack_glance_image_bytes gauge
+openstack_glance_image_bytes{id="781b3762-9469-4cec-b58d-3349e5de4e9c",name="F17-x86_64-cfntools",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"} 4.76704768e+08
+openstack_glance_image_bytes{id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"} 1.3167616e+07
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
 openstack_glance_images{region="Region"} 18.0
@@ -1178,9 +1211,6 @@ openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resource
 # TYPE openstack_placement_up gauge
 openstack_placement_up 1
 ```
-
-[buildstatus]: https://circleci.com/gh/openstack-exporter/openstack-exporter/tree/master.svg?style=shield
-[circleci]: https://circleci.com/gh/openstack-exporter/openstack-exporter
 
 ### Communication
 

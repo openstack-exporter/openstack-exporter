@@ -168,25 +168,27 @@ The cloud credentials and identity configuration
 should use the [os-client-config](https://docs.openstack.org/os-client-config/latest/) format
 and can be specified with the `--os-client-config` flag (defaults to `/etc/openstack/clouds.yaml`).
 
+`cacert` can be a full path to a PEM encoded file or contents of a PEM encoded file.
+
 Current list of supported options can be seen in the following example
 configuration:
 
 ```yaml
 clouds:
- default:
-   region_name: {{ openstack_region_name }}
-   identity_api_version: 3
-   identity_interface: internal
-   auth:
-     username: {{ keystone_admin_user }}
-     password: {{ keystone_admin_password }}
-     project_name: {{ keystone_admin_project }}
-     project_domain_name: 'Default'
-     project_domain_id: 'Default' // This can replace "project_domain_name"
-     user_domain_name: 'Default'
-     auth_url: {{ admin_protocol }}://{{ kolla_internal_fqdn }}:{{ keystone_admin_port }}/v3
-     cacert: |
-            ---- BEGIN CERTIFICATE ---
+  default:
+    region_name: {{ openstack_region_name }}
+    identity_api_version: 3
+    identity_interface: internal
+    auth:
+      username: {{ keystone_admin_user }}
+      password: {{ keystone_admin_password }}
+      project_name: {{ keystone_admin_project }}
+      project_domain_name: 'Default'
+      project_domain_id: 'Default' // This can replace "project_domain_name"
+      user_domain_name: 'Default'
+      auth_url: {{ admin_protocol }}://{{ kolla_internal_fqdn }}:{{ keystone_admin_port }}/v3
+    cacert: |
+      ---- BEGIN CERTIFICATE ---
       ...
     verify: true | false  // disable || enable SSL certificate verification
 ```

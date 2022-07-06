@@ -202,6 +202,15 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		log.Infoln("SSL verification disabled on transport")
 		tlsConfig := &tls.Config{InsecureSkipVerify: true}
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
+	} else if config.CACertFile != "" {
+		log.Debugln("Found additional certificates to trust")
+		tlsConfig, err := PrepareTLSConfig(config.CACertFile)
+		if err != nil {
+			log.Errorf("Failed to include additional certificates to ca-trust: %v", err)
+		} else {
+			log.Debugln("Additional certificates added to ca-trust")
+			transport = &http.Transport{TLSClientConfig: tlsConfig}
+		}
 	}
 
 	client, err := NewServiceClient(name, &opts, transport, endpointType)

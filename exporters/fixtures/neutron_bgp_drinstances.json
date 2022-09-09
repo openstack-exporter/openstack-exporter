@@ -1,0 +1,21 @@
+{
+  "bgp_speakers": [
+    {
+      "peers": [
+        "70e43018-3747-4f38-b20d-c4ee9c746418",
+        "fef3d9ef-3537-4f9d-a50e-485581e33127"
+      ],
+      "project_id": "5dcf0f6d-bc8c-46af-82d7-f6c1f7a20fbd",
+      "name": "testing-speaker",
+      "tenant_id": "a010e62d-5fd3-466e-ac6e-1d7fa9b9a63f",
+      "local_as": 12345,
+      "advertise_tenant_networks": true,
+      "networks": [
+        "6f9e54fb-74d4-49d7-b431-bc263cb36d87"
+      ],
+      "ip_version": 4,
+      "advertise_floating_ip_host_routes": true,
+      "id": "a132ebb3-0627-4b0f-bf25-be8e609b199b"
+    }
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "networks": [
+    {
+      "provider:physical_network": "physnet1",
+      "updated_at": "2020-11-25T15:59:08Z",
+      "dns_domain": "",
+      "revision_number": 9,
+      "port_security_enabled": true,
+      "provider:network_type": "vlan",
+      "id": "890d5f60-4551-453c-a077-f09ea6cda340",
+      "router:external": true,
+      "availability_zone_hints": [],
+      "availability_zones": [
+        "z03"
+      ],
+      "ipv4_address_scope": "e06f15bc-0fb0-4236-9544-65bb152b0196",
+      "shared": false,
+      "project_id": "f4381009-cd2b-4f15-9fbe-41e069402e3e",
+      "status": "ACTIVE",
+      "subnets": [
+        "18fa3ab2-6dc0-42f2-ac3c-9216fb23906c",
+        "f2ccf354-711b-4945-80e2-680198b773e2"
+      ],
+      "description": "",
+      "tags": [],
+      "ipv6_address_scope": null,
+      "is_default": true,
+      "provider:segmentation_id": 413,
+      "name": "test-network-1",
+      "admin_state_up": true,
+      "tenant_id": "f4381009-cd2b-4f15-9fbe-41e069402e3e",
+      "created_at": "2020-09-23T18:36:28Z",
+      "mtu": 1500,
+      "vlan_transparent": null
+    },
+    {
+      "provider:physical_network": null,
+      "ipv6_address_scope": null,
+      "dns_domain": "",
+      "revision_number": 2,
+      "port_security_enabled": true,
+      "provider:network_type": "vxlan",
+      "id": "ee1799aa-6f89-456e-b7a1-83bc799030af",
+      "router:external": false,
+      "availability_zone_hints": [],
+      "availability_zones": [
+        "z03"
+      ],
+      "ipv4_address_scope": "e06f15bc-0fb0-4236-9544-65bb152b0196",
+      "shared": false,
+      "project_id": "f4381009-cd2b-4f15-9fbe-41e069402e3e",
+      "status": "ACTIVE",
+      "subnets": [
+        "09fdc34f-0533-4c69-ac19-91957c5a6faf"
+      ],
+      "description": "",
+      "tags": [],
+      "updated_at": "2020-10-15T12:26:11Z",
+      "provider:segmentation_id": 2,
+      "name": "test-network-2",
+      "admin_state_up": true,
+      "tenant_id": "f4381009-cd2b-4f15-9fbe-41e069402e3e",
+      "created_at": "2020-10-15T12:20:27Z",
+      "mtu": 1450,
+      "vlan_transparent": null
+    }
+  ]
+}
+

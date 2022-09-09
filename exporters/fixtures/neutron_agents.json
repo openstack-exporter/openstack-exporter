@@ -120,6 +120,26 @@
             }
         },
         {
+          "binary": "neutron-bgp-dragent",
+          "description": null,
+          "admin_state_up": true,
+          "heartbeat_timestamp": "2021-09-17 13:23:49",
+          "availability_zone": null,
+          "resources_synced": null,
+          "alive": true,
+          "id": "3a5b0f7e-9eff-4989-b0f7-fd39d14e6ade",
+          "topic": "bgp_dragent",
+          "host": "agenthost1",
+          "agent_type": "BGP dynamic routing agent",
+          "started_at": "2021-05-04 11:13:12",
+          "created_at": "2020-09-17 20:08:58",
+          "configurations": {
+            "advertise_routes": 2,
+            "bgp_peers": 2,
+            "bgp_speakers": 1
+          }
+        },
+        {
             "binary": "neutron-lbaasv2-agent",
             "started_at": "2020-01-16 13:18:26",
             "description": null,

@@ -16,9 +16,13 @@ var neutronExpectedUp = `
 # TYPE openstack_neutron_agent_state counter
 openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
 openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
+openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="3a5b0f7e-9eff-4989-b0f7-fd39d14e6ade",service="neutron-bgp-dragent"} 1
 openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="840d5d68-5759-4e9e-812f-f3bd19214c7f",service="neutron-dhcp-agent"} 1
 openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="a09b81fc-5a42-46d3-a306-1a5d122a7787",service="neutron-l3-agent"} 1
-openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="c876c9f7-1058-4b9b-90ed-20fb3f905ec4",service="neutron-metadata-agent"} 1
+# HELP openstack_neutron_dragent_bgpspeaker_association dragent_bgpspeaker_association
+# TYPE openstack_neutron_dragent_bgpspeaker_association gauge
+openstack_neutron_dragent_bgpspeaker_association{dragent="3a5b0f7e-9eff-4989-b0f7-fd39d14e6ade",speaker_id="a132ebb3-0627-4b0f-bf25-be8e609b199b"} 1
 # HELP openstack_neutron_floating_ip floating_ip
 # TYPE openstack_neutron_floating_ip gauge
 openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
@@ -80,6 +84,16 @@ openstack_neutron_security_groups 1
 # HELP openstack_neutron_subnets subnets
 # TYPE openstack_neutron_subnets gauge
 openstack_neutron_subnets 4
+# HELP openstack_neutron_subnet subnet
+# TYPE openstack_neutron_subnet gauge
+openstack_neutron_subnet{dhcp_enabled="true",id="08eae331-0402-425a-923c-34f7cfe39c1b",network_id="db193ab3-96e3-4cb3-8fc5-05f4296d0324",project_id="26a7980765d0414dbc1fc1f88cdb7e6e"} 1
+openstack_neutron_subnet{dhcp_enabled="true",id="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",network_id="d32019d3-bc6e-4319-9c1d-6722fc136a22",project_id="4fd44f30292945e481c7b8a0c8908869"} 1
+openstack_neutron_subnet{dhcp_enabled="true",id="12769bb8-6c3c-11ec-8124-002b67875abf",network_id="d32019d3-bc6e-4319-9c1d-6722fc136a22",project_id="4fd44f30292945e481c7b8a0c8908869"} 1
+openstack_neutron_subnet{dhcp_enabled="true",id="f73defec-6c43-11ec-a08b-002b67875abf",network_id="d32019d3-bc6e-4319-9c1d-6722fc136a22",project_id="4fd44f30292945e481c7b8a0c8908869"} 1
+# HELP openstack_neutron_network_dhcpagent_association network_dhcpagent_association
+# TYPE openstack_neutron_network_dhcpagent_association gauge
+openstack_neutron_network_dhcpagent_association{admin_state_up="up",agent_alive="true",dhcp_agent="840d5d68-5759-4e9e-812f-f3bd19214c7f",host="agenthost1",network_id="890d5f60-4551-453c-a077-f09ea6cda340"} 1
+openstack_neutron_network_dhcpagent_association{admin_state_up="up",agent_alive="true",dhcp_agent="840d5d68-5759-4e9e-812f-f3bd19214c7f",host="agenthost1",network_id="ee1799aa-6f89-456e-b7a1-83bc799030af"} 1
 # HELP openstack_neutron_subnets_free subnets_free
 # TYPE openstack_neutron_subnets_free gauge
 openstack_neutron_subnets_free{ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"} 7

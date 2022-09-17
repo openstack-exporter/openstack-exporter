@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/imageimport"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -10,8 +11,17 @@ type GlanceExporter struct {
 }
 
 var defaultGlanceMetrics = []Metric{
-	{Name: "images", Fn: ListImages},
+	{Name: "apiUp", Fn: getImportMethod},
+	{Name: "images", Fn: ListImages, Slow: true},
 	{Name: "image_bytes", Labels: []string{"id", "name", "tenant_id"}, Fn: ListImageBytes, Slow: true},
+}
+
+func getImportMethod(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	resp := imageimport.Get(exporter.Client)
+	if resp.Err != nil {
+		return resp.Err
+	}
+	return nil
 }
 
 func NewGlanceExporter(config *ExporterConfig) (*GlanceExporter, error) {

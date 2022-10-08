@@ -15,6 +15,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/gnocchi"
 	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/prometheus/common/log"
 )
 
 func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
@@ -228,31 +229,27 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func PrepareTLSConfig(caCertFile string) (*tls.Config, error) {
+func prepareTLSConfig(caCertFile string) (*tls.Config, error) {
 	config := &tls.Config{}
 	// Get the SystemCertPool, continue with an empty pool on error
-	trustedCAs, _ := x509.SystemCertPool()
+	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {
+		log.Infof("Creating a new empty SystemCertPool as we failed to load it from disk: %v", err)
 		trustedCAs = x509.NewCertPool()
 	}
 	// check if string is not a path, but PEM contents such as: -----BEGIN CERTIFICATE-----
 	if strings.HasPrefix(caCertFile, "---") {
 		ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace([]byte(caCertFile)))
 		if !ok {
-			return config, fmt.Errorf("Failed to add cert to trusted roots")
+			return config, fmt.Errorf("failed to add cert to trusted roots")
 		}
 	} else {
-		// attempt to read as path
-		_, err := os.Stat(caCertFile)
-		if err != nil {
-			return config, err
-		}
 		pemFile, err := ioutil.ReadFile(caCertFile)
 		if err != nil {
 			return config, err
 		}
 		if ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace(pemFile)); !ok {
-			return config, fmt.Errorf("Error parsing CA Cert from: %s", caCertFile)
+			return config, fmt.Errorf("error parsing CA Cert from: %s", caCertFile)
 		}
 	}
 	return &tls.Config{RootCAs: trustedCAs}, nil

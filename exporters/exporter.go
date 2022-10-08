@@ -204,7 +204,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		transport = &http.Transport{TLSClientConfig: tlsConfig}
 	} else if config.CACertFile != "" {
 		log.Debugln("Found additional certificates to trust")
-		tlsConfig, err := PrepareTLSConfig(config.CACertFile)
+		tlsConfig, err := prepareTLSConfig(config.CACertFile)
 		if err != nil {
 			log.Errorf("Failed to include additional certificates to ca-trust: %v", err)
 		} else {

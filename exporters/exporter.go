@@ -189,7 +189,8 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
-	var transport *http.Transport
+	var transport http.Transport
+	var tlsConfig tls.Config
 
 	opts := clientconfig.ClientOpts{Cloud: cloud}
 
@@ -198,22 +199,22 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
-	if !*config.Verify {
-		log.Infoln("SSL verification disabled on transport")
-		tlsConfig := &tls.Config{InsecureSkipVerify: true}
-		transport = &http.Transport{TLSClientConfig: tlsConfig}
-	} else if config.CACertFile != "" {
-		log.Debugln("Found additional certificates to trust")
-		tlsConfig, err := prepareTLSConfig(config.CACertFile)
+	if config.CACertFile != "" {
+		certPool, err := additionalTLSTrust(config.CACertFile)
 		if err != nil {
 			log.Errorf("Failed to include additional certificates to ca-trust: %v", err)
-		} else {
-			log.Debugln("Additional certificates added to ca-trust")
-			transport = &http.Transport{TLSClientConfig: tlsConfig}
 		}
+		tlsConfig.RootCAs = certPool
 	}
 
-	client, err := NewServiceClient(name, &opts, transport, endpointType)
+	if !*config.Verify {
+		log.Infoln("SSL verification disabled on transport")
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	transport.TLSClientConfig = &tlsConfig
+
+	client, err := NewServiceClient(name, &opts, &transport, endpointType)
 	if err != nil {
 		return nil, err
 	}

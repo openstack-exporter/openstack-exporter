@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"bytes"
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
@@ -229,8 +228,7 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func prepareTLSConfig(caCertFile string) (*tls.Config, error) {
-	config := &tls.Config{}
+func additionalTLSTrust(caCertFile string) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {
@@ -241,16 +239,16 @@ func prepareTLSConfig(caCertFile string) (*tls.Config, error) {
 	if strings.HasPrefix(caCertFile, "---") {
 		ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace([]byte(caCertFile)))
 		if !ok {
-			return config, fmt.Errorf("failed to add cert to trusted roots")
+			return nil, fmt.Errorf("failed to add cert to trusted roots")
 		}
 	} else {
 		pemFile, err := ioutil.ReadFile(caCertFile)
 		if err != nil {
-			return config, err
+			return nil, err
 		}
 		if ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace(pemFile)); !ok {
-			return config, fmt.Errorf("error parsing CA Cert from: %s", caCertFile)
+			return nil, fmt.Errorf("error parsing CA Cert from: %s", caCertFile)
 		}
 	}
-	return &tls.Config{RootCAs: trustedCAs}, nil
+	return trustedCAs, nil
 }

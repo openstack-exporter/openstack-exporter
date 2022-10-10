@@ -3,7 +3,6 @@ package exporters
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
@@ -24,7 +23,7 @@ type BaseOpenStackTestSuite struct {
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
-	data, _ := ioutil.ReadFile(file)
+	data, _ := os.ReadFile(file)
 	response := &http.Response{
 		Body: httpmock.NewRespBodyFromBytes(data),
 		Header: http.Header{

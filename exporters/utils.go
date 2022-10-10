@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"regexp"
@@ -242,7 +241,7 @@ func additionalTLSTrust(caCertFile string) (*x509.CertPool, error) {
 			return nil, fmt.Errorf("failed to add cert to trusted roots")
 		}
 	} else {
-		pemFile, err := ioutil.ReadFile(caCertFile)
+		pemFile, err := os.ReadFile(caCertFile)
 		if err != nil {
 			return nil, err
 		}

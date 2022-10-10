@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestPrepareTLSConfig(t *testing.T) {
+func TestAdditionalTLSTrust(t *testing.T) {
 	var dummyPEM string = `-----BEGIN CERTIFICATE-----
 MIIFXTCCA0WgAwIBAgIUGNguxdFGdSAKvofW9qD2NDhH4lkwDQYJKoZIhvcNAQEL
 BQAwPTELMAkGA1UEBhMCRFUxDjAMBgNVBAgMBUR1bW15MQ4wDAYDVQQKDAVEdW1t
@@ -40,31 +40,31 @@ gz3KbPLgOAo6Cza6lQsZR8a4r/FgoUPDQHmooMNDt2z6wsZTlWQH2P5sTfiFORZV
 kf2kRqwmo4NpwI1Zb5eaQa6ca6qBaAQ35l+bpes7VEQX
 -----END CERTIFICATE-----`
 
-	// Get the SystemCertPool, continue with an empty pool on error to mimic prepareTLSConfig behavior
-	ourSystemCertPool, err := x509.SystemCertPool()
-	if ourSystemCertPool == nil {
-		fmt.Printf("Creating a new empty SystemCertPool as we failed to load it from disk: %v\n", err)
-		ourSystemCertPool = x509.NewCertPool()
+	// Get the SystemCertPool, continue with an empty pool on error to mimic target function behavior
+	ourCertPool, err := x509.SystemCertPool()
+	if ourCertPool == nil {
+		fmt.Printf("Creating a new empty CertPool as we failed to load it from disk: %v\n", err)
+		ourCertPool = x509.NewCertPool()
 	}
 	// Keep a untouched pool for comparison later
-	untouchedSystemCertPool := ourSystemCertPool.Clone()
+	untouchedSystemCertPool := ourCertPool.Clone()
 
 	// Append our certificate
-	ourSystemCertPool.AppendCertsFromPEM(bytes.TrimSpace([]byte(dummyPEM)))
+	ourCertPool.AppendCertsFromPEM(bytes.TrimSpace([]byte(dummyPEM)))
 
 	// Append the passed certificate via the function we test
-	tlsConfig, err := prepareTLSConfig(dummyPEM)
+	certPool, err := additionalTLSTrust(dummyPEM)
 	if err != nil {
 		t.Errorf("prepareTLSConfig failed with error: %s", err)
 	}
 
 	// Make sure we actually modified the CertPool at all
-	if untouchedSystemCertPool.Equal(tlsConfig.RootCAs) {
+	if untouchedSystemCertPool.Equal(ourCertPool) {
 		t.Errorf("Untouched SystemCertPool is equal to our supposedly modified CertPool")
 	}
 
-	// SystemCertPool with our PEM should match the returned CertPool from tlsConfig.RootCAs
-	if !tlsConfig.RootCAs.Equal(ourSystemCertPool) {
+	// Our CertPool should match the returned CertPool
+	if !ourCertPool.Equal(certPool) {
 		t.Error("Cert pools are not equal")
 	}
 }

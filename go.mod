@@ -9,7 +9,7 @@ require (
 	github.com/jarcoal/httpmock v1.0.4
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.26.0
-	github.com/stretchr/testify v1.7.2
+	github.com/stretchr/testify v1.8.1
 	gopkg.in/alecthomas/kingpin.v2 v2.2.6
 	inet.af/netaddr v0.0.0-20211027220019-c74959edd3b6
 )

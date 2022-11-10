@@ -48,7 +48,7 @@ snap install --channel stable golang-openstack-exporter
 The OpenStack exporter, exports Prometheus metrics from a running OpenStack cloud
 for consumption by prometheus. The cloud credentials and identity configuration
 should use the [os-client-config](https://docs.openstack.org/os-client-config/latest/) format
-and must by specified with the `--os-client-config` flag.
+and can be specified with the `--os-client-config` flag (defaults to `/etc/openstack/clouds.yaml`).
 
 Other options as the binding address/port can by explored with the --help flag.
 
@@ -140,14 +140,14 @@ Args:
 ### Scrape options
 
 In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
-To select multi cloud the --multi-cloud flag need to be used
+To select multi cloud mode the --multi-cloud flag needs to be used.
 In that case metrics and clouds are specified in the http scrape request as described below.
-Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape request.
+Which cloud (name or id from the `clouds.yaml` file) or what services from the cloud to scrape, can be specified as the parameters to http scrape requests.
 
 Query Parameter | Description
 --- | ---
 `cloud` | Name or id of the cloud to gather metrics from (as specified in the `clouds.yaml`)
-`include_services` | A comma separated list of services for which metrics will be scraped. It ignore flags for disabling services `--disable-service.*`.
+`include_services` | A comma separated list of services for which metrics will be scraped. It ignores flags for disabling services `--disable-service.*`.
 `exclude_services` | A comma separated list of services for which metrics will *not* be scraped. Default is empty: ""
 
 Examples:
@@ -166,7 +166,7 @@ curl "https://localhost:9180/probe?cloud=test.cloud&exclude_services=load-balanc
 
 The cloud credentials and identity configuration
 should use the [os-client-config](https://docs.openstack.org/os-client-config/latest/) format
-and must by specified with the `--os-client-config` flag.
+and can be specified with the `--os-client-config` flag (defaults to `/etc/openstack/clouds.yaml`).
 
 `cacert` can be a full path to a PEM encoded file or contents of a PEM encoded file.
 
@@ -221,14 +221,14 @@ openstack_nova_limits_instances_used
 
 ## Contributing
 
-Please fill pull requests or issues under Github. Feel free to request any metrics
+Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
 
 ## Metrics
 
 #### Slow metrics
 
-There are some metrics that depending on the cloud deployment size, can be slow to be
+There are some metrics that, depending on the cloud deployment size, can be slow to be
 collected because iteration over different projects is required. Those metrics are marked as `slow` and can be disabled with the command
 line parameter `--disable-slow-metrics`.
 

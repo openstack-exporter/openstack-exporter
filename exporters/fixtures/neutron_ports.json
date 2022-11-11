@@ -3,7 +3,7 @@
         {
             "admin_state_up": true,
             "allowed_address_pairs": [],
-            "created_at": "2016-03-08T20:19:41",
+            "created_at": "2016-10-10T14:35:34Z",
             "data_plane_status": null,
             "description": "",
             "device_id": "9ae135f4-b6e0-4dad-9e91-3c223e385824",
@@ -36,7 +36,7 @@
                 "tag1,tag2"
             ],
             "tenant_id": "",
-            "updated_at": "2016-03-08T20:19:41",
+            "updated_at": "2016-03-08T20:19:41Z",
             "qos_policy_id": "29d5e02e-d5ab-4929-bee4-4a9fc12e22ae",
             "port_security_enabled": false,
             "uplink_status_propagation": false
@@ -44,7 +44,7 @@
         {
             "admin_state_up": true,
             "allowed_address_pairs": [],
-            "created_at": "2016-03-08T20:19:41",
+            "created_at": "2016-03-08T20:19:41Z",
             "data_plane_status": null,
             "description": "",
             "device_id": "9ae135f4-b6e0-4dad-9e91-3c223e385824",
@@ -82,7 +82,7 @@
                 "tag1,tag2"
             ],
             "tenant_id": "d397de8a63f341818f198abb0966f6f3",
-            "updated_at": "2016-03-08T20:19:41",
+            "updated_at": "2016-03-08T20:19:41Z",
             "qos_policy_id": null,
             "port_security_enabled": false,
             "uplink_status_propagation": false
@@ -90,7 +90,7 @@
         {
             "admin_state_up": true,
             "allowed_address_pairs": [],
-            "created_at": "2016-03-08T20:19:41",
+            "created_at": "2016-03-08T20:19:41Z",
             "data_plane_status": null,
             "description": "",
             "device_id": "f1cf2214-9f5d-49e2-b79e-276062f3cc25",
@@ -127,7 +127,7 @@
                 "tag1,tag2"
             ],
             "tenant_id": "d397de8a63f341818f198abb0966f6f3",
-            "updated_at": "2016-03-08T20:19:41",
+            "updated_at": "2016-03-08T20:19:41Z",
             "qos_policy_id": null,
             "port_security_enabled": true,
             "trunk_details": null,

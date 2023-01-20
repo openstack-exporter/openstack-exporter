@@ -1,6 +1,8 @@
 package exporters
 
 import (
+	"time"
+
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
 	"github.com/prometheus/client_golang/prometheus"
@@ -54,7 +56,7 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "total_loadbalancers", Fn: ListAllLoadbalancers},
 	{Name: "loadbalancer_status", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
-	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip"}},
+	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
 }
 
 func NewLoadbalancerExporter(config *ExporterConfig) (*LoadbalancerExporter, error) {
@@ -109,7 +111,7 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	for _, amphora := range allAmphorae {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["amphora_status"].Metric,
 			prometheus.GaugeValue, float64(mapAmphoraStatus(amphora.Status)), amphora.ID, amphora.LoadbalancerID, amphora.ComputeID, amphora.Status,
-			amphora.Role, amphora.LBNetworkIP, amphora.HAIP)
+			amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339))
 	}
 	return nil
 }

@@ -6,7 +6,7 @@ require (
 	github.com/gophercloud/gophercloud v0.24.0
 	github.com/gophercloud/utils v0.0.0-20200918191848-da0e919a012a
 	github.com/hashicorp/go-uuid v1.0.3
-	github.com/jarcoal/httpmock v1.0.4
+	github.com/jarcoal/httpmock v1.3.0
 	github.com/prometheus/client_golang v1.7.1
 	github.com/prometheus/common v0.26.0
 	github.com/stretchr/testify v1.8.1

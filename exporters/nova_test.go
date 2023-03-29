@@ -24,6 +24,15 @@ openstack_nova_availability_zones 1
 # HELP openstack_nova_current_workload current_workload
 # TYPE openstack_nova_current_workload gauge
 openstack_nova_current_workload{aggregates="",availability_zone="",hostname="host1"} 0
+# HELP openstack_nova_flavor_info flavor_info
+# TYPE openstack_nova_flavor_info gauge
+openstack_nova_flavor_info{disk="0",id="1",is_public="false",name="m1.tiny",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="2",is_public="false",name="m1.small",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="3",is_public="false",name="m1.medium",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="4",is_public="false",name="m1.large",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="5",is_public="false",name="m1.xlarge",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="6",is_public="false",name="m1.tiny.specs",ram="0",vcpus="0"} 1
+openstack_nova_flavor_info{disk="0",id="7",is_public="false",name="m1.small.description",ram="0",vcpus="0"} 1
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors 7

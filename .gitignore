@@ -16,3 +16,7 @@ vendor
 # Release tarballs
 *.tar.gz
 *coverage*
+
+# IDE dirs
+.idea/
+

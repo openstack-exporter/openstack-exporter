@@ -61,7 +61,8 @@ type NovaExporter struct {
 }
 
 var defaultNovaMetrics = []Metric{
-	{Name: "flavors", Fn: ListFlavors},
+	{Name: "flavors"},
+	{Name: "flavor_info", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}, Fn: ListFlavors},
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
@@ -230,6 +231,10 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+	for _, f := range allFlavors {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor_info"].Metric,
+			prometheus.GaugeValue, 1.0, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
+	}
 
 	return nil
 }

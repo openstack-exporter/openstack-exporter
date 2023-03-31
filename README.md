@@ -276,6 +276,7 @@ openstack_loadbalancer_loadbalancer_status | id="607226db-27ef-4d41-ae89-f2a800e
 openstack_loadbalancer_total_amphorae| | 2 (float)
 openstack_loadbalancer_amphora_status|cert_expiration="2020-08-08T23:44:31Z",compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"| 2.0 (float)
 openstack_nova_availability_zones|region="RegionOne"|4.0 (float)
+openstack_nova_flavor|"disk", "id", "is_public", "name", "ram", "vcpus"|1.0 (float)
 openstack_nova_flavors|region="RegionOne"|4.0 (float)
 openstack_nova_total_vms|region="RegionOne"|12.0 (float)
 openstack_nova_server_status|region="RegionOne",hostname="compute-01""id", "name", "tenant_id", "user_id", "address_ipv4",                                                                     	"address_ipv6", "host_id", "uuid", "availability_zone"|0.0 (float)
@@ -748,6 +749,15 @@ openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-42",re
 openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-43",region="Region"} 0.0
 openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-44",region="Region"} 0.0
 openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
+# HELP openstack_nova_flavor flavor
+# TYPE openstack_nova_flavor gauge
+openstack_nova_flavor{disk="0",id="1",is_public="false",name="m1.tiny",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="2",is_public="false",name="m1.small",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="3",is_public="false",name="m1.medium",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="4",is_public="false",name="m1.large",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="5",is_public="false",name="m1.xlarge",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="6",is_public="false",name="m1.tiny.specs",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="7",is_public="false",name="m1.small.description",ram="0",vcpus="0"} 1
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors{region="Region"} 6.0

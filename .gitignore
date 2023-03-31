@@ -16,3 +16,6 @@ vendor
 # Release tarballs
 *.tar.gz
 *coverage*
+
+# JetBrains GoLand dir
+.idea/

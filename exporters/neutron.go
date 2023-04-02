@@ -300,6 +300,8 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 // ListRouters : count total number of instantiated Routers and those that are not in ACTIVE state
 func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRouters []routers.Router
+	// We need to know if neutron has ovn backend
+	var ovnBackendEnabled = false
 
 	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
 	if err != nil {
@@ -311,11 +313,35 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		return err
 	}
 
+	// Requesting Neutron network-agents with binary='ovn-controller'
+	ovnAgentsPages, err := agents.List(exporter.Client, agents.ListOpts{Binary: "ovn-controller"}).AllPages()
+	if err != nil {
+		return err
+	}
+	ovnAgents, err := agents.ExtractAgents(ovnAgentsPages)
+	if err != nil {
+		return err
+	}
+	// If we have received data, then OVN is neutron network backend.
+	if len(ovnAgents) > 0 {
+		ovnBackendEnabled = true
+	}
+
 	failedRouters := 0
 	for _, router := range allRouters {
 		if router.Status != "ACTIVE" {
 			failedRouters = failedRouters + 1
 		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
+			prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
+			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
+		
+		if ovnBackendEnabled {
+			continue
+			// Because ovn-backend doesn't have router l3-agent entity
+		}
+
 		allPagesL3Agents, err := routers.ListL3Agents(exporter.Client, router.ID).AllPages()
 		if err != nil {
 			return err
@@ -335,9 +361,6 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 				prometheus.GaugeValue, float64(state), router.ID, agent.ID,
 				agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
-			prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
-			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["routers"].Metric,

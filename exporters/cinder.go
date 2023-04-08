@@ -64,6 +64,8 @@ var defaultCinderMetrics = []Metric{
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backup_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
 func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
@@ -314,6 +316,12 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_max_gb"].Metric,
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
 
 	}
 

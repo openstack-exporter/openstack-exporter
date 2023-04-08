@@ -205,6 +205,8 @@ The following metrics are filtered for the domain ID provided (the others remain
 # Cinder
 openstack_cinder_limits_volume_max_gb
 openstack_cinder_limits_volume_used_gb
+openstack_cinder_limits_backup_max_gb
+openstack_cinder_limits_backup_used_gb
 
 # Keystone
 openstack_identity_projects
@@ -244,6 +246,8 @@ limits_instances_max | nova
 limits_instances_used | nova
 limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
+limits_backup_max_gb | cinder
+limits_backup_used_gb | cinder
 #### Deprecated Metrics 
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------
@@ -299,6 +303,8 @@ openstack_nova_limits_instances_used|tenant="demo-project"|5.0 (float)
 openstack_cinder_service_state|hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"|1.0 or 0 (bool)
 openstack_cinder_limits_volume_max_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)
 openstack_cinder_limits_volume_used_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"|40000.0 (float)
+openstack_cinder_limits_backup_max_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000.0 (float)
+openstack_cinder_limits_backup_used_gb|tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0.0 (float)
 openstack_cinder_volumes|region="RegionOne"|4.0 (float)
 openstack_cinder_snapshots|region="RegionOne"|4.0 (float)
 openstack_cinder_volume_status|region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"|4.0 (float)
@@ -386,6 +392,26 @@ openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b3
 # TYPE openstack_cinder_volume_gb gauge
 openstack_cinder_volume_gb{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 2
 openstack_cinder_volume_gb{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
+# HELP openstack_cinder_limits_backup_max_gb limits_backup_max_gb
+# TYPE openstack_cinder_limits_backup_max_gb gauge
+openstack_cinder_limits_backup_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 1000
+# HELP openstack_cinder_limits_backup_used_gb limits_backup_used_gb
+# TYPE openstack_cinder_limits_backup_used_gb gauge
+openstack_cinder_limits_backup_used_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
+openstack_cinder_limits_backup_used_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
+openstack_cinder_limits_backup_used_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_cinder_limits_backup_used_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
+openstack_cinder_limits_backup_used_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
+openstack_cinder_limits_backup_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
+openstack_cinder_limits_backup_used_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
+openstack_cinder_limits_backup_used_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
 # HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
 # TYPE openstack_cinder_limits_volume_max_gb gauge
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000

@@ -20,6 +20,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -69,7 +70,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListNovaAgentState},
 	{Name: "running_vms", Labels: []string{"hostname", "availability_zone", "aggregates"}, Fn: ListHypervisors},
 	{Name: "current_workload", Labels: []string{"hostname", "availability_zone", "aggregates"}},
-	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone", "aggregates"}},
+	{Name: "vcpus_available", Labels: []string{"hostname", "availability_zone", "aggregates"}, Fn: PlacementResources},
 	{Name: "vcpus_used", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "memory_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "memory_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
@@ -141,6 +142,79 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 	return nil
 }
 
+func PlacementResources(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allResourceProviders []resourceproviders.ResourceProvider
+	var allAggregates []aggregates.Aggregate
+
+	allPagesResourceProviders, err := resourceproviders.List(exporter.Client, resourceproviders.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	if allResourceProviders, err = resourceproviders.ExtractResourceProviders(allPagesResourceProviders); err != nil {
+		return err
+	}
+
+	hostToAzMap := map[string]string{}     // map of hypervisors and in which AZ they are
+	hostToAggrMap := map[string][]string{} // map of hypervisors and of which aggregates they are part of
+	for _, a := range allAggregates {
+		isAzAggregate := isAzAggregate(a)
+		for _, h := range a.Hosts {
+			// Map the AZ of this aggregate to each host part of this aggregate
+			if a.AvailabilityZone != "" {
+				hostToAzMap[h] = a.AvailabilityZone
+			}
+			// Map the aggregate name to each host part of this aggregate
+			if !isAzAggregate {
+				hostToAggrMap[h] = append(hostToAggrMap[h], a.Name)
+			}
+		}
+	}
+
+	for _, rp := range allResourceProviders {
+		inventoryResult, err := resourceproviders.GetInventories(exporter.Client, rp.UUID).Extract()
+
+		availabilityZone := hostToAzMap[rp.Name]
+
+		if err != nil {
+			return err
+		}
+
+		usage, err := resourceproviders.GetUsages(exporter.Client, rp.UUID).Extract()
+
+		if err != nil {
+			return err
+		}
+
+		disk_gb := inventoryResult.Inventories["DISK_GB"]
+		disk_gb_usage := usage.Usages["DISK_GB"]
+		memory_mb := inventoryResult.Inventories["MEMORY_MB"]
+		memory_mb_usage := usage.Usages["MEMORY_MB"]
+		vcpus := inventoryResult.Inventories["VCPUS"]
+		vcpus_usage := usage.Usages["VCPUS"]
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
+			prometheus.GaugeValue, float64(vcpus.Total), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
+			prometheus.GaugeValue, float64(vcpus_usage), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
+			prometheus.GaugeValue, float64(memory_mb.Total*MEGABYTE), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
+			prometheus.GaugeValue, float64(memory_mb_usage*MEGABYTE), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
+			prometheus.GaugeValue, float64(disk_gb.Total*GIGABYTE), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
+			prometheus.GaugeValue, float64(disk_gb_usage*GIGABYTE), rp.Name, availabilityZone, aggregatesLabel(rp.Name, hostToAggrMap))
+
+	}
+	return nil
+}
+
 func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
@@ -189,24 +263,6 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))

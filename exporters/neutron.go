@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"go4.org/netipx"
 	"math"
 	"strconv"
 
@@ -15,7 +16,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
-	"inet.af/netaddr"
+	"net/netip"
 )
 
 // NeutronExporter : extends BaseOpenStackExporter
@@ -336,7 +337,7 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
 			prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
 			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
-		
+
 		if ovnBackendEnabled {
 			continue
 			// Because ovn-backend doesn't have router l3-agent entity
@@ -374,14 +375,14 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 // subnetpoolWithSubnets : subnetpools.SubnetPool augmented with its subnets
 type subnetpoolWithSubnets struct {
 	subnetpools.SubnetPool
-	subnets []netaddr.IPPrefix
+	subnets []netip.Prefix
 }
 
-// IPPrefixes : returns a subnetpoolWithSubnets's prefixes converted to netaddr.IPPrefix structs.
-func (s *subnetpoolWithSubnets) IPPrefixes() ([]netaddr.IPPrefix, error) {
-	result := make([]netaddr.IPPrefix, len(s.Prefixes))
+// IPPrefixes : returns a subnetpoolWithSubnets's prefixes converted to netip.Prefix structs.
+func (s *subnetpoolWithSubnets) IPPrefixes() ([]netip.Prefix, error) {
+	result := make([]netip.Prefix, len(s.Prefixes))
 	for i, prefix := range s.Prefixes {
-		ipPrefix, err := netaddr.ParseIPPrefix(prefix)
+		ipPrefix, err := netip.ParsePrefix(prefix)
 		if err != nil {
 			return nil, err
 		}
@@ -393,10 +394,10 @@ func (s *subnetpoolWithSubnets) IPPrefixes() ([]netaddr.IPPrefix, error) {
 
 // subnetpoolsWithSubnets : builds a slice of subnetpoolWithSubnets from subnetpools.SubnetPool and subnets.Subnet structs
 func subnetpoolsWithSubnets(pools []subnetpools.SubnetPool, subnets []subnets.Subnet) ([]subnetpoolWithSubnets, error) {
-	subnetPrefixes := make(map[string][]netaddr.IPPrefix)
+	subnetPrefixes := make(map[string][]netip.Prefix)
 	for _, subnet := range subnets {
 		if subnet.SubnetPoolID != "" {
-			subnetPrefix, err := netaddr.ParseIPPrefix(subnet.CIDR)
+			subnetPrefix, err := netip.ParsePrefix(subnet.CIDR)
 			if err != nil {
 				return nil, err
 			}
@@ -412,8 +413,8 @@ func subnetpoolsWithSubnets(pools []subnetpools.SubnetPool, subnets []subnets.Su
 }
 
 // calculateFreeSubnets : Count how many CIDRs of length prefixLength there are in poolPrefix after removing subnetsInPool
-func calculateFreeSubnets(poolPrefix *netaddr.IPPrefix, subnetsInPool []netaddr.IPPrefix, prefixLength int) (float64, error) {
-	builder := netaddr.IPSetBuilder{}
+func calculateFreeSubnets(poolPrefix *netip.Prefix, subnetsInPool []netip.Prefix, prefixLength int) (float64, error) {
+	builder := netipx.IPSetBuilder{}
 	builder.AddPrefix(*poolPrefix)
 
 	for _, subnet := range subnetsInPool {
@@ -436,7 +437,7 @@ func calculateFreeSubnets(poolPrefix *netaddr.IPPrefix, subnetsInPool []netaddr.
 
 // calculateUsedSubnets : find all subnets that overlap with ipPrefix and count the different subnet sizes.
 // Finally, return the count that matches prefixLength.
-func calculateUsedSubnets(subnets []netaddr.IPPrefix, ipPrefix netaddr.IPPrefix, prefixLength int) float64 {
+func calculateUsedSubnets(subnets []netip.Prefix, ipPrefix netip.Prefix, prefixLength int) float64 {
 	result := make(map[int]int)
 	for _, subnet := range subnets {
 		if !ipPrefix.Overlaps(subnet) {

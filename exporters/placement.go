@@ -14,6 +14,12 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_allocation_ratio", Labels: []string{"hostname", "resourcetype"}},
 	{Name: "resource_reserved", Labels: []string{"hostname", "resourcetype"}},
 	{Name: "resource_usage", Labels: []string{"hostname", "resourcetype"}},
+	{Name: "vcpus_available", Labels: []string{"hostname"}},
+	{Name: "vcpus_used", Labels: []string{"hostname"}},
+	{Name: "memory_available_bytes", Labels: []string{"hostname"}},
+	{Name: "memory_used_bytes", Labels: []string{"hostname"}},
+	{Name: "local_storage_available_bytes", Labels: []string{"hostname"}},
+	{Name: "local_storage_used_bytes", Labels: []string{"hostname"}},
 }
 
 func NewPlacementExporter(config *ExporterConfig) (*PlacementExporter, error) {
@@ -71,6 +77,37 @@ func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- p
 		usagesResult, err := resourceproviders.GetUsages(exporter.Client, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
+		}
+
+		if diskGb, ok := inventoryResult.Inventories["DISK_GB"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
+				prometheus.GaugeValue, float64(diskGb.Total*GIGABYTE), resourceprovider.Name)
+		}
+
+		if diskGbUsage, ok := usagesResult.Usages["DISK_GB"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
+				prometheus.GaugeValue, float64(diskGbUsage*GIGABYTE), resourceprovider.Name)
+
+		}
+		if memoryMb, ok := inventoryResult.Inventories["MEMORY_MB"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
+				prometheus.GaugeValue, float64(memoryMb.Total*MEGABYTE), resourceprovider.Name)
+
+		}
+		if memoryMbUsage, ok := usagesResult.Usages["MEMORY_MB"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
+				prometheus.GaugeValue, float64(memoryMbUsage*MEGABYTE), resourceprovider.Name)
+
+		}
+		if vcpus, ok := inventoryResult.Inventories["VCPU"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
+				prometheus.GaugeValue, float64(vcpus.Total), resourceprovider.Name)
+
+		}
+		if vcpusUsage, ok := usagesResult.Usages["VCPU"]; ok {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
+				prometheus.GaugeValue, float64(vcpusUsage), resourceprovider.Name)
+
 		}
 
 		for k, v := range usagesResult.Usages {

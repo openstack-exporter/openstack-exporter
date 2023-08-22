@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -18,6 +17,7 @@ import (
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
+	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement"}
@@ -25,7 +25,6 @@ var defaultEnabledServices = []string{"network", "compute", "image", "volume", "
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 var (
-	bind                     = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
 	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
 	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
@@ -49,6 +48,7 @@ func main() {
 		flagHelp := fmt.Sprintf("Disable the %s service exporter", service)
 		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
 	}
+	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9180")
 
 	promlogConfig := &promlog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
@@ -106,23 +106,15 @@ func main() {
 		http.Handle("/", landingPage)
 	}
 
-	if *bind == "" {
-		level.Info(logger).Log("msg", "--web.listen-address is empty. HTTP server will start on :9180", "listen_address", ":9180")
-		*bind = ":9180"
-	}
-
 	if *domainID != "" {
 		level.Info(logger).Log("msg", "Gathering metrics for configured domain ID", "domain_id", *domainID)
 	}
 
-	tcp := exporters.IP4or6(*bind)
-	l, err := net.Listen(tcp, *bind)
-	if err != nil {
+	srv := &http.Server{}
+	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
+		os.Exit(1)
 	}
-
-	level.Info(logger).Log("msg", "Starting HTTP server", "listen_address", *bind)
-	level.Error(logger).Log("err", http.Serve(l, nil))
 }
 
 func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {

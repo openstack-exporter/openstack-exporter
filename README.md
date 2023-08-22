@@ -86,52 +86,64 @@ curl "http://localhost:9180/probe?cloud=my-cloud.org"
 
 The current list of command line options (by running --help)
 ```sh
-usage: openstack-exporter [<flags>] <cloud>
+usage: openstack-exporter [<flags>] [<cloud>]
+
 
 Flags:
-  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
-      --log.level="info"         Log level: [debug, info, warn, error, fatal]
-      --web.listen-address=":9180"  
-                                 address:port to listen on
+  -h, --[no-]help                Show context-sensitive help (also try --help-long and --help-man).
       --web.telemetry-path="/metrics"  
                                  uri path to expose metrics
       --os-client-config="/etc/openstack/clouds.yaml"  
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
-      --collect-metric-time      time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e:
-                                 cinder-snapshots)
-      --disable-slow-metrics     Disable slow metrics for performance reasons
-      --disable-deprecated-metrics  
+      --[no-]collect-metric-time  
+                                 time spent collecting each metric
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+      --[no-]disable-slow-metrics  
+                                 Disable slow metrics for performance reasons
+      --[no-]disable-deprecated-metrics  
                                  Disable deprecated metrics
-      --disable-cinder-agent-uuid  
+      --[no-]disable-cinder-agent-uuid  
                                  Disable UUID generation for Cinder agents
-      --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
+      --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
-      --disable-service.network  Disable the network service exporter
-      --disable-service.compute  Disable the compute service exporter
-      --disable-service.image    Disable the image service exporter
-      --disable-service.volume   Disable the volume service exporter
-      --disable-service.identity  
+      --[no-]disable-service.network  
+                                 Disable the network service exporter
+      --[no-]disable-service.compute  
+                                 Disable the compute service exporter
+      --[no-]disable-service.image  
+                                 Disable the image service exporter
+      --[no-]disable-service.volume  
+                                 Disable the volume service exporter
+      --[no-]disable-service.identity  
                                  Disable the identity service exporter
-      --disable-service.object-store  
+      --[no-]disable-service.object-store  
                                  Disable the object-store service exporter
-      --disable-service.load-balancer  
+      --[no-]disable-service.load-balancer  
                                  Disable the load-balancer service exporter
-      --disable-service.container-infra  
+      --[no-]disable-service.container-infra  
                                  Disable the container-infra service exporter
-      --disable-service.dns      Disable the dns service exporter
-      --disable-service.baremetal  
+      --[no-]disable-service.dns  
+                                 Disable the dns service exporter
+      --[no-]disable-service.baremetal  
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service exporter
-      --disable-service.database  
+      --[no-]disable-service.gnocchi  
+                                 Disable the gnocchi service exporter
+      --[no-]disable-service.database  
                                  Disable the database service exporter
-      --disable-service.orchestration  
+      --[no-]disable-service.orchestration  
                                  Disable the orchestration service exporter
-      --disable-service.placement  
+      --[no-]disable-service.placement  
                                  Disable the placement service exporter
-      --version                  Show application version.
+      --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
+      --web.listen-address=:9180 ...  
+                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
+      --web.config.file=""       [EXPERIMENTAL] Path to configuration file that can enable TLS or authentication. See:
+                                 https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+      --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
+      --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
+      --[no-]version             Show application version.
 
 Args:
   [<cloud>]  name or id of the cloud to gather metrics from

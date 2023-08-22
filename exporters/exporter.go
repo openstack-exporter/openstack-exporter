@@ -6,11 +6,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/log"
 )
 
 type Metric struct {
@@ -40,8 +41,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error)) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, uuidGenFunc)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -69,6 +70,7 @@ type BaseOpenStackExporter struct {
 	ExporterConfig
 	Name    string
 	Metrics map[string]*PrometheusMetric
+	logger  log.Logger
 }
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
@@ -94,15 +96,15 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric) error {
-	log.Infof("Collecting metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
+func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger log.Logger) error {
+	level.Info(logger).Log("msg", "Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
 	err := metric.Fn(exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}
 
-	log.Infof("Collected metrics for exporter: %s, metric: %s", exporter.GetName(), metricName)
+	level.Info(logger).Log("msg", "Collected metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	if exporter.CollectTime {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
@@ -115,13 +117,13 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
-			log.Debugf("No function handler set for metric: %s", name)
+			level.Debug(exporter.logger).Log("msg", "No function handler set for metric", "metric", name)
 			metricsCount--
 			continue
 		}
 
-		if err := exporter.RunCollection(metric, name, ch); err != nil {
-			log.Errorf("Failed to collect metric for exporter: %s, error: %s", exporter.Name, err)
+		if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
+			level.Error(exporter.logger).Log("err", "Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
 			metricsDown++
 		}
 	}
@@ -146,12 +148,12 @@ func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
 
 	if exporter.MetricIsDisabled(name) {
-		log.Warnf("metric: %s has been disabled on %s exporter, not collecting metrics", name, exporter.Name)
+		level.Warn(exporter.logger).Log("msg", "metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
 	}
 
 	if len(deprecatedVersion) > 0 {
-		log.Warnf("metric: %s has been deprecated on %s exporter in version %s and it will be removed in next release", name, exporter.Name, deprecatedVersion)
+		level.Warn(exporter.logger).Log("msg", "metric has been deprecated on exporter in version and it will be removed in next release", "metric", name, "exporter", exporter.Name, "version", deprecatedVersion)
 	}
 
 	if exporter.Metrics == nil {
@@ -176,7 +178,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	// @TODO: get the region. constLabels["region"] = exporter.
 
 	if _, ok := exporter.Metrics[name]; !ok {
-		log.Infof("Adding metric: %s to exporter: %s", name, exporter.Name)
+		level.Info(exporter.logger).Log("msg", "Adding metric to exporter", "metric", name, "exporter", exporter.Name)
 		exporter.Metrics[name] = &PrometheusMetric{
 			Metric: prometheus.NewDesc(
 				prometheus.BuildFQName(exporter.GetName(), "", name),
@@ -186,7 +188,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error)) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -200,13 +202,13 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	if !*config.Verify {
-		log.Infoln("SSL verification disabled on transport")
+		level.Info(logger).Log("msg", "SSL verification disabled on transport")
 		tlsConfig.InsecureSkipVerify = true
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	} else if config.CACertFile != "" {
-		certPool, err := additionalTLSTrust(config.CACertFile)
+		certPool, err := additionalTLSTrust(config.CACertFile, logger)
 		if err != nil {
-			log.Errorf("Failed to include additional certificates to ca-trust: %v", err)
+			level.Error(logger).Log("msg", "Failed to include additional certificates to ca-trust", "err", err)
 		}
 		tlsConfig.RootCAs = certPool
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
@@ -236,98 +238,98 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	switch name {
 	case "network":
 		{
-			exporter, err = NewNeutronExporter(&exporterConfig)
+			exporter, err = NewNeutronExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "compute":
 		{
-			exporter, err = NewNovaExporter(&exporterConfig)
+			exporter, err = NewNovaExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "image":
 		{
-			exporter, err = NewGlanceExporter(&exporterConfig)
+			exporter, err = NewGlanceExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "volume":
 		{
-			exporter, err = NewCinderExporter(&exporterConfig)
+			exporter, err = NewCinderExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "identity":
 		{
-			exporter, err = NewKeystoneExporter(&exporterConfig)
+			exporter, err = NewKeystoneExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "object-store":
 		{
-			exporter, err = NewObjectStoreExporter(&exporterConfig)
+			exporter, err = NewObjectStoreExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "load-balancer":
 		{
-			exporter, err = NewLoadbalancerExporter(&exporterConfig)
+			exporter, err = NewLoadbalancerExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "container-infra":
 		{
-			exporter, err = NewContainerInfraExporter(&exporterConfig)
+			exporter, err = NewContainerInfraExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "dns":
 		{
-			exporter, err = NewDesignateExporter(&exporterConfig)
+			exporter, err = NewDesignateExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "baremetal":
 		{
-			exporter, err = NewIronicExporter(&exporterConfig)
+			exporter, err = NewIronicExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "gnocchi":
 		{
-			exporter, err = NewGnocchiExporter(&exporterConfig)
+			exporter, err = NewGnocchiExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "database":
 		{
-			exporter, err = NewTroveExporter(&exporterConfig)
+			exporter, err = NewTroveExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "orchestration":
 		{
-			exporter, err = NewHeatExporter(&exporterConfig)
+			exporter, err = NewHeatExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}
 		}
 	case "placement":
 		{
-			exporter, err = NewPlacementExporter(&exporterConfig)
+			exporter, err = NewPlacementExporter(&exporterConfig, logger)
 			if err != nil {
 				return nil, err
 			}

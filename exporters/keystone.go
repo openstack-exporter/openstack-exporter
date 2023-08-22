@@ -3,6 +3,7 @@ package exporters
 import (
 	"strconv"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -24,11 +25,12 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "regions", Fn: ListRegions},
 }
 
-func NewKeystoneExporter(config *ExporterConfig) (*KeystoneExporter, error) {
+func NewKeystoneExporter(config *ExporterConfig, logger log.Logger) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
 			Name:           "identity",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 

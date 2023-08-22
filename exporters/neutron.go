@@ -1,10 +1,14 @@
 package exporters
 
 import (
-	"go4.org/netipx"
 	"math"
 	"strconv"
 
+	"go4.org/netipx"
+
+	"net/netip"
+
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
@@ -16,7 +20,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
-	"net/netip"
 )
 
 // NeutronExporter : extends BaseOpenStackExporter
@@ -48,11 +51,12 @@ var defaultNeutronMetrics = []Metric{
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
-func NewNeutronExporter(config *ExporterConfig) (*NeutronExporter, error) {
+func NewNeutronExporter(config *ExporterConfig, logger log.Logger) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
 			Name:           "neutron",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 

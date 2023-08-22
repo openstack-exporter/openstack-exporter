@@ -3,6 +3,7 @@ package exporters
 import (
 	"strconv"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/containerinfra/v1/clusters"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -48,11 +49,12 @@ var defaultContainerInfraMetrics = []Metric{
 	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count", "project_id"}, Fn: nil},
 }
 
-func NewContainerInfraExporter(config *ExporterConfig) (*ContainerInfraExporter, error) {
+func NewContainerInfraExporter(config *ExporterConfig, logger log.Logger) (*ContainerInfraExporter, error) {
 	exporter := ContainerInfraExporter{
 		BaseOpenStackExporter{
 			Name:           "container_infra",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 	for _, metric := range defaultContainerInfraMetrics {

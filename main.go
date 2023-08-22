@@ -8,12 +8,15 @@ import (
 	"os"
 	"strings"
 
+	kingpin "github.com/alecthomas/kingpin/v2"
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/log"
+	"github.com/prometheus/common/promlog"
+	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement"}
@@ -21,7 +24,6 @@ var defaultEnabledServices = []string{"network", "compute", "image", "volume", "
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 var (
-	logLevel                 = kingpin.Flag("log.level", "Log level: [debug, info, warn, error, fatal]").Default("info").String()
 	bind                     = kingpin.Flag("web.listen-address", "address:port to listen on").Default(":9180").String()
 	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
 	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
@@ -47,23 +49,21 @@ func main() {
 		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
 	}
 
+	promlogConfig := &promlog.Config{}
+	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+	logger := promlog.New(promlogConfig)
 
 	if *cloud == "" && !*multiCloud {
-		log.Fatalln("openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
-	}
-	err := log.Base().SetLevel(*logLevel)
-	if err != nil {
-		log.Errorf("Cannot init set logger level: %s", err)
-		os.Exit(-1)
+		level.Error(logger).Log("msg", "openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
 	}
 
-	log.Infoln("Build context", version.BuildContext())
+	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-		log.Debugf("Setting Env var OS_CLIENT_CONFIG_FILE = %s", *osClientConfig)
+		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
@@ -76,38 +76,38 @@ func main() {
              </body>
              </html>`))
 		if err != nil {
-			log.Error(err)
+			level.Error(logger).Log("err", err)
 		}
 	})
 	if *multiCloud {
-		http.HandleFunc("/probe", probeHandler(services))
+		http.HandleFunc("/probe", probeHandler(services, logger))
 		http.Handle("/metrics", promhttp.Handler())
-		log.Infoln("openstack exporter started in multi cloud mode (/probe?cloud=)")
+		level.Info(logger).Log("msg", "openstack exporter started in multi cloud mode (/probe?cloud=)")
 	} else {
-		log.Infoln("openstack exporter started in legacy mode")
-		http.HandleFunc(*metrics, metricHandler(services))
+		level.Info(logger).Log("msg", "openstack exporter started in legacy mode")
+		http.HandleFunc(*metrics, metricHandler(services, logger))
 	}
 
 	if *bind == "" {
-		log.Info("--web.listen-address is empty. HTTP server will start on :9180")
+		level.Info(logger).Log("msg", "--web.listen-address is empty. HTTP server will start on :9180", "listen_address", ":9180")
 		*bind = ":9180"
 	}
 
 	if *domainID != "" {
-		log.Infoln("Gathering metrics for domain ID", *domainID)
+		level.Info(logger).Log("msg", "Gathering metrics for configured domain ID", "domain_id", *domainID)
 	}
 
 	tcp := exporters.IP4or6(*bind)
 	l, err := net.Listen(tcp, *bind)
 	if err != nil {
-		log.Fatal(err)
+		level.Error(logger).Log("err", err)
 	}
 
-	log.Infoln("Starting HTTP server on", *bind)
-	log.Fatal(http.Serve(l, nil))
+	level.Info(logger).Log("msg", "Starting HTTP server", "listen_address", *bind)
+	level.Error(logger).Log("err", http.Serve(l, nil))
 }
 
-func probeHandler(services map[string]*bool) http.HandlerFunc {
+func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
@@ -137,16 +137,16 @@ func probeHandler(services map[string]*bool) http.HandlerFunc {
 		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
 		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
 
-		log.Infof("Enabled services: %v", enabledServices)
+		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
 
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
 			if err != nil {
-				log.Errorf("enabling exporter for service %s failed: %s", service, err)
+				level.Error(logger).Log("err", "Enabling exporter for service failed", "service", service, "error", err)
 				continue
 			}
 			registry.MustRegister(*exp)
-			log.Infof("Enabled exporter for service: %s", service)
+			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
 		}
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
@@ -154,13 +154,13 @@ func probeHandler(services map[string]*bool) http.HandlerFunc {
 	}
 }
 
-func metricHandler(services map[string]*bool) http.HandlerFunc {
+func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		log.Infof("Starting openstack exporter version %s for cloud: %s", version.Info(), *cloud)
-		log.Infoln("Build context", version.BuildContext())
+		level.Info(logger).Log("msg", "Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
+		level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			log.Debugf("Setting Env var OS_CLIENT_CONFIG_FILE = %s", *osClientConfig)
+			level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 		}
 
@@ -168,20 +168,20 @@ func metricHandler(services map[string]*bool) http.HandlerFunc {
 		enabledExporters := 0
 		for service, disabled := range services {
 			if !*disabled {
-				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil)
+				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
 				if err != nil {
 					// Log error and continue with enabling other exporters
-					log.Errorf("enabling exporter for service %s failed: %s", service, err)
+					level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
 					continue
 				}
 				registry.MustRegister(*exp)
-				log.Infof("Enabled exporter for service: %s", service)
+				level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
 				enabledExporters++
 			}
 		}
 
 		if enabledExporters == 0 {
-			log.Errorln("No exporter has been enabled, exiting")
+			level.Error(logger).Log("err", "No exporter has been enabled, exiting")
 			os.Exit(-1)
 		}
 

@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
 	"github.com/prometheus/client_golang/prometheus"
@@ -51,11 +52,12 @@ var defaultDesignateMetrics = []Metric{
 	{Name: "recordsets_status", Labels: []string{"id", "name", "status", "zone_id", "zone_name", "type"}, Fn: nil},
 }
 
-func NewDesignateExporter(config *ExporterConfig) (*DesignateExporter, error) {
+func NewDesignateExporter(config *ExporterConfig, logger log.Logger) (*DesignateExporter, error) {
 	exporter := DesignateExporter{
 		BaseOpenStackExporter{
 			ExporterConfig: *config,
 			Name:           "designate",
+			logger:         logger,
 		},
 	}
 	// This header needed for colletiong zone of all projects

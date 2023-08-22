@@ -17,6 +17,7 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
+	"github.com/prometheus/exporter-toolkit/web"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement"}
@@ -67,25 +68,42 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		_, err := w.Write([]byte(`<html>
-             <head><title>OpenStack Exporter</title></head>
-             <body>
-             <h1>OpenStack Exporter</h1>
-             <p><a href='` + *metrics + `'>Metrics</a></p>
-             </body>
-             </html>`))
-		if err != nil {
-			level.Error(logger).Log("err", err)
-		}
-	})
+	links := []web.LandingLinks{}
+
 	if *multiCloud {
 		http.HandleFunc("/probe", probeHandler(services, logger))
-		http.Handle("/metrics", promhttp.Handler())
+		http.Handle(*metrics, promhttp.Handler())
 		level.Info(logger).Log("msg", "openstack exporter started in multi cloud mode (/probe?cloud=)")
+		links = append(links, web.LandingLinks{
+			Address: *metrics,
+			Text:    "Metrics",
+		}, web.LandingLinks{
+			Address: "/probe",
+			Text:    "Probes",
+		})
 	} else {
 		level.Info(logger).Log("msg", "openstack exporter started in legacy mode")
 		http.HandleFunc(*metrics, metricHandler(services, logger))
+		links = append(links, web.LandingLinks{
+			Address: *metrics,
+			Text:    "Metrics",
+		})
+	}
+
+	if *metrics != "/" && *metrics != "" {
+		landingConfig := web.LandingConfig{
+			Name:        "openstack_exporter",
+			Description: "Prometheus Exporter for openstack",
+			Version:     version.Info(),
+			Links:       links,
+		}
+
+		landingPage, err := web.NewLandingPage(landingConfig)
+		if err != nil {
+			level.Error(logger).Log("err", err)
+			os.Exit(1)
+		}
+		http.Handle("/", landingPage)
 	}
 
 	if *bind == "" {

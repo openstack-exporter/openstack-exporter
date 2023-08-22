@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
@@ -87,11 +88,12 @@ var defaultNovaMetrics = []Metric{
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 }
 
-func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 	for _, metric := range defaultNovaMetrics {

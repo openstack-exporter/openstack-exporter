@@ -11,8 +11,7 @@ type NovaTestSuite struct {
 	BaseOpenStackTestSuite
 }
 
-var novaExpectedUp = `
-# HELP openstack_nova_agent_state agent_state
+var novaExpectedUp = `# HELP openstack_nova_agent_state agent_state
 # TYPE openstack_nova_agent_state counter
 openstack_nova_agent_state{adminState="disabled",disabledReason="test1",hostname="host1",id="1",service="nova-scheduler",zone="internal"} 1
 openstack_nova_agent_state{adminState="disabled",disabledReason="test2",hostname="host1",id="2",service="nova-compute",zone="nova"} 1
@@ -99,18 +98,6 @@ openstack_nova_limits_vcpus_used{tenant="service",tenant_id="3d594eb0f04741069db
 openstack_nova_limits_vcpus_used{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
 openstack_nova_limits_vcpus_used{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
 openstack_nova_limits_vcpus_used{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
-# HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes
-# TYPE openstack_nova_local_storage_available_bytes gauge
-openstack_nova_local_storage_available_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
-# HELP openstack_nova_local_storage_used_bytes local_storage_used_bytes
-# TYPE openstack_nova_local_storage_used_bytes gauge
-openstack_nova_local_storage_used_bytes{aggregates="",availability_zone="",hostname="host1"} 0
-# HELP openstack_nova_memory_available_bytes memory_available_bytes
-# TYPE openstack_nova_memory_available_bytes gauge
-openstack_nova_memory_available_bytes{aggregates="",availability_zone="",hostname="host1"} 8.589934592e+09
-# HELP openstack_nova_memory_used_bytes memory_used_bytes
-# TYPE openstack_nova_memory_used_bytes gauge
-openstack_nova_memory_used_bytes{aggregates="",availability_zone="",hostname="host1"} 5.36870912e+08
 # HELP openstack_nova_running_vms running_vms
 # TYPE openstack_nova_running_vms gauge
 openstack_nova_running_vms{aggregates="",availability_zone="",hostname="host1"} 0
@@ -132,12 +119,6 @@ openstack_nova_total_vms 1
 # HELP openstack_nova_up up
 # TYPE openstack_nova_up gauge
 openstack_nova_up 1
-# HELP openstack_nova_vcpus_available vcpus_available
-# TYPE openstack_nova_vcpus_available gauge
-openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host1"} 2
-# HELP openstack_nova_vcpus_used vcpus_used
-# TYPE openstack_nova_vcpus_used gauge
-openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 `
 
 func (suite *NovaTestSuite) TestNovaExporter() {

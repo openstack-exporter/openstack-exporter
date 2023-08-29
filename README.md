@@ -789,16 +789,17 @@ openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-44",re
 openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
 # HELP openstack_nova_flavor flavor
 # TYPE openstack_nova_flavor gauge
-openstack_nova_flavor{disk="0",id="1",is_public="false",name="m1.tiny",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="2",is_public="false",name="m1.small",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="3",is_public="false",name="m1.medium",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="4",is_public="false",name="m1.large",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="5",is_public="false",name="m1.xlarge",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="6",is_public="false",name="m1.tiny.specs",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="7",is_public="false",name="m1.small.description",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="1",is_public="true",name="m1.tiny",ram="512",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="2",is_public="true",name="m1.small",ram="2048",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="3",is_public="true",name="m1.medium",ram="4096",vcpus="2"} 1
+openstack_nova_flavor{disk="0",id="4",is_public="true",name="m1.large",ram="8192",vcpus="4"} 1
+openstack_nova_flavor{disk="0",id="5",is_public="true",name="m1.xlarge",ram="16384",vcpus="8"} 1
+openstack_nova_flavor{disk="0",id="6",is_public="true",name="m1.tiny.specs",ram="512",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="7",is_public="true",name="m1.small.description",ram="2048",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="8",is_public="false",name="m1.tiny.private",ram="512",vcpus="1"} 1
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
-openstack_nova_flavors{region="Region"} 6.0
+openstack_nova_flavors{region="Region"} 8
 # TYPE openstack_nova_free_disk_bytes gauge
 openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
 # HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes

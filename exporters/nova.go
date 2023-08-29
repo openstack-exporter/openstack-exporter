@@ -221,7 +221,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFlavors []flavors.Flavor
 
-	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
+	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
 	if err != nil {
 		return err
 	}

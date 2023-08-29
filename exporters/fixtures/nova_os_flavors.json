@@ -1,6 +1,10 @@
 {
   "flavors": [
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "1",
       "links": [
         {
@@ -13,9 +17,18 @@
         }
       ],
       "name": "m1.tiny",
-      "description": null
+      "ram": 512,
+      "swap": 0,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "2",
       "links": [
         {
@@ -28,9 +41,18 @@
         }
       ],
       "name": "m1.small",
-      "description": null
+      "ram": 2048,
+      "swap": 0,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "3",
       "links": [
         {
@@ -43,9 +65,18 @@
         }
       ],
       "name": "m1.medium",
-      "description": null
+      "ram": 4096,
+      "swap": 0,
+      "vcpus": 2,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "4",
       "links": [
         {
@@ -58,9 +89,18 @@
         }
       ],
       "name": "m1.large",
-      "description": null
+      "ram": 8192,
+      "swap": 0,
+      "vcpus": 4,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "5",
       "links": [
         {
@@ -73,9 +113,18 @@
         }
       ],
       "name": "m1.xlarge",
-      "description": null
+      "ram": 16384,
+      "swap": 0,
+      "vcpus": 8,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "6",
       "links": [
         {
@@ -88,9 +137,20 @@
         }
       ],
       "name": "m1.tiny.specs",
-      "description": null
+      "ram": 512,
+      "swap": 0,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {
+        "hw:numa_nodes": "1"
+      }
     },
     {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": true,
       "id": "7",
       "links": [
         {
@@ -103,7 +163,39 @@
         }
       ],
       "name": "m1.small.description",
-      "description": "test description"
+      "ram": 2048,
+      "swap": 0,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": "test description",
+      "extra_specs": {
+        "hw:cpu_policy": "shared",
+        "hw:numa_nodes": "1"
+      }
+    },
+    {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 0,
+      "OS-FLV-EXT-DATA:ephemeral": 0,
+      "os-flavor-access:is_public": false,
+      "id": "8",
+      "links": [
+        {
+          "href": "http://openstack.example.com/v2/6f70656e737461636b20342065766572/flavors/8",
+          "rel": "self"
+        },
+        {
+          "href": "http://openstack.example.com/6f70656e737461636b20342065766572/flavors/8",
+          "rel": "bookmark"
+        }
+      ],
+      "name": "m1.tiny.private",
+      "ram": 512,
+      "swap": 0,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     }
   ]
 }

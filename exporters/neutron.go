@@ -186,6 +186,9 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	}
 
 	err = networks.ExtractNetworksInto(allPagesNetworks, &allNetworks)
+	if err != nil {
+		return err
+	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
 	for _, net := range allNetworks {

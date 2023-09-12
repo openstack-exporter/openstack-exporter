@@ -64,7 +64,6 @@ type NovaExporter struct {
 
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
-	{Name: "quotas", Fn: ListQuotas},
 	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
@@ -88,7 +87,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
-	{Name: "quota_cores", Labels: []string{"type", "tenant"}},
+	{Name: "quota_cores", Labels: []string{"type", "tenant"}, Fn: ListQuotas},
 	{Name: "quota_instances", Labels: []string{"type", "tenant"}},
 	{Name: "quota_key_pairs", Labels: []string{"type", "tenant"}},
 	{Name: "quota_metadata_items", Labels: []string{"type", "tenant"}},

@@ -86,52 +86,64 @@ curl "http://localhost:9180/probe?cloud=my-cloud.org"
 
 The current list of command line options (by running --help)
 ```sh
-usage: openstack-exporter [<flags>] <cloud>
+usage: openstack-exporter [<flags>] [<cloud>]
+
 
 Flags:
-  -h, --help                     Show context-sensitive help (also try --help-long and --help-man).
-      --log.level="info"         Log level: [debug, info, warn, error, fatal]
-      --web.listen-address=":9180"  
-                                 address:port to listen on
+  -h, --[no-]help                Show context-sensitive help (also try --help-long and --help-man).
       --web.telemetry-path="/metrics"  
                                  uri path to expose metrics
       --os-client-config="/etc/openstack/clouds.yaml"  
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
-      --collect-metric-time      time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e:
-                                 cinder-snapshots)
-      --disable-slow-metrics     Disable slow metrics for performance reasons
-      --disable-deprecated-metrics  
+      --[no-]collect-metric-time  
+                                 time spent collecting each metric
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+      --[no-]disable-slow-metrics  
+                                 Disable slow metrics for performance reasons
+      --[no-]disable-deprecated-metrics  
                                  Disable deprecated metrics
-      --disable-cinder-agent-uuid  
+      --[no-]disable-cinder-agent-uuid  
                                  Disable UUID generation for Cinder agents
-      --multi-cloud              Toggle the multiple cloud scraping mode under /probe?cloud=
+      --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
-      --disable-service.network  Disable the network service exporter
-      --disable-service.compute  Disable the compute service exporter
-      --disable-service.image    Disable the image service exporter
-      --disable-service.volume   Disable the volume service exporter
-      --disable-service.identity  
+      --[no-]disable-service.network  
+                                 Disable the network service exporter
+      --[no-]disable-service.compute  
+                                 Disable the compute service exporter
+      --[no-]disable-service.image  
+                                 Disable the image service exporter
+      --[no-]disable-service.volume  
+                                 Disable the volume service exporter
+      --[no-]disable-service.identity  
                                  Disable the identity service exporter
-      --disable-service.object-store  
+      --[no-]disable-service.object-store  
                                  Disable the object-store service exporter
-      --disable-service.load-balancer  
+      --[no-]disable-service.load-balancer  
                                  Disable the load-balancer service exporter
-      --disable-service.container-infra  
+      --[no-]disable-service.container-infra  
                                  Disable the container-infra service exporter
-      --disable-service.dns      Disable the dns service exporter
-      --disable-service.baremetal  
+      --[no-]disable-service.dns  
+                                 Disable the dns service exporter
+      --[no-]disable-service.baremetal  
                                  Disable the baremetal service exporter
-      --disable-service.gnocchi  Disable the gnocchi service exporter
-      --disable-service.database  
+      --[no-]disable-service.gnocchi  
+                                 Disable the gnocchi service exporter
+      --[no-]disable-service.database  
                                  Disable the database service exporter
-      --disable-service.orchestration  
+      --[no-]disable-service.orchestration  
                                  Disable the orchestration service exporter
-      --disable-service.placement  
+      --[no-]disable-service.placement  
                                  Disable the placement service exporter
-      --version                  Show application version.
+      --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
+      --web.listen-address=:9180 ...  
+                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
+      --web.config.file=""       [EXPERIMENTAL] Path to configuration file that can enable TLS or authentication. See:
+                                 https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+      --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
+      --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
+      --[no-]version             Show application version.
 
 Args:
   [<cloud>]  name or id of the cloud to gather metrics from
@@ -777,16 +789,17 @@ openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-44",re
 openstack_nova_current_workload{aggregate="",hostname="compute-node-extra-45",region="Region"} 0.0
 # HELP openstack_nova_flavor flavor
 # TYPE openstack_nova_flavor gauge
-openstack_nova_flavor{disk="0",id="1",is_public="false",name="m1.tiny",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="2",is_public="false",name="m1.small",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="3",is_public="false",name="m1.medium",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="4",is_public="false",name="m1.large",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="5",is_public="false",name="m1.xlarge",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="6",is_public="false",name="m1.tiny.specs",ram="0",vcpus="0"} 1
-openstack_nova_flavor{disk="0",id="7",is_public="false",name="m1.small.description",ram="0",vcpus="0"} 1
+openstack_nova_flavor{disk="0",id="1",is_public="true",name="m1.tiny",ram="512",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="2",is_public="true",name="m1.small",ram="2048",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="3",is_public="true",name="m1.medium",ram="4096",vcpus="2"} 1
+openstack_nova_flavor{disk="0",id="4",is_public="true",name="m1.large",ram="8192",vcpus="4"} 1
+openstack_nova_flavor{disk="0",id="5",is_public="true",name="m1.xlarge",ram="16384",vcpus="8"} 1
+openstack_nova_flavor{disk="0",id="6",is_public="true",name="m1.tiny.specs",ram="512",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="7",is_public="true",name="m1.small.description",ram="2048",vcpus="1"} 1
+openstack_nova_flavor{disk="0",id="8",is_public="false",name="m1.tiny.private",ram="512",vcpus="1"} 1
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
-openstack_nova_flavors{region="Region"} 6.0
+openstack_nova_flavors{region="Region"} 8
 # TYPE openstack_nova_free_disk_bytes gauge
 openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
 # HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes

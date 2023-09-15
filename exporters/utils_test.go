@@ -53,7 +53,7 @@ kf2kRqwmo4NpwI1Zb5eaQa6ca6qBaAQ35l+bpes7VEQX
 	ourCertPool.AppendCertsFromPEM(bytes.TrimSpace([]byte(dummyPEM)))
 
 	// Append the passed certificate via the function we test
-	certPool, err := additionalTLSTrust(dummyPEM)
+	certPool, err := additionalTLSTrust(dummyPEM, nil)
 	if err != nil {
 		t.Errorf("prepareTLSConfig failed with error: %s", err)
 	}

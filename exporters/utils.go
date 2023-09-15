@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/gnocchi"
 	"github.com/gophercloud/utils/openstack/clientconfig"
-	"github.com/prometheus/common/log"
 )
 
 func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
@@ -191,24 +191,6 @@ func GetEndpointType(endpointType string) gophercloud.Availability {
 	return gophercloud.AvailabilityPublic
 }
 
-// IP4or6 return version of ip address
-func IP4or6(s string) string {
-	re := regexp.MustCompile(`:\d*$`)
-	found := re.FindAllString(s, 1)
-	if len(found) != 0 {
-		s = strings.TrimSuffix(s, found[0])
-		for i := 0; i < len(s); i++ {
-			switch s[i] {
-			case '.':
-				return "tcp4"
-			case ':':
-				return "tcp6"
-			}
-		}
-	}
-	return "tcp"
-}
-
 // RemoveElements remove not needed elements
 func RemoveElements(slice []string, drop []string) []string {
 	res := []string{}
@@ -227,11 +209,11 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func additionalTLSTrust(caCertFile string) (*x509.CertPool, error) {
+func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {
-		log.Infof("Creating a new empty SystemCertPool as we failed to load it from disk: %v", err)
+		level.Info(logger).Log("msg", "Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
 		trustedCAs = x509.NewCertPool()
 	}
 	// check if string is not a path, but PEM contents such as: -----BEGIN CERTIFICATE-----

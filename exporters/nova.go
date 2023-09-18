@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strconv"
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
@@ -56,6 +57,16 @@ func mapServerStatus(current string) int {
 		}
 	}
 	return -1
+}
+
+func searchFlavorIDbyName(flavorName interface{}, allFlavors []flavors.Flavor) string {
+	// flavor name is unique, making it suitable as the key for searching
+	for _, f := range allFlavors {
+		if f.Name == flavorName {
+			return f.ID
+		}
+	}
+	return ""
 }
 
 type NovaExporter struct {
@@ -424,6 +435,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	}
 
 	var allServers []ServerWithExt
+	var allFlavors []flavors.Flavor
 
 	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
@@ -437,12 +449,35 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
-
+	apiMv, _ := strconv.ParseFloat(exporter.Client.Microversion, 64)
+	if apiMv >= 2.46 {
+		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
+		// ***
+		// If micro-version is greater than 2.46,
+		// we need to retrieve all flavors once again and search for flavor_id by name,
+		// as flavor_id are only available in server's detail data up to that version.
+		allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
+		if err != nil {
+			return err
+		}
+		allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
+		if err != nil {
+			return err
+		}
+	}
 	// Server status metrics
 	for _, server := range allServers {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+		if len(allFlavors) == 0 {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+				server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+				server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+		} else {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+				server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+				server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors))
+		}
 	}
 
 	return nil

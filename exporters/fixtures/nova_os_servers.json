@@ -34,7 +34,7 @@
       "created": "2019-04-23T15:19:14Z",
       "description": null,
       "flavor": {
-        "disk": 1,
+        "disk": 0,
         "ephemeral": 0,
         "extra_specs": {},
         "original_name": "m1.tiny",

@@ -1070,6 +1070,9 @@ openstack_nova_security_groups{region="Region"} 5.0
 # HELP openstack_nova_server_local_gb server_local_gb
 # TYPE openstack_nova_server_local_gb gauge
 openstack_nova_server_local_gb{id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"} 10
+# HELP openstack_nova_server_status server_status
+# TYPE openstack_nova_server_status gauge
+openstack_nova_server_status{address_ipv4="1.2.3.4",address_ipv6="80fe::",availability_zone="nova",flavor_id="1",host_id="2091634baaccdc4c5a1d57069c833e402921df696b7f970791b12ec6",hypervisor_hostname="fake-mini",id="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9",name="new-server-test",status="ACTIVE",tenant_id="6f70656e737461636b20342065766572",user_id="fake",uuid="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9"} 0
 # HELP openstack_nova_total_vms total_vms
 # TYPE openstack_nova_total_vms gauge
 openstack_nova_total_vms{region="Region"} 23.0

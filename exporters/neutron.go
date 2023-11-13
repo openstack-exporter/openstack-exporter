@@ -34,7 +34,9 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
+	{Name: "subnet", Labels: []string{"id", "network_id", "project_id", "dhcp_enabled"}},
 	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type", "admin_state_up"}, Fn: ListPorts},
+	{Name: "network_dhcpagent_association", Fn: ListNetworkDHCPAgentAssociation, Labels: []string{"network_id", "dhcp_agent", "host", "admin_state_up", "agent_alive"}},
 	{Name: "ports"},
 	{Name: "ports_no_ips"},
 	{Name: "ports_lb_not_active"},
@@ -48,6 +50,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
+	{Name: "dragent_bgpspeaker_association", Fn: ListDRAgentBGPSpeakerAssociation, Labels: []string{"speaker_id", "dragent"}},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -202,6 +205,13 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
+
+	for _, subnet := range allSubnets {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
+			prometheus.GaugeValue, float64(1), subnet.ID,
+			subnet.NetworkID, subnet.ProjectID,
+			strconv.FormatBool(subnet.EnableDHCP))
+	}
 
 	return nil
 }
@@ -512,5 +522,64 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		}
 	}
 
+	return nil
+}
+
+// ListNetworkDHCPAgentAssociation enumerate the network-dhcpagent association
+func ListNetworkDHCPAgentAssociation(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	const dhcpAgentType = "DHCP agent"
+	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{AgentType: dhcpAgentType}).AllPages()
+	if err != nil {
+		return err
+	}
+	dhcpAgents, err := agents.ExtractAgents(allPagesAgents)
+	if err != nil {
+		return err
+	}
+	for _, agent := range dhcpAgents {
+		networks, err := agents.ListDHCPNetworks(exporter.Client, agent.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		adminStateUp := "down"
+		if agent.AdminStateUp {
+			adminStateUp = "up"
+		}
+
+		for _, network := range networks {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_dhcpagent_association"].Metric,
+				prometheus.GaugeValue, float64(1), network.ID, agent.ID, agent.Host,
+				adminStateUp, strconv.FormatBool(agent.Alive))
+		}
+	}
+	return nil
+}
+
+// ListDRAgentBGPSpeakerAssociation enumerate the BGP Agent and Speaker association
+func ListDRAgentBGPSpeakerAssociation(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	const bgpAgentType = "BGP dynamic routing agent"
+	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{AgentType: bgpAgentType}).AllPages()
+	if err != nil {
+		return err
+	}
+	dragents, err := agents.ExtractAgents(allPagesAgents)
+	if err != nil {
+		return err
+	}
+	for _, agent := range dragents {
+		pages, err := agents.ListBGPSpeakers(exporter.Client, agent.ID).AllPages()
+		if err != nil {
+			return err
+		}
+		allSpeakers, err := agents.ExtractBGPSpeakers(pages)
+		if err != nil {
+			return err
+		}
+		for _, speaker := range allSpeakers {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["dragent_bgpspeaker_association"].Metric,
+				prometheus.GaugeValue, float64(1), speaker.ID, agent.ID)
+		}
+	}
 	return nil
 }

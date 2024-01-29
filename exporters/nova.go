@@ -300,7 +300,7 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	for _, p := range allProjects {
 		quotaSet, err := quotasets.GetDetail(exporter.Client, p.ID).Extract()
 		if err != nil {
-			panic(err)
+			return err
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,

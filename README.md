@@ -260,6 +260,8 @@ limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
 limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
+image_bytes | glance
+image_created_at | glance
 #### Deprecated Metrics 
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------
@@ -270,6 +272,7 @@ openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_ci
 Name     | Sample Labels                                                                                                                                                                                                                                                                                                         | Sample Value | Description
 ---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------
 openstack_glance_image_bytes| id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"                                                                                                                                                                                                |1.3167616e+07 (float)
+openstack_glance_image_created_at| hidden="false",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"                                                                                                                                                                       | 1.415380026e+09
 openstack_glance_images| region="Region"                                                                                                                                                                                                                                                                                                       |1.0 (float)
 openstack_neutron_agent_state| adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"                                                                                                                                                                                                        |1 or 0 (bool)
 openstack_neutron_floating_ip| region="RegionOne",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"                                                                                   |4.0 (float)
@@ -488,6 +491,10 @@ openstack_container_infra_up 1
 # TYPE openstack_glance_image_bytes gauge
 openstack_glance_image_bytes{id="781b3762-9469-4cec-b58d-3349e5de4e9c",name="F17-x86_64-cfntools",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"} 4.76704768e+08
 openstack_glance_image_bytes{id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"} 1.3167616e+07
+# HELP openstack_glance_image_created_at image_created_at
+# TYPE openstack_glance_image_created_at gauge
+openstack_glance_image_created_at{hidden="false",id="781b3762-9469-4cec-b58d-3349e5de4e9c",name="F17-x86_64-cfntools",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"} 1.414657419e+09
+openstack_glance_image_created_at{hidden="false",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"} 1.415380026e+09
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
 openstack_glance_images{region="Region"} 18.0

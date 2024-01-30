@@ -1,6 +1,8 @@
 package exporters
 
 import (
+	"strconv"
+
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
@@ -13,6 +15,7 @@ type GlanceExporter struct {
 var defaultGlanceMetrics = []Metric{
 	{Name: "images", Fn: ListImages},
 	{Name: "image_bytes", Labels: []string{"id", "name", "tenant_id"}, Fn: ListImageBytes, Slow: true},
+	{Name: "image_created_at", Labels: []string{"id", "name", "tenant_id", "visibility", "hidden"}, Fn: ListImageCreatedAt, Slow: true},
 }
 
 func NewGlanceExporter(config *ExporterConfig, logger log.Logger) (*GlanceExporter, error) {
@@ -74,6 +77,22 @@ func ListImageBytes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["image_bytes"].Metric,
 			prometheus.GaugeValue, float64(image.SizeBytes), image.ID, image.Name,
 			image.Owner)
+	}
+
+	return nil
+}
+
+func ListImageCreatedAt(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	// Image created at metrics
+	allImages, err := getAllImages(exporter)
+	if err != nil {
+		return err
+	}
+
+	for _, image := range allImages {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["image_created_at"].Metric,
+			prometheus.GaugeValue, float64(image.CreatedAt.Unix()), image.ID, image.Name,
+			image.Owner, string(image.Visibility), strconv.FormatBool(image.Hidden))
 	}
 
 	return nil

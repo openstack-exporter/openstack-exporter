@@ -260,6 +260,8 @@ limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
 limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
+image_bytes | glance
+image_created_at | glance
 #### Deprecated Metrics 
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------

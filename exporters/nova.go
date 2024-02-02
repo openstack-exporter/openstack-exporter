@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
@@ -117,7 +118,7 @@ func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, 
 	}
 
 	envMicroversion, present := os.LookupEnv("OS_COMPUTE_API_VERSION")
-	if present {
+	if present && !strings.EqualFold(envMicroversion, "latest") {
 		exporter.Client.Microversion = envMicroversion
 	} else {
 

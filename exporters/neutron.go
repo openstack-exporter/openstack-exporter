@@ -298,7 +298,9 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
 
-	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
+	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{
+		IPVersion: "4", // Gather metrics only for IPv4
+	}).AllPages()
 	if err != nil {
 		return err
 	}

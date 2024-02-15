@@ -6,6 +6,7 @@ import (
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
+	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/pools"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -31,6 +32,16 @@ var amphora_status = []string{
 	"ERROR",
 }
 
+var pool_status = []string{
+	// Loadbalancer pool provisioning status. One of: ACTIVE, DELETED, ERROR, PENDING_CREATE, PENDING_UPDATE, PENDING_DELETE.
+	"ACTIVE",
+	"DELETED",
+	"ERROR",
+	"PENDING_CREATE",
+	"PENDING_UPDATE",
+	"PENDING_DELETE",
+}
+
 func mapLoadbalancerStatus(current string) int {
 	for idx, status := range loadbalancer_status {
 		if current == status {
@@ -41,7 +52,18 @@ func mapLoadbalancerStatus(current string) int {
 }
 
 func mapAmphoraStatus(current string) int {
+
 	for idx, status := range amphora_status {
+		if current == status {
+			return idx
+		}
+	}
+	return -1
+}
+
+func mapPoolStatus(current string) int {
+
+	for idx, status := range pool_status {
 		if current == status {
 			return idx
 		}
@@ -58,6 +80,8 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "loadbalancer_status", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
+	{Name: "total_pools", Fn: ListAllPools},
+	{Name: "pool_status", Labels: []string{"id", "provisioning_status", "name", "loadbalancers_ids", "protocol", "method", "operating_status", "project_id"}},
 }
 
 func NewLoadbalancerExporter(config *ExporterConfig, logger log.Logger) (*LoadbalancerExporter, error) {
@@ -116,4 +140,36 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339))
 	}
 	return nil
+}
+
+func ListAllPools(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allPools []pools.Pool
+	allPagesPools, err := pools.List(exporter.Client, pools.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+	allPools, err = pools.ExtractPools(allPagesPools)
+	if err != nil {
+		return err
+	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_pools"].Metric,
+		prometheus.GaugeValue, float64(len(allPools)))
+	for _, pool := range allPools {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_status"].Metric,
+			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
+			lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID)
+	}
+	return nil
+}
+
+func lbsLabels(lbs []pools.LoadBalancerID) string {
+	label := ""
+	for i, l := range lbs {
+		if i == 0 {
+			label += l.ID
+		} else {
+			label += "," + l.ID
+		}
+	}
+	return label
 }

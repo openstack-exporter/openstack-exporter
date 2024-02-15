@@ -81,7 +81,7 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
 	{Name: "total_pools", Fn: ListAllPools},
-	{Name: "pool_status", Labels: []string{"id", "provisioning_status", "name", "loadbalancers_ids", "protocol", "method", "operating_status", "project_id"}},
+	{Name: "pool_status", Labels: []string{"id", "provisioning_status", "name", "loadbalancers", "protocol", "lb_algorithm", "operating_status", "project_id"}},
 }
 
 func NewLoadbalancerExporter(config *ExporterConfig, logger log.Logger) (*LoadbalancerExporter, error) {

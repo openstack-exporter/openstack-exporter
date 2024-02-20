@@ -3,6 +3,7 @@ package exporters
 import (
 	"math"
 	"strconv"
+	"strings"
 
 	"go4.org/netipx"
 
@@ -10,10 +11,12 @@ import (
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -21,6 +24,22 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+var network_status = []string{
+	"ACTIVE",
+	"BUILD",
+	"DOWN",
+	"ERROR",
+}
+
+func mapNetworkStatus(current string) int {
+	for idx, status := range network_status {
+		if current == status {
+			return idx
+		}
+	}
+	return -1
+}
 
 // NeutronExporter : extends BaseOpenStackExporter
 type NeutronExporter struct {
@@ -32,8 +51,11 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips_associated_not_active"},
 	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address"}},
 	{Name: "networks", Fn: ListNetworks},
+	{Name: "network", Labels: []string{"id", "tenant_id", "status", "name", "is_shared", "is_external", "provider_network_type",
+		"provider_physical_network", "provider_segmentation_id", "subnets", "tags"}},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
+	{Name: "subnet", Labels: []string{"id", "tenant_id", "name", "network_id", "cidr", "gateway_ip", "enable_dhcp", "dns_nameservers", "tags"}},
 	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type", "admin_state_up"}, Fn: ListPorts},
 	{Name: "ports"},
 	{Name: "ports_no_ips"},
@@ -149,22 +171,32 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	return nil
 }
 
-// ListNetworks : Count total number of instantiated Networks
+// ListNetworks : Count total number of instantiated Networks and list each Network info
 func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allNetworks []networks.Network
+	type NetworkWithExt struct {
+		networks.Network
+		external.NetworkExternalExt
+		provider.NetworkProviderExt
+	}
+	var allNetworks []NetworkWithExt
 
 	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
 
-	allNetworks, err = networks.ExtractNetworks(allPagesNetworks)
+	err = networks.ExtractNetworksInto(allPagesNetworks, &allNetworks)
 	if err != nil {
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
-
+	for _, net := range allNetworks {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
+			prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
+			strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
+			net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+	}
 	return nil
 }
 
@@ -187,7 +219,7 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 	return nil
 }
 
-// ListSubnets : count total number of instantiated Subnets
+// ListSubnets : count total number of instantiated Subnets and list each Subnet info
 func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSubnets []subnets.Subnet
 
@@ -202,7 +234,11 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
-
+	for _, subnet := range allSubnets {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
+			prometheus.GaugeValue, 1.0, subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
+			subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ","))
+	}
 	return nil
 }
 

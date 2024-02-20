@@ -95,6 +95,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/routers/9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f/l3-agents": "neutron_routers_l3_agents",
 	"/loadbalancer/v2.0/lbaas/loadbalancers":                               "loadbalancer_loadbalancers",
 	"/loadbalancer/v2.0/octavia/amphorae":                                  "loadbalancer_amphorae",
+	"/loadbalancer/v2.0/lbaas/pools":                                       "loadbalancer_pools",
 	"/ironic/v1":                                                           "ironic_v1",
 	"/ironic/nodes":                                                        "ironic_nodes",
 	"/ironic/nodes/detail":                                                 "ironic_nodes",

@@ -1246,7 +1246,6 @@ openstack_heat_up 1
 # TYPE openstack_placement_resource_allocation_ratio gauge
 openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 1.2000000476837158
 openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 1.299999952316284
-2
 openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 3
 openstack_placement_resource_allocation_ratio{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 1.2000000476837158
 openstack_placement_resource_allocation_ratio{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 1
@@ -1282,7 +1281,7 @@ openstack_placement_up 1
 
 ### Communication
 
-Please join us at #openstack-exporter at Freenode
+Please join us at #openstack-exporter at [OFTC](https://www.oftc.net/)
 
 ## Metrics
 

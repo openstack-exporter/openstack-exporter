@@ -1,6 +1,6 @@
 module github.com/openstack-exporter/openstack-exporter
 
-go 1.19
+go 1.22
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.3.2

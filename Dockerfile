@@ -4,7 +4,7 @@ WORKDIR /
 
 COPY . .
 
-RUN go mod download && go build -o /openstack-exporter .
+RUN go mod download && CGO_ENABLED=0 go build -o /openstack-exporter .
 
 FROM gcr.io/distroless/base:nonroot as openstack-exporter
 

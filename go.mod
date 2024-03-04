@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/alecthomas/kingpin/v2 v2.3.2
 	github.com/go-kit/log v0.2.1
-	github.com/gophercloud/gophercloud v1.5.0
+	github.com/gophercloud/gophercloud v1.10.0
 	github.com/gophercloud/utils v0.0.0-20230523080330-de873b9cf00d
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.3.1

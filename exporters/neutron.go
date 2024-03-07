@@ -191,11 +191,13 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
-	for _, net := range allNetworks {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
-			prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
-			strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
-			net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+	if !exporter.MetricIsDisabled("network") {
+		for _, net := range allNetworks {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
+				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
+				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
+				net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+		}
 	}
 	return nil
 }
@@ -234,10 +236,12 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
-	for _, subnet := range allSubnets {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
-			prometheus.GaugeValue, 1.0, subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
-			subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ","))
+	if !exporter.MetricIsDisabled("subnet") {
+		for _, subnet := range allSubnets {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
+				prometheus.GaugeValue, 1.0, subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
+				subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ","))
+		}
 	}
 	return nil
 }
@@ -273,21 +277,22 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 		if port.DeviceOwner == "neutron:LOADBALANCERV2" && port.Status != "ACTIVE" {
 			lbaasPortsInactive++
 		}
+		if !exporter.MetricIsDisabled("port") {
+			var fixedIPs string = ""
 
-		var fixedIPs string = ""
-
-		portFixedIPsLen := len(port.FixedIPs)
-		if portFixedIPsLen == 1 {
-			fixedIPs = port.FixedIPs[0].IPAddress
-		} else if portFixedIPsLen > 1 {
-			for _, fip := range port.FixedIPs {
-				// Joining IPs into a string with ',' separator
-				fixedIPs += fip.IPAddress + ","
+			portFixedIPsLen := len(port.FixedIPs)
+			if portFixedIPsLen == 1 {
+				fixedIPs = port.FixedIPs[0].IPAddress
+			} else if portFixedIPsLen > 1 {
+				for _, fip := range port.FixedIPs {
+					// Joining IPs into a string with ',' separator
+					fixedIPs += fip.IPAddress + ","
+				}
 			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
+				prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
+				port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs)
 		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
-			prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
-			port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs)
 	}
 
 	// NOTE(mnaser): We should deprecate this and users can replace it by
@@ -385,34 +390,35 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		if router.Status != "ACTIVE" {
 			failedRouters = failedRouters + 1
 		}
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
-			prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
-			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
-
+		if !exporter.MetricIsDisabled("router") {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
+				prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
+				strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
+		}
 		if ovnBackendEnabled {
 			continue
 			// Because ovn-backend doesn't have router l3-agent entity
 		}
-
-		allPagesL3Agents, err := routers.ListL3Agents(exporter.Client, router.ID).AllPages()
-		if err != nil {
-			return err
-		}
-		l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
-		if err != nil {
-			return err
-		}
-		for _, agent := range l3Agents {
-			var state int
-
-			if agent.Alive {
-				state = 1
+		if !exporter.MetricIsDisabled("l3_agent_of_router") {
+			allPagesL3Agents, err := routers.ListL3Agents(exporter.Client, router.ID).AllPages()
+			if err != nil {
+				return err
 			}
+			l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
+			if err != nil {
+				return err
+			}
+			for _, agent := range l3Agents {
+				var state int
 
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["l3_agent_of_router"].Metric,
-				prometheus.GaugeValue, float64(state), router.ID, agent.ID,
-				agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
+				if agent.Alive {
+					state = 1
+				}
+
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["l3_agent_of_router"].Metric,
+					prometheus.GaugeValue, float64(state), router.ID, agent.ID,
+					agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
+			}
 		}
 	}
 

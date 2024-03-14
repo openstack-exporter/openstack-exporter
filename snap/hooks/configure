@@ -1,0 +1,37 @@
+#!/bin/sh -e
+
+# Load utility functions
+. "$SNAP/utils.sh"
+
+set_default web.telemetry-path "/metrics"
+set_default os-client-config "/etc/openstack/clouds.yaml"
+set_default prefix "openstack"
+set_default endpoint-type "public"
+set_default collect-metric-time "false"
+set_default disable-metric ""
+set_default disable-slow-metrics "false"
+set_default disable-deprecated-metrics "false"
+set_default disable-cinder-agent-uuid ""
+set_default multi-cloud "false"
+set_default domain-id ""
+set_default disable-service.network "false"
+set_default disable-service.compuet "false"
+set_default disable-service.image "false"
+set_default disable-service.volume "false"
+set_default disable-service.identity "false"
+set_default disable-service.object-store "false"
+set_default disable-service.load-balancer "false"
+set_default disable-service.container-infra "false"
+set_default disable-service.dns "false"
+set_default disable-service.baremetal "false"
+set_default disable-service.gnocchi "false"
+set_default disable-service.database "false"
+set_default disable-service.orchestration "false"
+set_default disable-service.placement "false"
+set_default web.listen-address ":9180"
+set_default log.level "info"
+set_default log.format "logfmt"
+set_default cloud "default"
+
+# Restart snap to apply new config.
+snapctl restart $SNAP_NAME

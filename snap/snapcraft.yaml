@@ -1,36 +1,43 @@
 name: golang-openstack-exporter
-base: core18 # the base snap is the execution environment for this snap
-
+base: core22
 summary: OpenStack Exporter for Prometheus
 description: |
   The OpenStack exporter, exports Prometheus metrics from a running OpenStack
-  cloud for consumption by prometheus. The cloud credentials and identity
-  configuration should use the os-client-config format and must by specified
-  with the --os-client-config flag.
-
-  Other options as the binding address/port can by explored with the --help
-  flag.
-
-  By default the openstack_exporter serves on port 0.0.0.0:9180 at the /metrics
-  URL.
-
+  cloud for consumption by prometheus.
 adopt-info: openstack-exporter
 confinement: strict
-version: "$VERSION"
-grade: "$GRADE"
+grade: stable
 
 apps:
   openstack-exporter:
-    command: openstack-exporter
-    plugs: [home, network, network-bind]
+    daemon: simple
+    restart-condition: on-abnormal
+    command: "bin/openstack-exporter.wrapper"
+    plugs:
+      - home
+      - network
+      - network-bind
+      - etc-openstack
 
 parts:
   openstack-exporter:
     plugin: go
     source: ./
-    go-importpath: github.com/openstack-exporter/openstack-exporter
-    go-channel: latest/stable
-    parse-info: []
-    build-packages:
-      - git
-      - build-essential
+    source-type: git
+    build-snaps:
+      - go
+    override-pull: |
+      craftctl default
+      VERSION=$(cat VERSION)
+      craftctl set version="${VERSION}"
+  scripts:
+    plugin: dump
+    source: snap/local
+    organize:
+      openstack-exporter.wrapper: "bin/openstack-exporter.wrapper"
+
+plugs:
+  etc-openstack:
+    interface: system-files
+    read:
+    - /etc/openstack

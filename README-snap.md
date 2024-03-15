@@ -113,8 +113,8 @@ $ sudo snap get -d golang-openstack-exporter
 
 ## Boolean options
 
-These options treat any non-empty value as true,
-and are passed to the openstack-exporter as a flag:
+These options must take a value of "true" or "false".
+If set to "true", the corresponding flag is passed to the openstack-exporter.
 
 - `collect-metric-time`
 - `disable-cinder-agent-uuid`
@@ -139,13 +139,14 @@ and are passed to the openstack-exporter as a flag:
 Examples of configuring these options:
 
 ```
-# truthy (turn on the option)
+# turn on the option
 sudo snap set golang-openstack-exporter multi-cloud=true
-sudo snap set golang-openstack-exporter collect-metric-time=yep
-sudo snap set golang-openstack-exporter disable-service.dns=something
+sudo snap set golang-openstack-exporter collect-metric-time=true
+sudo snap set golang-openstack-exporter disable-service.dns=false
 
-# falsey (turn off the option)
-sudo snap set golang-openstack-exporter disable-service.dns=
+# turn off the option
+sudo snap set golang-openstack-exporter disable-service.dns=false
+# unsetting will reset to the default, which is false
 sudo snap unset golang-openstack-exporter disable-slow-metrics
 ```
 

@@ -4,34 +4,64 @@
 # so users can see available variables by running
 # `sudo snap get golang-openstack-exporter`.
 [ -z "$(snapctl get cloud)" ] && snapctl set cloud=
-[ -z "$(snapctl get collect-metric-time)" ] && snapctl set collect-metric-time=
-[ -z "$(snapctl get disable-cinder-agent-uuid)" ] && snapctl set disable-cinder-agent-uuid=
-[ -z "$(snapctl get disable-deprecated-metrics)" ] && snapctl set disable-deprecated-metrics=
+[ -z "$(snapctl get collect-metric-time)" ] && snapctl set collect-metric-time=false
+[ -z "$(snapctl get disable-cinder-agent-uuid)" ] && snapctl set disable-cinder-agent-uuid=false
+[ -z "$(snapctl get disable-deprecated-metrics)" ] && snapctl set disable-deprecated-metrics=false
 [ -z "$(snapctl get disable-metrics)" ] && snapctl set disable-metrics=
-[ -z "$(snapctl get disable-service.baremetal)" ] && snapctl set disable-service.baremetal=
-[ -z "$(snapctl get disable-service.compute)" ] && snapctl set disable-service.compute=
-[ -z "$(snapctl get disable-service.container-infra)" ] && snapctl set disable-service.container-infra=
-[ -z "$(snapctl get disable-service.database)" ] && snapctl set disable-service.database=
-[ -z "$(snapctl get disable-service.dns)" ] && snapctl set disable-service.dns=
-[ -z "$(snapctl get disable-service.gnocchi)" ] && snapctl set disable-service.gnocchi=
-[ -z "$(snapctl get disable-service.identity)" ] && snapctl set disable-service.identity=
-[ -z "$(snapctl get disable-service.image)" ] && snapctl set disable-service.image=
-[ -z "$(snapctl get disable-service.load-balancer)" ] && snapctl set disable-service.load-balancer=
-[ -z "$(snapctl get disable-service.network)" ] && snapctl set disable-service.network=
-[ -z "$(snapctl get disable-service.object-store)" ] && snapctl set disable-service.object-store=
-[ -z "$(snapctl get disable-service.orchestration)" ] && snapctl set disable-service.orchestration=
-[ -z "$(snapctl get disable-service.placement)" ] && snapctl set disable-service.placement=
-[ -z "$(snapctl get disable-service.volume)" ] && snapctl set disable-service.volume=
-[ -z "$(snapctl get disable-slow-metrics)" ] && snapctl set disable-slow-metrics=
+[ -z "$(snapctl get disable-service.baremetal)" ] && snapctl set disable-service.baremetal=false
+[ -z "$(snapctl get disable-service.compute)" ] && snapctl set disable-service.compute=false
+[ -z "$(snapctl get disable-service.container-infra)" ] && snapctl set disable-service.container-infra=false
+[ -z "$(snapctl get disable-service.database)" ] && snapctl set disable-service.database=false
+[ -z "$(snapctl get disable-service.dns)" ] && snapctl set disable-service.dns=false
+[ -z "$(snapctl get disable-service.gnocchi)" ] && snapctl set disable-service.gnocchi=false
+[ -z "$(snapctl get disable-service.identity)" ] && snapctl set disable-service.identity=false
+[ -z "$(snapctl get disable-service.image)" ] && snapctl set disable-service.image=false
+[ -z "$(snapctl get disable-service.load-balancer)" ] && snapctl set disable-service.load-balancer=false
+[ -z "$(snapctl get disable-service.network)" ] && snapctl set disable-service.network=false
+[ -z "$(snapctl get disable-service.object-store)" ] && snapctl set disable-service.object-store=false
+[ -z "$(snapctl get disable-service.orchestration)" ] && snapctl set disable-service.orchestration=false
+[ -z "$(snapctl get disable-service.placement)" ] && snapctl set disable-service.placement=false
+[ -z "$(snapctl get disable-service.volume)" ] && snapctl set disable-service.volume=false
+[ -z "$(snapctl get disable-slow-metrics)" ] && snapctl set disable-slow-metrics=false
 [ -z "$(snapctl get domain-id)" ] && snapctl set domain-id=
 [ -z "$(snapctl get endpoint-type)" ] && snapctl set endpoint-type=
 [ -z "$(snapctl get log.format)" ] && snapctl set log.format=
 [ -z "$(snapctl get log.level)" ] && snapctl set log.level=
-[ -z "$(snapctl get multi-cloud)" ] && snapctl set multi-cloud=
+[ -z "$(snapctl get multi-cloud)" ] && snapctl set multi-cloud=false
 [ -z "$(snapctl get os-client-config)" ] && snapctl set os-client-config=
 [ -z "$(snapctl get prefix)" ] && snapctl set prefix=
 [ -z "$(snapctl get web.listen-address)" ] && snapctl set web.listen-address=
 [ -z "$(snapctl get web.telemetry-path)" ] && snapctl set web.telemetry-path=
+
+validate_bool() {
+    key="$1"
+    value="$(snapctl get $key)"
+    if [ "$value" != "true" -a "$value" != "false" ]
+    then
+        echo "\"$key\" is not a valid boolean value (must be \"true\" or \"false\")" >&2
+        exit 1
+    fi
+}
+
+validate_bool collect-metric-time
+validate_bool disable-cinder-agent-uuid
+validate_bool disable-deprecated-metrics
+validate_bool disable-service.baremetal
+validate_bool disable-service.compute
+validate_bool disable-service.container-infra
+validate_bool disable-service.database
+validate_bool disable-service.dns
+validate_bool disable-service.gnocchi
+validate_bool disable-service.identity
+validate_bool disable-service.image
+validate_bool disable-service.load-balancer
+validate_bool disable-service.network
+validate_bool disable-service.object-store
+validate_bool disable-service.orchestration
+validate_bool disable-service.placement
+validate_bool disable-service.volume
+validate_bool disable-slow-metrics
+validate_bool multi-cloud
 
 # Restart openstack-exporter service to apply new config.
 snapctl restart $SNAP_NAME

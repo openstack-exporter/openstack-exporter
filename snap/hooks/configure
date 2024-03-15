@@ -1,37 +1,37 @@
 #!/bin/sh -e
 
-# Load utility functions
-. "$SNAP/utils.sh"
+# Register config variables if unset,
+# so users can see available variables by running
+# `sudo snap get golang-openstack-exporter`.
+[ -z "$(snapctl get cloud)" ] && snapctl set cloud=
+[ -z "$(snapctl get collect-metric-time)" ] && snapctl set collect-metric-time=
+[ -z "$(snapctl get disable-cinder-agent-uuid)" ] && snapctl set disable-cinder-agent-uuid=
+[ -z "$(snapctl get disable-deprecated-metrics)" ] && snapctl set disable-deprecated-metrics=
+[ -z "$(snapctl get disable-metrics)" ] && snapctl set disable-metrics=
+[ -z "$(snapctl get disable-service.baremetal)" ] && snapctl set disable-service.baremetal=
+[ -z "$(snapctl get disable-service.compute)" ] && snapctl set disable-service.compute=
+[ -z "$(snapctl get disable-service.container-infra)" ] && snapctl set disable-service.container-infra=
+[ -z "$(snapctl get disable-service.database)" ] && snapctl set disable-service.database=
+[ -z "$(snapctl get disable-service.dns)" ] && snapctl set disable-service.dns=
+[ -z "$(snapctl get disable-service.gnocchi)" ] && snapctl set disable-service.gnocchi=
+[ -z "$(snapctl get disable-service.identity)" ] && snapctl set disable-service.identity=
+[ -z "$(snapctl get disable-service.image)" ] && snapctl set disable-service.image=
+[ -z "$(snapctl get disable-service.load-balancer)" ] && snapctl set disable-service.load-balancer=
+[ -z "$(snapctl get disable-service.network)" ] && snapctl set disable-service.network=
+[ -z "$(snapctl get disable-service.object-store)" ] && snapctl set disable-service.object-store=
+[ -z "$(snapctl get disable-service.orchestration)" ] && snapctl set disable-service.orchestration=
+[ -z "$(snapctl get disable-service.placement)" ] && snapctl set disable-service.placement=
+[ -z "$(snapctl get disable-service.volume)" ] && snapctl set disable-service.volume=
+[ -z "$(snapctl get disable-slow-metrics)" ] && snapctl set disable-slow-metrics=
+[ -z "$(snapctl get domain-id)" ] && snapctl set domain-id=
+[ -z "$(snapctl get endpoint-type)" ] && snapctl set endpoint-type=
+[ -z "$(snapctl get log.format)" ] && snapctl set log.format=
+[ -z "$(snapctl get log.level)" ] && snapctl set log.level=
+[ -z "$(snapctl get multi-cloud)" ] && snapctl set multi-cloud=
+[ -z "$(snapctl get os-client-config)" ] && snapctl set os-client-config=
+[ -z "$(snapctl get prefix)" ] && snapctl set prefix=
+[ -z "$(snapctl get web.listen-address)" ] && snapctl set web.listen-address=
+[ -z "$(snapctl get web.telemetry-path)" ] && snapctl set web.telemetry-path=
 
-set_default web.telemetry-path "/metrics"
-set_default os-client-config "/etc/openstack/clouds.yaml"
-set_default prefix "openstack"
-set_default endpoint-type "public"
-set_default collect-metric-time "false"
-set_default disable-metric ""
-set_default disable-slow-metrics "false"
-set_default disable-deprecated-metrics "false"
-set_default disable-cinder-agent-uuid ""
-set_default multi-cloud "false"
-set_default domain-id ""
-set_default disable-service.network "false"
-set_default disable-service.compuet "false"
-set_default disable-service.image "false"
-set_default disable-service.volume "false"
-set_default disable-service.identity "false"
-set_default disable-service.object-store "false"
-set_default disable-service.load-balancer "false"
-set_default disable-service.container-infra "false"
-set_default disable-service.dns "false"
-set_default disable-service.baremetal "false"
-set_default disable-service.gnocchi "false"
-set_default disable-service.database "false"
-set_default disable-service.orchestration "false"
-set_default disable-service.placement "false"
-set_default web.listen-address ":9180"
-set_default log.level "info"
-set_default log.format "logfmt"
-set_default cloud "default"
-
-# Restart snap to apply new config.
+# Restart openstack-exporter service to apply new config.
 snapctl restart $SNAP_NAME

@@ -18,10 +18,11 @@ add_disable_metrics_options() {
 
 add_flag() {
     key=$1
-    [ -n "$(snapctl get $key)" ] && args+=("--$key")
+    [ "$(snapctl get $key)" = "true" ] && args+=("--$key")
 }
 
 add_flag collect-metric-time
+add_flag disable-cinder-agent-uuid
 add_flag disable-deprecated-metrics
 add_flag disable-service.baremetal
 add_flag disable-service.compute

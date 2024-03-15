@@ -10,9 +10,13 @@ grade: stable
 
 apps:
   openstack-exporter:
+    command: bin/openstack-exporter
+    plugs: [home, network, network-bind]
+  service:
+    command: bin/service
     daemon: simple
+    install-mode: disable
     restart-condition: on-abnormal
-    command: "bin/openstack-exporter.wrapper"
     plugs:
       - home
       - network
@@ -23,20 +27,19 @@ parts:
   openstack-exporter:
     plugin: go
     source: ./
-    source-type: git
-    build-snaps:
-      - go
+    # override pull to read VERSION because working dir is root of source repo
     override-pull: |
       craftctl default
-      VERSION=$(cat VERSION)
-      craftctl set version="${VERSION}"
+      craftctl set version="$(cat VERSION)"
   scripts:
     plugin: dump
     source: snap/local
     organize:
-      openstack-exporter.wrapper: "bin/openstack-exporter.wrapper"
+      service: bin/service
 
 plugs:
+  # The exporter reads a clouds.yaml file (path passed by the user),
+  # and this file is commonly stored at /etc/openstack/clouds.yaml.
   etc-openstack:
     interface: system-files
     read:

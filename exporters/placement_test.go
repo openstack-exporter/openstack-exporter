@@ -11,7 +11,22 @@ type PlacementTestSuite struct {
 	BaseOpenStackTestSuite
 }
 
-var placementExpected = `
+var placementExpected = `# HELP openstack_placement_local_storage_available_bytes local_storage_available_bytes
+# TYPE openstack_placement_local_storage_available_bytes gauge
+openstack_placement_local_storage_available_bytes{hostname="cmp-1-svr8204.localdomain"} 2.197949513728e+12
+openstack_placement_local_storage_available_bytes{hostname="cmp-5-svr8208.localdomain"} 2.197949513728e+12
+# HELP openstack_placement_local_storage_used_bytes local_storage_used_bytes
+# TYPE openstack_placement_local_storage_used_bytes gauge
+openstack_placement_local_storage_used_bytes{hostname="cmp-1-svr8204.localdomain"} 7.482906771456e+12
+openstack_placement_local_storage_used_bytes{hostname="cmp-5-svr8208.localdomain"} 0
+# HELP openstack_placement_memory_available_bytes memory_available_bytes
+# TYPE openstack_placement_memory_available_bytes gauge
+openstack_placement_memory_available_bytes{hostname="cmp-1-svr8204.localdomain"} 8.09969385472e+11
+openstack_placement_memory_available_bytes{hostname="cmp-5-svr8208.localdomain"} 8.09969385472e+11
+# HELP openstack_placement_memory_used_bytes memory_used_bytes
+# TYPE openstack_placement_memory_used_bytes gauge
+openstack_placement_memory_used_bytes{hostname="cmp-1-svr8204.localdomain"} 2.03948032e+09
+openstack_placement_memory_used_bytes{hostname="cmp-5-svr8208.localdomain"} 0
 # HELP openstack_placement_resource_allocation_ratio resource_allocation_ratio
 # TYPE openstack_placement_resource_allocation_ratio gauge
 openstack_placement_resource_allocation_ratio{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 1.2000000476837158
@@ -47,6 +62,12 @@ openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resource
 # HELP openstack_placement_up up
 # TYPE openstack_placement_up gauge
 openstack_placement_up 1
+# HELP openstack_placement_vcpus_available vcpus_available
+# TYPE openstack_placement_vcpus_available gauge
+openstack_placement_vcpus_available{hostname="cmp-1-svr8204.localdomain"} 96
+# HELP openstack_placement_vcpus_used vcpus_used
+# TYPE openstack_placement_vcpus_used gauge
+openstack_placement_vcpus_used{hostname="cmp-1-svr8204.localdomain"} 10
 `
 
 func (suite *PlacementTestSuite) TestPlacementExporter() {

@@ -21,6 +21,13 @@ add_flag() {
     [ "$(snapctl get $key)" = "true" ] && args+=("--$key")
 }
 
+add_arg() {
+    key=$1
+    value="$(snapctl get $key)"
+    [ -n "$value" ] && args+=("$value")
+}
+
+
 add_flag collect-metric-time
 add_flag disable-cinder-agent-uuid
 add_flag disable-deprecated-metrics
@@ -49,6 +56,7 @@ add_option prefix
 add_option web.listen-address
 add_option web.telemetry-path
 add_disable_metrics_options
+add_arg cloud
 
 # Run the exporter process
 exec "${SNAP}/bin/openstack-exporter" "${args[@]}"

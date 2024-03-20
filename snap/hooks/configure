@@ -62,6 +62,3 @@ validate_bool disable-service.placement
 validate_bool disable-service.volume
 validate_bool disable-slow-metrics
 validate_bool multi-cloud
-
-# Restart openstack-exporter service to apply new config.
-snapctl restart $SNAP_NAME

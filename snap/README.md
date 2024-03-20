@@ -69,6 +69,7 @@ system-files  golang-openstack-exporter:etc-openstack  :system-files  manual
 ## Configuration
 
 The following config items are supported for the service.
+Note that the service must be restarted for configuration changes to be applied.
 
 ```
 $ sudo snap get -d golang-openstack-exporter

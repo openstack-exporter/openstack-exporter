@@ -35,8 +35,8 @@
 
 validate_bool() {
     key="$1"
-    value="$(snapctl get $key)"
-    if [ "$value" != "true" -a "$value" != "false" ]
+    value="$(snapctl get "$key")"
+    if [ "$value" != "true" ] && [ "$value" != "false" ]
     then
         echo "\"$key\" is not a valid boolean value (must be \"true\" or \"false\")" >&2
         exit 1

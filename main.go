@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
+	"time"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -37,6 +41,8 @@ var (
 	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
 	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
+	cacheEnable              = kingpin.Flag("cache", "Enable Cache globally").Default("false").Bool()
+	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL to expire cache(i.e: 10s, 11m, 1h)").Default("300s").Duration()
 )
 
 func main() {
@@ -68,6 +74,68 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	errChan := make(chan error, 1)
+
+	// Start the backend service.
+	if *cacheEnable {
+		go cacheBackgroundService(ctx, services, errChan, logger)
+	}
+
+	// Start the HTTP server.
+	go startHTTPServer(ctx, services, toolkitFlags, errChan, logger)
+
+	// Wait for an error from any service or a termination signal.
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	select {
+	case err := <-errChan:
+		level.Error(logger).Log("err", "Shutting down due to error", "err", err)
+		cancel()
+	case <-sigChan:
+		level.Info(logger).Log("msg", "Termination signal received. Shutting down...")
+		cancel()
+	}
+
+}
+
+// cacheBackgroundService runs a background service to collect the metrics and stores in the cache.
+// It collects data every cache-ttl/2 time and flush every cache-ttl time.
+// The cache data will be read by the Prometheus HandleFunc.
+func cacheBackgroundService(ctx context.Context, services map[string]*bool, errChan chan<- error, logger log.Logger) {
+	level.Info(logger).Log("msg", "Start cache background service")
+	collectTicker := time.NewTicker(*cacheTTL / 2)
+	defer collectTicker.Stop()
+	ttlTicker := time.NewTicker(*cacheTTL)
+	defer ttlTicker.Stop()
+
+	// Collect cache data in the beginning.
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger); err != nil {
+		errChan <- err
+		return
+	}
+
+	for {
+		select {
+		case <-collectTicker.C:
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger); err != nil {
+				errChan <- err
+				return
+			}
+		case <-ttlTicker.C:
+			cache.FlushExpiredCloudCaches(*cacheTTL)
+			level.Info(logger).Log("msg", "Cache TTL flush")
+		case <-ctx.Done():
+			level.Info(logger).Log("msg", "Backend service is stopping")
+			return
+		}
+	}
+}
+
+func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, errChan chan<- error, logger log.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
@@ -111,9 +179,16 @@ func main() {
 	}
 
 	srv := &http.Server{}
-	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-		level.Error(logger).Log("err", err)
-		os.Exit(1)
+	go func() {
+		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
+			level.Error(logger).Log("err", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+	if err := srv.Shutdown(context.Background()); err != nil {
+		level.Error(logger).Log("HTTP server shutdown error", err)
 	}
 }
 
@@ -122,8 +197,6 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 		r = r.WithContext(ctx)
-
-		registry := prometheus.NewPedanticRegistry()
 
 		cloud := r.URL.Query().Get("cloud")
 		if cloud == "" {
@@ -146,9 +219,15 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 
 		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
 		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
-
 		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
 
+		// Get data from cache
+		if *cacheEnable {
+			cache.WriteCacheToResponse(w, r, cloud, enabledServices, logger)
+			return
+		}
+
+		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
 			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
 			if err != nil {
@@ -174,20 +253,31 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 		}
 
-		registry := prometheus.NewPedanticRegistry()
-		enabledExporters := 0
+		enabledServices := []string{}
 		for service, disabled := range services {
 			if !*disabled {
-				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
-				if err != nil {
-					// Log error and continue with enabling other exporters
-					level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
-					continue
-				}
-				registry.MustRegister(*exp)
-				level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
-				enabledExporters++
+				enabledServices = append(enabledServices, service)
 			}
+		}
+
+		// Get data from cache
+		if *cacheEnable {
+			cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger)
+			return
+		}
+
+		registry := prometheus.NewPedanticRegistry()
+		enabledExporters := 0
+		for _, service := range enabledServices {
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
+			if err != nil {
+				// Log error and continue with enabling other exporters
+				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
+				continue
+			}
+			registry.MustRegister(*exp)
+			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
+			enabledExporters++
 		}
 
 		if enabledExporters == 0 {

@@ -1,0 +1,217 @@
+package cache
+
+import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/go-kit/log"
+	"github.com/openstack-exporter/openstack-exporter/exporters"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/expfmt"
+	"github.com/stretchr/testify/assert"
+)
+
+func mockEnableExporter(
+	service,
+	prefix,
+	cloud string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime bool,
+	disableSlowMetrics bool,
+	disableDeprecatedMetrics bool,
+	disableCinderAgentUUID bool,
+	domainID string,
+	uuidGenFunc func() (string, error),
+	logger log.Logger,
+) (*exporters.OpenStackExporter, error) {
+	var exporter exporters.OpenStackExporter
+	exporter = &mockOpenStackExporter{
+		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
+		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
+	}
+	return &exporter, nil
+}
+
+// MockOpenStackExporter is a mock of OpenStackExporter interface
+type mockOpenStackExporter struct {
+	cnt prometheus.Counter
+	gge prometheus.Gauge
+}
+
+func (m *mockOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
+	prometheus.DescribeByCollect(m, ch)
+}
+
+func (m *mockOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
+	ch <- m.cnt
+	ch <- m.gge
+}
+
+func (m *mockOpenStackExporter) GetName() string {
+	return "MockOpenStackExporter"
+}
+
+func (m *mockOpenStackExporter) AddMetric(name string, fn exporters.ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
+}
+
+func (m *mockOpenStackExporter) MetricIsDisabled(name string) bool {
+	return false
+}
+
+func TestCollectCache(t *testing.T) {
+	cache := GetCache()
+	defer cache.Clear()
+
+	multiCloud := false
+	services := make(map[string]*bool)
+	serviceADisable := false
+	serviceBDisable := true
+	services["service-a"] = &serviceADisable
+	services["service-b"] = &serviceBDisable
+	prefix := "testPrefix"
+	cloud := "testCloud"
+	disabledMetrics := []string{}
+	endpointType := "public"
+	collectTime := true
+	disableSlowMetrics := false
+	disableDeprecatedMetrics := true
+	disableCinderAgentUUID := false
+	domainID := ""
+	logger := log.NewLogfmtLogger(os.Stdout)
+
+	CollectCache(
+		mockEnableExporter,
+		multiCloud,
+		services,
+		prefix,
+		cloud,
+		disabledMetrics,
+		endpointType,
+		collectTime,
+		disableSlowMetrics,
+		disableDeprecatedMetrics,
+		disableCinderAgentUUID,
+		domainID,
+		nil,
+		logger,
+	)
+
+	if _, exists := cache.GetServiceCache(cloud, "service-a"); !exists {
+		t.Errorf("Service cache was not set or retrieved properly")
+	}
+
+	if _, exists := cache.GetServiceCache(cloud, "service-b"); exists {
+		t.Errorf("Service cache was set or retrieved properly")
+	}
+
+}
+
+func TestBufferFromCache(t *testing.T) {
+	cache := GetCache()
+	defer cache.Clear()
+	cloudName := "testCloud"
+	serviceName := "testService"
+
+	registry := prometheus.NewPedanticRegistry()
+	collector := &mockOpenStackExporter{
+		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
+		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
+	}
+	registry.MustRegister(collector)
+
+	mfs, _ := registry.Gather()
+	mfOutputs := []string{}
+	for _, mf := range mfs {
+		cache.SetMetricFamilyCache(
+			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
+		)
+		mfOutputs = append(mfOutputs, mf.String())
+	}
+	buf, err := BufferFromCache(cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout))
+	if err != nil {
+		t.Error(err)
+	}
+
+	parser := expfmt.TextParser{}
+	metricFamilies, err := parser.TextToMetricFamilies(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Error(err)
+	}
+	for _, mf := range mfs {
+		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+	}
+
+}
+
+func TestWriteCacheToResponse(t *testing.T) {
+	cache := GetCache()
+	defer cache.Clear()
+	cloudName := "testCloud"
+	serviceName := "testService"
+
+	registry := prometheus.NewPedanticRegistry()
+	collector := &mockOpenStackExporter{
+		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
+		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
+	}
+	registry.MustRegister(collector)
+
+	mfs, _ := registry.Gather()
+	mfOutputs := []string{}
+	for _, mf := range mfs {
+		cache.SetMetricFamilyCache(
+			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
+		)
+		mfOutputs = append(mfOutputs, mf.String())
+	}
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rr := httptest.NewRecorder()
+	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
+		WriteCacheToResponse(
+			w, r, cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout),
+		)
+	}
+	handler := http.HandlerFunc(handlerFunc)
+	handler.ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
+	}
+
+	parser := expfmt.TextParser{}
+	metricFamilies, err := parser.TextToMetricFamilies(rr.Body)
+	if err != nil {
+		t.Error(err)
+	}
+	for _, mf := range mfs {
+		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+	}
+}
+
+// TestFlushExpiredCloudCaches tests flushing of expired cloud caches.
+func TestFlushExpiredCloudCaches(t *testing.T) {
+	cache := GetCache()
+	defer cache.Clear()
+	cloudData := CloudCache{
+		ServiceCaches: make(map[string]*ServiceCache),
+	}
+	cloudName := "expiredCloud"
+	cache.SetCloudCache(cloudName, cloudData)
+
+	time.Sleep(1 * time.Nanosecond)
+	FlushExpiredCloudCaches(1 * time.Nanosecond)
+
+	if _, exists := cache.GetCloudCache(cloudName); exists {
+		t.Errorf("Expired cloud cache was not flushed")
+	}
+}

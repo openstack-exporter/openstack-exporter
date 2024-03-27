@@ -1,0 +1,62 @@
+#!/bin/bash
+
+# Build the argument list for the exporter cli from snap config
+args=()
+
+add_option() {
+    key=$1
+    value="$(snapctl get "$key")"
+    [ -n "$value" ] && args+=("--$key=$value")
+}
+
+add_disable_metrics_options() {
+    for metric in $(snapctl get disable-metrics)
+    do
+        args+=("--disable-metric=$metric")
+    done
+}
+
+add_flag() {
+    key=$1
+    [ "$(snapctl get "$key")" = "true" ] && args+=("--$key")
+}
+
+add_arg() {
+    key=$1
+    value="$(snapctl get "$key")"
+    [ -n "$value" ] && args+=("$value")
+}
+
+
+add_flag collect-metric-time
+add_flag disable-cinder-agent-uuid
+add_flag disable-deprecated-metrics
+add_flag disable-service.baremetal
+add_flag disable-service.compute
+add_flag disable-service.container-infra
+add_flag disable-service.database
+add_flag disable-service.dns
+add_flag disable-service.gnocchi
+add_flag disable-service.identity
+add_flag disable-service.image
+add_flag disable-service.load-balancer
+add_flag disable-service.network
+add_flag disable-service.object-store
+add_flag disable-service.orchestration
+add_flag disable-service.placement
+add_flag disable-service.volume
+add_flag disable-slow-metrics
+add_flag multi-cloud
+add_option endpoint-type
+add_option domain-id
+add_option log.format
+add_option log.level
+add_option os-client-config
+add_option prefix
+add_option web.listen-address
+add_option web.telemetry-path
+add_disable_metrics_options
+add_arg cloud
+
+# Run the exporter process
+exec "${SNAP}/bin/openstack-exporter" "${args[@]}"

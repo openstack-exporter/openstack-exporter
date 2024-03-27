@@ -27,6 +27,8 @@ parts:
   openstack-exporter:
     plugin: go
     source: ./
+    build-snaps:
+      - go
     # override pull to read VERSION because working dir is root of source repo
     override-pull: |
       craftctl default

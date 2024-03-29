@@ -57,6 +57,8 @@ add_option web.listen-address
 add_option web.telemetry-path
 add_disable_metrics_options
 add_arg cloud
+add_flag cache
+add_option cache-ttl
 
 # Run the exporter process
 exec "${SNAP}/bin/openstack-exporter" "${args[@]}"

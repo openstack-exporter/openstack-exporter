@@ -32,6 +32,8 @@
 [ -z "$(snapctl get prefix)" ] && snapctl set prefix=
 [ -z "$(snapctl get web.listen-address)" ] && snapctl set web.listen-address=
 [ -z "$(snapctl get web.telemetry-path)" ] && snapctl set web.telemetry-path=
+[ -z "$(snapctl get cache)" ] && snapctl set cache=false
+[ -z "$(snapctl get cache-ttl)" ] && snapctl set cache-ttl=
 
 validate_bool() {
     key="$1"
@@ -62,3 +64,4 @@ validate_bool disable-service.placement
 validate_bool disable-service.volume
 validate_bool disable-slow-metrics
 validate_bool multi-cloud
+validate_bool cache

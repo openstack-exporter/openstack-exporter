@@ -42,7 +42,7 @@ var (
 	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
 	cacheEnable              = kingpin.Flag("cache", "Enable Cache globally").Default("false").Bool()
-	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL to expire cache(i.e: 10s, 11m, 1h)").Default("300s").Duration()
+	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 )
 
 func main() {

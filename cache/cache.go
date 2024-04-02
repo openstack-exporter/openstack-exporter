@@ -74,7 +74,7 @@ type InMemoryCache struct {
 	CloudCaches map[string]*CloudCache
 }
 
-// init ensures the values are not missing in the nasted map.
+// init ensures the values are not missing in the nested map.
 func (c *InMemoryCache) init(cloud *string, service *string, mfName *string) {
 	if c.CloudCaches == nil {
 		c.CloudCaches = make(map[string]*CloudCache)
@@ -116,6 +116,7 @@ func (c *InMemoryCache) GetCloudCache(cloud string) (CloudCache, bool) {
 func (c *InMemoryCache) SetCloudCache(cloud string, data CloudCache) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.init(&cloud, nil, nil)
 	data.Time = time.Now()
 	c.CloudCaches[cloud] = &data
 }
@@ -135,7 +136,6 @@ func (c *InMemoryCache) SetServiceCache(cloud string, service string, data Servi
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.init(&cloud, nil, nil)
-	c.CloudCaches[cloud].Time = time.Now()
 	data.Time = time.Now()
 	c.CloudCaches[cloud].ServiceCaches[service] = &data
 }
@@ -156,9 +156,7 @@ func (c *InMemoryCache) GetMetricFamilyCache(cloud string, service string, mfNam
 func (c *InMemoryCache) SetMetricFamilyCache(cloud string, service string, mfName string, data MetricFamilyCache) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.init(&cloud, &service, nil)
-	c.CloudCaches[cloud].Time = time.Now()
-	c.CloudCaches[cloud].ServiceCaches[service].Time = time.Now()
+	c.init(&cloud, &service, &mfName)
 	data.Time = time.Now()
 	c.CloudCaches[cloud].ServiceCaches[service].MetricFamilyCaches[mfName] = &data
 }

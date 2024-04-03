@@ -29,8 +29,7 @@ func mockEnableExporter(
 	uuidGenFunc func() (string, error),
 	logger log.Logger,
 ) (*exporters.OpenStackExporter, error) {
-	var exporter exporters.OpenStackExporter
-	exporter = &mockOpenStackExporter{
+	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
 	}
@@ -84,7 +83,7 @@ func TestCollectCache(t *testing.T) {
 	domainID := ""
 	logger := log.NewLogfmtLogger(os.Stdout)
 
-	CollectCache(
+	if err := CollectCache(
 		mockEnableExporter,
 		multiCloud,
 		services,
@@ -99,7 +98,9 @@ func TestCollectCache(t *testing.T) {
 		domainID,
 		nil,
 		logger,
-	)
+	); err != nil {
+		t.Errorf("Collect cache failed")
+	}
 
 	if _, exists := cache.GetServiceCache(cloud, "service-a"); !exists {
 		t.Errorf("Service cache was not set or retrieved properly")
@@ -125,12 +126,10 @@ func TestBufferFromCache(t *testing.T) {
 	registry.MustRegister(collector)
 
 	mfs, _ := registry.Gather()
-	mfOutputs := []string{}
 	for _, mf := range mfs {
 		cache.SetMetricFamilyCache(
 			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
 		)
-		mfOutputs = append(mfOutputs, mf.String())
 	}
 	buf, err := BufferFromCache(cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout))
 	if err != nil {
@@ -162,12 +161,10 @@ func TestWriteCacheToResponse(t *testing.T) {
 	registry.MustRegister(collector)
 
 	mfs, _ := registry.Gather()
-	mfOutputs := []string{}
 	for _, mf := range mfs {
 		cache.SetMetricFamilyCache(
 			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
 		)
-		mfOutputs = append(mfOutputs, mf.String())
 	}
 
 	req, err := http.NewRequest("GET", "/", nil)
@@ -177,9 +174,11 @@ func TestWriteCacheToResponse(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		WriteCacheToResponse(
+		if err := WriteCacheToResponse(
 			w, r, cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout),
-		)
+		); err != nil {
+			t.Errorf("WriteCacheToResponse failed")
+		}
 	}
 	handler := http.HandlerFunc(handlerFunc)
 	handler.ServeHTTP(rr, req)

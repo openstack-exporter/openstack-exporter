@@ -223,7 +223,9 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 
 		// Get data from cache
 		if *cacheEnable {
-			cache.WriteCacheToResponse(w, r, cloud, enabledServices, logger)
+			if err := cache.WriteCacheToResponse(w, r, cloud, enabledServices, logger); err != nil {
+				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
+			}
 			return
 		}
 
@@ -262,7 +264,9 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 
 		// Get data from cache
 		if *cacheEnable {
-			cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger)
+			if err := cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger); err != nil {
+				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
+			}
 			return
 		}
 

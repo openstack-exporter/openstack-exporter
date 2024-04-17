@@ -1,11 +1,16 @@
-FROM quay.io/prometheus/busybox:latest
+FROM golang:1.22 AS build
 
-ARG OS=linux
-ARG ARCH=amd64
+WORKDIR /
 
-LABEL maintainer="Jorge Niedbalski <jnr@metaklass.org>"
+COPY . .
 
-COPY .build/$OS-$ARCH/openstack-exporter /bin/openstack-exporter
+RUN go mod download && CGO_ENABLED=0 go build -o /openstack-exporter .
 
-ENTRYPOINT ["/bin/openstack-exporter"]
-EXPOSE     9180
+FROM gcr.io/distroless/base:nonroot as openstack-exporter
+
+LABEL maintainer="Jorge Niedbalski <j@bearmetal.xyz>"
+
+COPY --from=build /openstack-exporter /bin/openstack-exporter
+
+ENTRYPOINT [ "/bin/openstack-exporter" ]
+EXPOSE 9180

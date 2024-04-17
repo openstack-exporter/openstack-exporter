@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
@@ -57,29 +58,71 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
-	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type"}, Fn: nil, Slow: true},
+	{Name: "volume_gb", Labels: []string{"id", "name", "status", "availability_zone", "bootable", "tenant_id", "user_id", "volume_type", "server_id"}, Fn: nil},
+	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
 	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backup_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
-func NewCinderExporter(config *ExporterConfig) (*CinderExporter, error) {
+func NewCinderExporter(config *ExporterConfig, logger log.Logger) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
 			Name:           "cinder",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 
 	for _, metric := range defaultCinderMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 
 	return &exporter, nil
+}
+
+func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type VolumeWithExt struct {
+		volumes.Volume
+		volumetenants.VolumeTenantExt
+	}
+
+	var allVolumes []VolumeWithExt
+
+	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
+		AllTenants: true,
+	}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	err = volumes.ExtractVolumesInto(allPagesVolumes, &allVolumes)
+	if err != nil {
+		return err
+	}
+
+	// Volume status metrics
+	for _, volume := range allVolumes {
+		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
+		} else {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+		}
+	}
+	return nil
 }
 
 func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
@@ -105,11 +148,17 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
 		prometheus.GaugeValue, float64(len(allVolumes)))
 
-	// Volume status metrics
+	// Volume_gb metrics
 	for _, volume := range allVolumes {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType)
+		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
+				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
+		} else {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
+				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, "")
+		}
 	}
 
 	volume_status_counter := map[string]int{
@@ -190,8 +239,10 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		if service.State == "up" {
 			state = 1
 		}
-		if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
-			return err
+		if !exporter.ExporterConfig.DisableCinderAgentUUID {
+			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+				return err
+			}
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
@@ -245,7 +296,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -267,6 +318,12 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_max_gb"].Metric,
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
 
 	}
 

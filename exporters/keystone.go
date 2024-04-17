@@ -3,6 +3,7 @@ package exporters
 import (
 	"strconv"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -20,21 +21,25 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "users", Fn: ListUsers},
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
-	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name"}},
+	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name", "parent_id"}},
 	{Name: "regions", Fn: ListRegions},
 }
 
-func NewKeystoneExporter(config *ExporterConfig) (*KeystoneExporter, error) {
+func NewKeystoneExporter(config *ExporterConfig, logger log.Logger) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
 			Name:           "identity",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 
 	for _, metric := range defaultKeystoneMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 
@@ -62,7 +67,7 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
-	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -74,12 +79,14 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
-	for _, p := range allProjects {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
-			prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
-			p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name)
+	if !exporter.MetricIsDisabled("project_info") {
+		for _, p := range allProjects {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
+				prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
+				p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name,
+				p.ParentID)
+		}
 	}
-
 	return nil
 }
 
@@ -104,7 +111,7 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allUsers []users.User
 
-	allPagesUser, err := users.List(exporter.Client, users.ListOpts{}).AllPages()
+	allPagesUser, err := users.List(exporter.Client, users.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -122,7 +129,7 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allGroups []groups.Group
 
-	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
+	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}

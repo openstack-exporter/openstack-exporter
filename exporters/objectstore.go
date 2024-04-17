@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/containers"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/prometheus/client_golang/prometheus"
@@ -15,17 +16,21 @@ var defaultObjectStoreMetrics = []Metric{
 	{Name: "bytes", Labels: []string{"container_name"}, Fn: nil},
 }
 
-func NewObjectStoreExporter(config *ExporterConfig) (*ObjectStoreExporter, error) {
+func NewObjectStoreExporter(config *ExporterConfig, logger log.Logger) (*ObjectStoreExporter, error) {
 	exporter := ObjectStoreExporter{
 		BaseOpenStackExporter{
 			Name:           "object_store",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 
 	for _, metric := range defaultObjectStoreMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
 

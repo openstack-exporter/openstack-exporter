@@ -1,12 +1,15 @@
 package exporters
 
 import (
+	"bytes"
+	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
-	"regexp"
 	"strings"
 
+	"github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/gnocchi"
@@ -152,10 +155,12 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 		return openstack.NewObjectStorageV1(pClient, eo)
 	case "orchestration":
 		return openstack.NewOrchestrationV1(pClient, eo)
+	case "placement":
+		return openstack.NewPlacementV1(pClient, eo)
 	case "sharev2":
 		return openstack.NewSharedFileSystemV2(pClient, eo)
 	case "volume":
-		volumeVersion := "2"
+		volumeVersion := "3"
 		if v := cloud.VolumeAPIVersion; v != "" {
 			volumeVersion = v
 		}
@@ -186,23 +191,6 @@ func GetEndpointType(endpointType string) gophercloud.Availability {
 	return gophercloud.AvailabilityPublic
 }
 
-// IP4or6 return version of ip address
-func IP4or6(s string) string {
-	re := regexp.MustCompile(`:\d*$`)
-	found := re.FindAllString(s, 1)
-	s = strings.TrimSuffix(s, found[0])
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case '.':
-			return "tcp4"
-		case ':':
-			return "tcp6"
-		}
-	}
-	return "tcp"
-
-}
-
 // RemoveElements remove not needed elements
 func RemoveElements(slice []string, drop []string) []string {
 	res := []string{}
@@ -219,4 +207,29 @@ func RemoveElements(slice []string, drop []string) []string {
 		}
 	}
 	return res
+}
+
+func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
+	// Get the SystemCertPool, continue with an empty pool on error
+	trustedCAs, err := x509.SystemCertPool()
+	if trustedCAs == nil {
+		level.Info(logger).Log("msg", "Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
+		trustedCAs = x509.NewCertPool()
+	}
+	// check if string is not a path, but PEM contents such as: -----BEGIN CERTIFICATE-----
+	if strings.HasPrefix(caCertFile, "---") {
+		ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace([]byte(caCertFile)))
+		if !ok {
+			return nil, fmt.Errorf("failed to add cert to trusted roots")
+		}
+	} else {
+		pemFile, err := os.ReadFile(caCertFile)
+		if err != nil {
+			return nil, err
+		}
+		if ok := trustedCAs.AppendCertsFromPEM(bytes.TrimSpace(pemFile)); !ok {
+			return nil, fmt.Errorf("error parsing CA Cert from: %s", caCertFile)
+		}
+	}
+	return trustedCAs, nil
 }

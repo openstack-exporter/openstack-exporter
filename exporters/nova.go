@@ -3,10 +3,14 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"os"
 	"sort"
+	"strconv"
 
+	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
@@ -14,6 +18,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -53,12 +58,23 @@ func mapServerStatus(current string) int {
 	return -1
 }
 
+func searchFlavorIDbyName(flavorName interface{}, allFlavors []flavors.Flavor) string {
+	// flavor name is unique, making it suitable as the key for searching
+	for _, f := range allFlavors {
+		if f.Name == flavorName {
+			return f.ID
+		}
+	}
+	return ""
+}
+
 type NovaExporter struct {
 	BaseOpenStackExporter
 }
 
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
+	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
@@ -73,25 +89,41 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id"}},
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
+	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 }
 
-func NewNovaExporter(config *ExporterConfig) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
 			ExporterConfig: *config,
+			logger:         logger,
 		},
 	}
 	for _, metric := range defaultNovaMetrics {
+		if exporter.isDeprecatedMetric(&metric) {
+			continue
+		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, nil)
+			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+		}
+	}
+
+	envMicroversion, present := os.LookupEnv("OS_COMPUTE_API_VERSION")
+	if present {
+		exporter.Client.Microversion = envMicroversion
+	} else {
+
+		microversion, err := apiversions.Get(config.Client, "v2.1").Extract()
+		if err == nil {
+			exporter.Client.Microversion = microversion.Version
 		}
 	}
 
@@ -126,7 +158,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
-	allPagesHypervisors, err := hypervisors.List(exporter.Client).AllPages()
+	allPagesHypervisors, err := hypervisors.List(exporter.Client, nil).AllPages()
 	if err != nil {
 		return err
 	}
@@ -200,7 +232,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFlavors []flavors.Flavor
 
-	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{}).AllPages()
+	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -212,6 +244,10 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+	for _, f := range allFlavors {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor"].Metric,
+			prometheus.GaugeValue, 1, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
+	}
 
 	return nil
 }
@@ -260,6 +296,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	}
 
 	var allServers []ServerWithExt
+	var allFlavors []flavors.Flavor
 
 	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
 	if err != nil {
@@ -273,14 +310,38 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
-
-	// Server status metrics
-	for _, server := range allServers {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-			prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID, server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]))
+	apiMv, _ := strconv.ParseFloat(exporter.Client.Microversion, 64)
+	if apiMv >= 2.46 {
+		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
+		// ***
+		// If micro-version is greater than 2.46,
+		// we need to retrieve all flavors once again and search for flavor_id by name,
+		// as flavor_id are only available in server's detail data up to that version.
+		allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
+		if err != nil {
+			return err
+		}
+		allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
+		if err != nil {
+			return err
+		}
 	}
-
+	// Server status metrics
+	if !exporter.MetricIsDisabled("server_status") {
+		for _, server := range allServers {
+			if len(allFlavors) == 0 {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+					server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName)
+			} else {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName)
+			}
+		}
+	}
 	return nil
 }
 
@@ -304,7 +365,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
 		return err
 	}
@@ -338,6 +399,30 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
 			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
+	}
+
+	return nil
+}
+
+// ListUsage add metrics about usage
+func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesUsage, err := usage.AllTenants(exporter.Client, usage.AllTenantsOpts{Detailed: true}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allTenantsUsage, err := usage.ExtractAllTenants(allPagesUsage)
+	if err != nil {
+		return err
+	}
+
+	// Server status metrics
+	for _, tenant := range allTenantsUsage {
+		for _, server := range tenant.ServerUsages {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_local_gb"].Metric,
+				prometheus.GaugeValue, float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
+		}
+
 	}
 
 	return nil

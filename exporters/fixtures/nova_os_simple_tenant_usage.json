@@ -1,0 +1,71 @@
+{
+    "tenant_usages": [
+        {
+            "tenant_id": "110f6313d2d346b4aa90eabe4970b62a",
+            "server_usages": [
+                {
+                    "hours": 2.777777777777778e-9,
+                    "flavor": "om-c1m1d10",
+                    "instance_id": "27bb2854-b06a-48f5-ab4e-139817b8b8ff",
+                    "name": "openstack-monitoring-0",
+                    "tenant_id": "110f6313d2d346b4aa90eabe4970b62a",
+                    "memory_mb": 1024,
+                    "local_gb": 10,
+                    "vcpus": 1,
+                    "started_at": "2021-01-20T13:43:42.000000",
+                    "ended_at": null,
+                    "state": "active",
+                    "uptime": 164825
+                },
+                {
+                    "hours": 2.777777777777778e-9,
+                    "flavor": "om-c1m1d10",
+                    "instance_id": "2dbdf831-4ffa-485b-8020-216655fb5c7d",
+                    "name": "openstack-monitoring-3",
+                    "tenant_id": "110f6313d2d346b4aa90eabe4970b62a",
+                    "memory_mb": 1024,
+                    "local_gb": 10,
+                    "vcpus": 1,
+                    "started_at": "2021-01-20T13:43:35.000000",
+                    "ended_at": null,
+                    "state": "active",
+                    "uptime": 164832
+                },
+                {
+                    "hours": 2.777777777777778e-9,
+                    "flavor": "om-c1m1d10",
+                    "instance_id": "6c773231-6532-447d-b651-9e0d1518b31d",
+                    "name": "openstack-monitoring-1",
+                    "tenant_id": "110f6313d2d346b4aa90eabe4970b62a",
+                    "memory_mb": 1024,
+                    "local_gb": 10,
+                    "vcpus": 1,
+                    "started_at": "2021-01-20T13:43:35.000000",
+                    "ended_at": null,
+                    "state": "active",
+                    "uptime": 164832
+                },
+                {
+                    "hours": 2.777777777777778e-9,
+                    "flavor": "om-c1m1d10",
+                    "instance_id": "f99bb4a3-90ff-46fa-b8ec-2ef6ac1f3b7d",
+                    "name": "openstack-monitoring-2-prod-zone",
+                    "tenant_id": "110f6313d2d346b4aa90eabe4970b62a",
+                    "memory_mb": 1024,
+                    "local_gb": 10,
+                    "vcpus": 1,
+                    "started_at": "2021-01-20T13:43:44.000000",
+                    "ended_at": null,
+                    "state": "active",
+                    "uptime": 164823
+                }
+            ],
+            "total_local_gb_usage": 1.1111111111111112e-7,
+            "total_vcpus_usage": 1.1111111111111112e-8,
+            "total_memory_mb_usage": 0.000011377777777777779,
+            "total_hours": 1.1111111111111112e-8,
+            "start": "2021-01-22T11:30:47.018085",
+            "stop": "2021-01-22T11:30:47.018095"
+        }
+    ]
+}

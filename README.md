@@ -256,6 +256,7 @@ openstack_identity_project_info|is_domain="false",description="This is a project
 openstack_identity_groups|region="RegionOne"|1.0 (float)
 openstack_identity_regions|region="RegionOne"|1.0 (float)
 openstack_object_store_objects|region="RegionOne",container_name="test2"|1.0 (float)
+openstack_object_store_bytes|region="RegionOne",container_name="test2"|1.0 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"} |1.27843913| Only if --collect-metric-time is passed
 
 ## Example metrics

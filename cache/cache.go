@@ -81,26 +81,10 @@ func (c *InMemoryCache) init(cloud *string, service *string, mfName *string) {
 	}
 	if cloud != nil {
 		if _, ok := c.CloudCaches[*cloud]; !ok {
-			c.CloudCaches[*cloud] = &CloudCache{
-				Time:          time.Now(),
-				ServiceCaches: make(map[string]*ServiceCache),
-			}
+			cloudCache := NewCloudCache()
+			c.CloudCaches[*cloud] = &cloudCache
 		}
-	}
-	if cloud != nil && service != nil {
-		if _, ok := c.CloudCaches[*cloud].ServiceCaches[*service]; !ok {
-			c.CloudCaches[*cloud].ServiceCaches[*service] = &ServiceCache{
-				Time:               time.Now(),
-				MetricFamilyCaches: make(map[string]*MetricFamilyCache),
-			}
-		}
-	}
-	if cloud != nil && service != nil && mfName != nil {
-		if _, ok := c.CloudCaches[*cloud].ServiceCaches[*service].MetricFamilyCaches[*mfName]; !ok {
-			c.CloudCaches[*cloud].ServiceCaches[*service].MetricFamilyCaches[*mfName] = &MetricFamilyCache{
-				Time: time.Now(),
-			}
-		}
+		c.CloudCaches[*cloud].Init(service, mfName)
 	}
 }
 
@@ -180,4 +164,40 @@ func (c *InMemoryCache) FlushExpiredCloudCaches(ttl time.Duration) {
 			delete(c.CloudCaches, key)
 		}
 	}
+}
+
+func NewCloudCache() CloudCache {
+	cloud := CloudCache{}
+	cloud.Init(nil, nil)
+	return cloud
+}
+
+func (c *CloudCache) Init(service *string, mfName *string) {
+	if c.ServiceCaches == nil {
+		c.ServiceCaches = make(map[string]*ServiceCache)
+	}
+	if c.Time.IsZero() {
+		c.Time = time.Now()
+	}
+	if service != nil {
+		if _, ok := c.ServiceCaches[*service]; !ok {
+			c.ServiceCaches[*service] = &ServiceCache{
+				Time:               time.Now(),
+				MetricFamilyCaches: make(map[string]*MetricFamilyCache),
+			}
+		}
+	}
+	if service != nil && mfName != nil {
+		if _, ok := c.ServiceCaches[*service].MetricFamilyCaches[*mfName]; !ok {
+			c.ServiceCaches[*service].MetricFamilyCaches[*mfName] = &MetricFamilyCache{
+				Time: time.Now(),
+			}
+		}
+	}
+}
+
+func (c *CloudCache) SetMetricFamilyCache(service string, mfName string, data MetricFamilyCache) {
+	c.Init(&service, &mfName)
+	data.Time = time.Now()
+	c.ServiceCaches[service].MetricFamilyCaches[mfName] = &data
 }

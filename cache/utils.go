@@ -45,15 +45,19 @@ func CollectCache(
 	}
 
 	for _, cloud := range clouds {
-		registry := prometheus.NewPedanticRegistry()
+		level.Info(logger).Log("msg", "Start update cache data", "cloud", cloud)
+		// Update cloud's cache once finish all exporters' collection job.
+		cloudCache := NewCloudCache()
+
 		for _, service := range enabledServices {
-			level.Info(logger).Log("msg", "Start update cache data", "cloud", cloud, "service", service)
+			level.Info(logger).Log("msg", "Start collect cache data", "cloud", cloud, "service", service)
 			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				level.Error(logger).Log("err", "enabling exporter for service failed", "cloud", cloud, "service", service, "error", err)
 				continue
 			}
+			registry := prometheus.NewPedanticRegistry()
 			registry.MustRegister(*exp)
 
 			metricFamilies, err := registry.Gather()
@@ -62,15 +66,21 @@ func CollectCache(
 				continue
 			}
 			for _, mf := range metricFamilies {
-				cacheBackend.SetMetricFamilyCache(
-					cloud, service, *mf.Name, MetricFamilyCache{
-						MF: mf,
+				cloudCache.SetMetricFamilyCache(
+					service,
+					*mf.Name,
+					MetricFamilyCache{
+						MF:   mf,
+						Time: time.Now(),
 					},
 				)
 				level.Debug(logger).Log("msg", "Update cache data", "cloud", cloud, "service", service, "MetricsFamily", mf.Name)
 			}
 			level.Info(logger).Log("msg", "Finish update cache data", "cloud", cloud, "service", service)
 		}
+		cacheBackend.SetCloudCache(
+			cloud, cloudCache,
+		)
 	}
 
 	return nil

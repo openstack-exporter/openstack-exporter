@@ -19,7 +19,22 @@ import (
 
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
-	enableExporterFunc func(string, string, string, []string, string, bool, bool, bool, bool, string, func() (string, error), log.Logger) (*exporters.OpenStackExporter, error), multiCloud bool, services map[string]*bool, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) error {
+	enableExporterFunc func(
+		string, string, string, []string, string, bool, bool, bool, bool, string, func() (string, error), log.Logger,
+	) (*exporters.OpenStackExporter, error),
+	multiCloud bool,
+	services map[string]*bool, prefix,
+	cloud string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime bool,
+	disableSlowMetrics bool,
+	disableDeprecatedMetrics bool,
+	disableCinderAgentUUID bool,
+	domainID string,
+	uuidGenFunc func() (string, error),
+	logger log.Logger,
+) error {
 	level.Info(logger).Log("msg", "Run collect cache job")
 	cacheBackend := GetCache()
 

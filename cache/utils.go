@@ -5,6 +5,7 @@ package cache
 import (
 	"bytes"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/go-kit/log"
@@ -46,7 +47,8 @@ func CollectCache(
 
 	for _, cloud := range clouds {
 		level.Info(logger).Log("msg", "Start update cache data", "cloud", cloud)
-		// Update cloud's cache once finish all exporters' collection job.
+		// Update cloud's cache once finish all exporters' collection job. so we won't mix the old
+		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
 		for _, service := range enabledServices {
@@ -67,11 +69,10 @@ func CollectCache(
 			}
 			for _, mf := range metricFamilies {
 				cloudCache.SetMetricFamilyCache(
-					service,
 					*mf.Name,
 					MetricFamilyCache{
-						MF:   mf,
-						Time: time.Now(),
+						Service: service,
+						MF:      mf,
 					},
 				)
 				level.Debug(logger).Log("msg", "Update cache data", "cloud", cloud, "service", service, "MetricsFamily", mf.Name)
@@ -90,18 +91,18 @@ func CollectCache(
 func BufferFromCache(cloud string, services []string, logger log.Logger) (bytes.Buffer, error) {
 	cacheBackend := GetCache()
 	var buf bytes.Buffer
-	for _, service := range services {
-		serviceCacheData, exists := cacheBackend.GetServiceCache(cloud, service)
-		if exists {
-			for name, mfCache := range serviceCacheData.MetricFamilyCaches {
-				level.Debug(logger).Log("msg", "Get metric from cache", "cloud", cloud, "service", service, "name", name)
-				_, err := expfmt.MetricFamilyToText(&buf, mfCache.MF)
-				if err != nil {
-					return buf, err
-				}
-			}
-		} else {
-			level.Debug(logger).Log("msg", "Missing service cache", "cloud", cloud, "service", service)
+	cloudCache, exists := cacheBackend.GetCloudCache(cloud)
+	if !exists {
+		level.Debug(logger).Log("msg", "Cache not exists", "cloud", cloud)
+		return buf, nil
+	}
+
+	for _, mfCache := range cloudCache.MetricFamilyCaches {
+		if exists := slices.Contains(services, mfCache.Service); !exists {
+			continue
+		}
+		if _, err := expfmt.MetricFamilyToText(&buf, mfCache.MF); err != nil {
+			return buf, err
 		}
 	}
 	return buf, nil

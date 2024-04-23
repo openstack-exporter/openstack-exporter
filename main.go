@@ -114,6 +114,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 
 	// Collect cache data in the beginning.
 	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger); err != nil {
+		level.Error(logger).Log("err", err)
 		errChan <- err
 		return
 	}

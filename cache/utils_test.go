@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"slices"
 	"testing"
 	"time"
 
@@ -64,7 +65,7 @@ func (m *mockOpenStackExporter) MetricIsDisabled(name string) bool {
 
 func TestCollectCache(t *testing.T) {
 	cache := GetCache()
-	defer cache.Clear()
+	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
 
 	multiCloud := false
 	services := make(map[string]*bool)
@@ -102,19 +103,27 @@ func TestCollectCache(t *testing.T) {
 		t.Errorf("Collect cache failed")
 	}
 
-	if _, exists := cache.GetServiceCache(cloud, "service-a"); !exists {
+	cloudCache, exists := cache.GetCloudCache(cloud)
+	if !exists {
+		t.Errorf("Cloud cache was not set or retrieved properly")
+	}
+
+	includeServices := []string{}
+	for _, mf := range cloudCache.MetricFamilyCaches {
+		includeServices = append(includeServices, mf.Service)
+	}
+	if exists := slices.Contains(includeServices, "service-a"); !exists {
 		t.Errorf("Service cache was not set or retrieved properly")
 	}
 
-	if _, exists := cache.GetServiceCache(cloud, "service-b"); exists {
-		t.Errorf("Service cache was set or retrieved properly")
+	if exists := slices.Contains(includeServices, "service-b"); exists {
+		t.Errorf("Service cache was not set or retrieved properly")
 	}
-
 }
 
 func TestBufferFromCache(t *testing.T) {
 	cache := GetCache()
-	defer cache.Clear()
+	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
 	cloudName := "testCloud"
 	serviceName := "testService"
 
@@ -125,12 +134,16 @@ func TestBufferFromCache(t *testing.T) {
 	}
 	registry.MustRegister(collector)
 
+	cloudCache := NewCloudCache()
+
 	mfs, _ := registry.Gather()
 	for _, mf := range mfs {
-		cache.SetMetricFamilyCache(
-			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
+		cloudCache.SetMetricFamilyCache(
+			*mf.Name, MetricFamilyCache{MF: mf, Service: serviceName},
 		)
 	}
+	cache.SetCloudCache(cloudName, cloudCache)
+
 	buf, err := BufferFromCache(cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout))
 	if err != nil {
 		t.Error(err)
@@ -149,7 +162,7 @@ func TestBufferFromCache(t *testing.T) {
 
 func TestWriteCacheToResponse(t *testing.T) {
 	cache := GetCache()
-	defer cache.Clear()
+	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
 	cloudName := "testCloud"
 	serviceName := "testService"
 
@@ -161,11 +174,13 @@ func TestWriteCacheToResponse(t *testing.T) {
 	registry.MustRegister(collector)
 
 	mfs, _ := registry.Gather()
+	cloudCache := NewCloudCache()
 	for _, mf := range mfs {
-		cache.SetMetricFamilyCache(
-			cloudName, serviceName, *mf.Name, MetricFamilyCache{MF: mf},
+		cloudCache.SetMetricFamilyCache(
+			*mf.Name, MetricFamilyCache{MF: mf, Service: serviceName},
 		)
 	}
+	cache.SetCloudCache(cloudName, cloudCache)
 
 	req, err := http.NewRequest("GET", "/", nil)
 	if err != nil {
@@ -200,12 +215,10 @@ func TestWriteCacheToResponse(t *testing.T) {
 // TestFlushExpiredCloudCaches tests flushing of expired cloud caches.
 func TestFlushExpiredCloudCaches(t *testing.T) {
 	cache := GetCache()
-	defer cache.Clear()
-	cloudData := CloudCache{
-		ServiceCaches: make(map[string]*ServiceCache),
-	}
+	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	cloudCache := NewCloudCache()
 	cloudName := "expiredCloud"
-	cache.SetCloudCache(cloudName, cloudData)
+	cache.SetCloudCache(cloudName, cloudCache)
 
 	time.Sleep(1 * time.Nanosecond)
 	FlushExpiredCloudCaches(1 * time.Nanosecond)

@@ -113,7 +113,7 @@ func BufferFromCache(cloud string, services []string, logger log.Logger) (bytes.
 	}
 
 	for _, mfCache := range cloudCache.MetricFamilyCaches {
-		if exists := slices.Contains(services, mfCache.Service); !exists {
+		if !slices.Contains(services, mfCache.Service) {
 			continue
 		}
 		if _, err := expfmt.MetricFamilyToText(&buf, mfCache.MF); err != nil {

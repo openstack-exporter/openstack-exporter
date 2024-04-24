@@ -112,11 +112,11 @@ func TestCollectCache(t *testing.T) {
 	for _, mf := range cloudCache.MetricFamilyCaches {
 		includeServices = append(includeServices, mf.Service)
 	}
-	if exists := slices.Contains(includeServices, "service-a"); !exists {
+	if !slices.Contains(includeServices, "service-a") {
 		t.Errorf("Service cache was not set or retrieved properly")
 	}
 
-	if exists := slices.Contains(includeServices, "service-b"); exists {
+	if slices.Contains(includeServices, "service-b") {
 		t.Errorf("Service cache was not set or retrieved properly")
 	}
 }

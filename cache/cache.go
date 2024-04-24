@@ -1,10 +1,33 @@
-// The cache package provides a concurrency-safe in-memory caching system designed for storing and managing
-// hierarchical cache data related to cloud environments, services, and metric families. The system
-// is designed around a singleton pattern, ensuring only one instance of the cache backend is created and used
-// throughout the application. It supports operations for setting and retrieving cache data at different levels
-// (cloud, service, and metric family), with each level structured to contain relevant data and timestamps for
-// cache validity checks. Additionally, the cache provides functionality to flush data based on age (TTL) and
-// to clear the entire cache.
+/*
+This package implements a caching system for storing and managing cloud-based metric families.
+It provides a thread-safe, singleton CacheBackend which manages CloudCache objects.
+Each CloudCache can hold multiple MetricFamilyCaches, indexed by the metric family name to avoid duplication.
+The system includes functionality to:
+- Initialize and retrieve a singleton CacheBackend
+- Add or update MetricFamily data in a CloudCache
+- Retrieve a CloudCache by cloud name
+- Set a new CloudCache in the backend with a current timestamp
+- Flush CloudCaches that have not been updated within a specified time-to-live (TTL) period.
+
+An example for using the cloud cache functionality:
+
+```go
+// Set MetricFamily in CloudCache object
+newCloudCache := NewCloudCache()
+newCloudCache.SetMetricFamilyCache("mf-name-a", metricFamilyA)
+newCloudCache.SetMetricFamilyCache("mf-name-a", metricFamilyB)
+
+// Get singleton cache backend and atomically set this object in the cache, also setting the cache timestamp.
+cache := GetCache()
+cache.SetCloudCache("cloudNameA", newCloudCache)
+
+// Get cache data from the cache backend
+mycache, exists := cache.GetCloudCache("cloudNameA")
+
+// To ensure caches don't get too stale, call this with a ttl to delete old cloud caches
+FlushExpiredCloudCaches(TTL)
+```
+*/
 
 package cache
 
@@ -19,12 +42,13 @@ var singleCache CacheBackend
 var once sync.Once
 
 type CacheBackend interface {
-	// Set cache with cloud name.
-	SetCloudCache(string, CloudCache)
-	// Get cache with cloud name.
-	GetCloudCache(string) (CloudCache, bool)
+	// Set CloudCache in CacheBackend with cloud name.
+	SetCloudCache(cloud string, cloudCache CloudCache)
+	// Get CloudCache from CacheBackend with cloud name.
+	GetCloudCache(cloud string) (CloudCache, bool)
 	// Flush expired caches based on cloud's update time.
-	FlushExpiredCloudCaches(time.Duration)
+	// Cache will be deleted if their update time is older than the ttl.
+	FlushExpiredCloudCaches(ttl time.Duration)
 }
 
 // MetricFamily Cache Data
@@ -35,7 +59,10 @@ type MetricFamilyCache struct {
 
 // Cloud Cache Data
 type CloudCache struct {
-	Time               time.Time
+	// Latest update time.
+	Time time.Time
+	// The key of MetricFamilyCaches is metric family name
+	// to avoid duplicate MFs in the map.
 	MetricFamilyCaches map[string]*MetricFamilyCache
 }
 
@@ -70,6 +97,7 @@ func (c *InMemoryCache) init(cloud *string) {
 	}
 }
 
+// GetCloudCache return CloudCache from in-memory map.
 func (c *InMemoryCache) GetCloudCache(cloud string) (CloudCache, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -79,6 +107,8 @@ func (c *InMemoryCache) GetCloudCache(cloud string) (CloudCache, bool) {
 	return CloudCache{}, false
 }
 
+// SetCloudCache store CloudCache in a in-memory map with key cloud's name.
+// The CloudCache's Time attribute will be updated to now.
 func (c *InMemoryCache) SetCloudCache(cloud string, data CloudCache) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -87,6 +117,8 @@ func (c *InMemoryCache) SetCloudCache(cloud string, data CloudCache) {
 	c.CloudCaches[cloud] = &data
 }
 
+// Flush expired caches based on cloud's update time.
+// Cache will be deleted if their update time is older than the ttl.
 func (c *InMemoryCache) FlushExpiredCloudCaches(ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -99,6 +131,7 @@ func (c *InMemoryCache) FlushExpiredCloudCaches(ttl time.Duration) {
 	}
 }
 
+// NewCloudCache return a new CloudCache object.
 func NewCloudCache() CloudCache {
 	cloud := CloudCache{
 		Time:               time.Now(),
@@ -107,7 +140,7 @@ func NewCloudCache() CloudCache {
 	return cloud
 }
 
+// SetMetricFamilyCache updates the MetricFamilyCaches by associating a key, which is the metric family name.
 func (c *CloudCache) SetMetricFamilyCache(mfName string, data MetricFamilyCache) {
-	c.Time = time.Now()
 	c.MetricFamilyCaches[mfName] = &data
 }

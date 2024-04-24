@@ -65,7 +65,7 @@ func (m *mockOpenStackExporter) MetricIsDisabled(name string) bool {
 
 func TestCollectCache(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 
 	multiCloud := false
 	services := make(map[string]*bool)
@@ -113,17 +113,17 @@ func TestCollectCache(t *testing.T) {
 		includeServices = append(includeServices, mf.Service)
 	}
 	if !slices.Contains(includeServices, "service-a") {
-		t.Errorf("Service cache was not set or retrieved properly")
+		t.Errorf("service-a should be included in the cache data")
 	}
 
 	if slices.Contains(includeServices, "service-b") {
-		t.Errorf("Service cache was not set or retrieved properly")
+		t.Errorf("service-b should not be included in the cache data")
 	}
 }
 
 func TestBufferFromCache(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudName := "testCloud"
 	serviceName := "testService"
 
@@ -162,7 +162,7 @@ func TestBufferFromCache(t *testing.T) {
 
 func TestWriteCacheToResponse(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudName := "testCloud"
 	serviceName := "testService"
 
@@ -215,7 +215,7 @@ func TestWriteCacheToResponse(t *testing.T) {
 // TestFlushExpiredCloudCaches tests flushing of expired cloud caches.
 func TestFlushExpiredCloudCaches(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudCache := NewCloudCache()
 	cloudName := "expiredCloud"
 	cache.SetCloudCache(cloudName, cloudCache)

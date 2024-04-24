@@ -2,19 +2,24 @@ package cache
 
 import (
 	"testing"
-
 	"time"
 )
+
+func newSingleCache() {
+	singleCache = &InMemoryCache{
+		CloudCaches: make(map[string]*CloudCache),
+	}
+}
 
 // TestSetAndGetCloudCache tests setting and getting cloud cache data.
 func TestInMemoryCachSetAndGetCloudCache(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudName := "testCloud"
 
 	_, exists := cache.GetCloudCache(cloudName)
 	if exists {
-		t.Errorf("Cloud cache not retrieved properly")
+		t.Errorf("Cloud cache reported to exist, but it shouldn't")
 	}
 	cloudData := NewCloudCache()
 
@@ -29,12 +34,12 @@ func TestInMemoryCachSetAndGetCloudCache(t *testing.T) {
 // TestFlushExpiredCloudCaches tests flushing of expired cloud caches.
 func TestInMemoryCacheFlushExpiredCloudCaches(t *testing.T) {
 	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudData := NewCloudCache()
 	cloudName := "expiredCloud"
 	cache.SetCloudCache(cloudName, cloudData)
 
-	time.Sleep(1 * time.Nanosecond)
+	time.Sleep(2 * time.Nanosecond)
 	cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
 
 	if _, exists := cache.GetCloudCache(cloudName); exists {
@@ -44,13 +49,13 @@ func TestInMemoryCacheFlushExpiredCloudCaches(t *testing.T) {
 
 func TestInMemoryCachInit(t *testing.T) {
 	cache := InMemoryCache{}
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
+	defer newSingleCache()
 	cloudName := "testCloud"
 
 	cache.init(&cloudName)
 	_, exists := cache.GetCloudCache(cloudName)
 	if !exists {
-		t.Errorf("Init function not works properly")
+		t.Errorf("Init function did not init cache for cloud")
 	}
 }
 
@@ -60,13 +65,11 @@ func TestNewCloudCache(t *testing.T) {
 		t.Errorf("Time doesn't been setup properly")
 	}
 	if cloudCache.MetricFamilyCaches == nil {
-		t.Errorf("MetricFamilyCaches doesn't been setup properly")
+		t.Errorf("MetricFamilyCaches not initialised correctly")
 	}
 }
 
 func TestCloudCacheSetMetricFamilyCache(t *testing.T) {
-	cache := GetCache()
-	defer cache.FlushExpiredCloudCaches(1 * time.Nanosecond)
 	cloudCache := NewCloudCache()
 
 	serviceName := "testService"
@@ -76,9 +79,9 @@ func TestCloudCacheSetMetricFamilyCache(t *testing.T) {
 	)
 
 	if cloudCache.Time.IsZero() {
-		t.Errorf("Time doesn't been setup properly")
+		t.Errorf("CloudCache.Time was not set")
 	}
-	if l := len(cloudCache.MetricFamilyCaches); l != 1 {
-		t.Errorf("SetMetricFamilyCache not set value properly")
+	if len(cloudCache.MetricFamilyCaches) != 1 {
+		t.Errorf("SetMetricFamilyCache value not set")
 	}
 }

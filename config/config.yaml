@@ -1,0 +1,61 @@
+exporter:
+  os_client_config: "/etc/openstack/clouds.yaml"
+  default_port: 9180
+  multy_cloud:
+    is_enabled: false
+    description: "Toggle the multiple cloud scraping mode under /probe?cloud="
+  cloud:
+    name: otc
+    description: "Name or id of the cloud to gather metrics from"
+  api:
+    openstack:
+      metrics:
+        uri: "/openstack/metrics"
+        description: "URI path to expose metrics"
+      prefix:
+        name: "openstack"
+        description: "Prefix for metrics"
+      endpoint_type:
+        type: public
+        description: "Openstack endpoint type to use (i.e: public, internal, admin)"
+      collect_time:
+        is_enabled: false
+        description: "Time spent collecting each metric"
+      services:
+        - "network"
+      #        - "compute"
+      #        - "image"
+      #        - "volume"
+      #        - "identity"
+      #        - "object-store"
+      #        - "load-balancer"
+      #        - "container-infra"
+      #        - "dns"
+      #        - "baremetal"
+      #        - "gnocchi"
+      #        - "database"
+      #        - "orchestration"
+      #        - "placement"
+      slow:
+        skip: false
+        description: "Disable slow metrics for performance reasons"
+      deprecated:
+        skip: false
+        description: "Disable deprecated metrics"
+    opentelekomcloud:
+      metrics:
+        uri: "/opentelekomcloud/metrics"
+        description: "uri path to expose metrics"
+      prefix:
+        name: "opentelekomcloud"
+        description: "Prefix for metrics"
+      endpoint_type:
+        type: public
+        description: "openstack endpoint type to use (i.e: public, internal, admin)"
+      services: []
+      slow:
+        skip: false
+        description: "Disable slow metrics for performance reasons"
+      deprecated:
+        skip: false
+        description: "Disable deprecated metrics"

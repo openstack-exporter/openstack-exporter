@@ -77,7 +77,7 @@ func New(logger log.Logger) (*ExporterConfig, error) {
 		level.Warn(logger).Log("msg", "apimon-opentelekomcloud-exporter: warning: OS_EXPORTER_CONFIG_PATH is empty, trying to load from default path: ./config/config.yaml")
 		path = defaultConfigPath
 	}
-	data, err := processFileOrURL(path)
+	data, err := processFileOrURL(path, logger)
 	if err != nil {
 		level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: error reading YAML file: %v", err)
 	}
@@ -89,12 +89,12 @@ func New(logger log.Logger) (*ExporterConfig, error) {
 	return &config, nil
 }
 
-func processFileOrURL(input string) ([]byte, error) {
+func processFileOrURL(input string, logger log.Logger) ([]byte, error) {
 	var data []byte
 	var err error
 
 	if isURL(input) {
-		data, err = downloadFile(input)
+		data, err = downloadFile(input, logger)
 		if err != nil {
 			return nil, fmt.Errorf("failed to download file: %w", err)
 		}
@@ -117,7 +117,7 @@ func isURL(str string) bool {
 	return err == nil && u.Scheme != "" && u.Host != ""
 }
 
-func downloadFile(fileURL string) ([]byte, error) {
+func downloadFile(fileURL string, logger log.Logger) ([]byte, error) {
 	resp, err := http.Get(fileURL)
 	if err != nil {
 		return nil, err
@@ -125,7 +125,7 @@ func downloadFile(fileURL string) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: failed to close file: %v", err)
 		}
 	}(resp.Body)
 

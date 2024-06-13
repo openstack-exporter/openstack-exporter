@@ -18,14 +18,14 @@ type ExporterConfig struct {
 }
 
 type Exporter struct {
-	OSClientConfig string            `yaml:"os_client_config"`
-	Port           int               `yaml:"default_port"`
-	MultyCloud     *MultyCloudConfig `yaml:"multy_cloud"`
-	Cloud          *CloudConfig      `yaml:"cloud"`
-	Api            *ApiConfigGroup   `yaml:"api"`
+	OSClientConfig string               `yaml:"os_client_config"`
+	Port           int                  `yaml:"default_port"`
+	MultiCloud     *MultiCloudConfig    `yaml:"multi_cloud"`
+	Cloud          *CloudConfig         `yaml:"cloud"`
+	Api            map[string]ApiConfig `yaml:"api"`
 }
 
-type MultyCloudConfig struct {
+type MultiCloudConfig struct {
 	IsEnabled   bool   `yaml:"is_enabled"`
 	Description string `yaml:"description"`
 }
@@ -33,11 +33,6 @@ type MultyCloudConfig struct {
 type CloudConfig struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
-}
-
-type ApiConfigGroup struct {
-	OpenStack        *ApiConfig `yaml:"openstack"`
-	OpenTelekomCloud *ApiConfig `yaml:"opentelekomcloud"`
 }
 
 type ApiConfig struct {

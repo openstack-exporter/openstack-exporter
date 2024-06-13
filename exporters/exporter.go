@@ -75,7 +75,7 @@ type BaseOpenStackExporter struct {
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var endpointOpts map[string]gophercloud.EndpointOpts
+var EndpointOpts map[string]gophercloud.EndpointOpts
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -206,7 +206,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		tlsConfig.InsecureSkipVerify = true
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	} else if config.CACertFile != "" {
-		certPool, err := additionalTLSTrust(config.CACertFile, logger)
+		certPool, err := AdditionalTLSTrust(config.CACertFile, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "Failed to include additional certificates to ca-trust", "err", err)
 		}

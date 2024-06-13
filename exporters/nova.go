@@ -352,9 +352,9 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
 	// to create an openstack client for the Identity/Keystone API.
 	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
+	if v, ok := EndpointOpts["identity"]; ok {
 		eo = v
-	} else if v, ok := endpointOpts["compute"]; ok {
+	} else if v, ok := EndpointOpts["compute"]; ok {
 		eo = v
 	} else {
 		return errors.New("No EndpointOpts available to create Identity client")

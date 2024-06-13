@@ -24,7 +24,7 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 
 	// Fixes #42
 	options.AllowReauth = true
-
+	options.Scope.DomainName = options.DomainName
 	client, err := openstack.NewClient(options.IdentityEndpoint)
 	if err != nil {
 		return nil, err
@@ -109,10 +109,10 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	}
 
 	// Keep a map of the EndpointOpts for each service
-	if endpointOpts == nil {
-		endpointOpts = make(map[string]gophercloud.EndpointOpts)
+	if EndpointOpts == nil {
+		EndpointOpts = make(map[string]gophercloud.EndpointOpts)
 	}
-	endpointOpts[service] = eo
+	EndpointOpts[service] = eo
 
 	switch service {
 	case "baremetal":
@@ -209,7 +209,7 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
+func AdditionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {

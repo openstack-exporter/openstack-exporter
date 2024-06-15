@@ -1,4 +1,4 @@
-package exporters
+package openstack
 
 // This test does not work because httpmock cannot emulate gnocchi api (/v1/metric) Pagination properly.
 // Refer: https://gnocchi.xyz/rest.html#pagination

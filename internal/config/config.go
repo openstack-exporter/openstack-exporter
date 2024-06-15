@@ -74,17 +74,17 @@ type Skip struct {
 func New(logger log.Logger) (*ExporterConfig, error) {
 	path := os.Getenv("OS_EXPORTER_CONFIG_PATH")
 	if path == "" {
-		level.Warn(logger).Log("msg", "apimon-opentelekomcloud-exporter: warning: OS_EXPORTER_CONFIG_PATH is empty, trying to load from default path: ./config/config.yaml")
+		level.Warn(logger).Log("msg", "opentelekomcloud-exporter: warning: OS_EXPORTER_CONFIG_PATH is empty, trying to load from default path: ./config/config.yaml")
 		path = defaultConfigPath
 	}
 	data, err := processFileOrURL(path, logger)
 	if err != nil {
-		level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: error reading YAML file: %v", err)
+		level.Error(logger).Log("msg", "opentelekomcloud-exporter: error: error reading YAML file: %v", err)
 	}
 	var config ExporterConfig
 	err = yaml.Unmarshal(data, &config)
 	if err != nil {
-		level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: error unmarshalling YAML: %v", err)
+		level.Error(logger).Log("msg", "opentelekomcloud-exporter: error: error unmarshalling YAML: %v", err)
 	}
 	return &config, nil
 }
@@ -125,7 +125,7 @@ func downloadFile(fileURL string, logger log.Logger) ([]byte, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-			level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: failed to close file: %v", err)
+			level.Error(logger).Log("msg", "opentelekomcloud-exporter: error: failed to close file: %v", err)
 		}
 	}(resp.Body)
 

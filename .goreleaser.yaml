@@ -3,7 +3,7 @@ before:
   hooks:
     - go mod download
 builds:
-  - binary: openstack-exporter
+  - binary: otc-exporter
     main: ./main.go
     goos:
       - linux

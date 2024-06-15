@@ -22,13 +22,13 @@ func main() {
 
 	conf, err := config.New(logger)
 	if err != nil {
-		level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: error loading config variables")
+		level.Error(logger).Log("msg", "opentelekomcloud-exporter: error: error loading config variables")
 		os.Exit(1)
 	}
 
 	level.Info(logger).Log("msg", "config", "values", conf)
 	if conf.Exporter.Cloud.Name == "" && !conf.Exporter.MultiCloud.IsEnabled {
-		level.Error(logger).Log("msg", "apimon-opentelekomcloud-exporter: error: required argument 'cloud' or 'multi_cloud' not provided in config")
+		level.Error(logger).Log("msg", "opentelekomcloud-exporter: error: required argument 'cloud' or 'multi_cloud' not provided in config")
 	}
 
 	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
@@ -40,17 +40,17 @@ func main() {
 
 	var links []web.LandingLinks
 
-	for _, api := range conf.Exporter.Api {
-		level.Info(logger).Log("msg", "apimon exporter started for "+api.Prefix.Name)
-		http.HandleFunc(api.Metrics.Uri, metricHandler(api, conf.Exporter.Cloud.Name, logger))
+	for key, api := range conf.Exporter.Api {
+		level.Info(logger).Log("msg", "exporter started for "+api.Prefix.Name)
+		http.HandleFunc(api.Metrics.Uri, metricHandler(key, api, conf.Exporter.Cloud.Name, logger))
 		links = append(links, web.LandingLinks{
 			Address: api.Metrics.Uri,
-			Text:    api.Prefix.Name + " Metrics",
+			Text:    api.Prefix.Name + " metrics",
 		})
 	}
 	landingConfig := web.LandingConfig{
-		Name:        "apimon_exporter",
-		Description: "Prometheus Exporter for OpenTelekomCloud Apimon",
+		Name:        "Exporter",
+		Description: "Prometheus Exporter for Openstack/OpenTelekomCloud",
 		Version:     version.Info(),
 		Links:       links,
 	}
@@ -74,7 +74,7 @@ func main() {
 	}
 }
 
-func metricHandler(api config.ApiConfig, cloud string, logger log.Logger) http.HandlerFunc {
+func metricHandler(name string, api config.ApiConfig, cloud string, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		level.Info(logger).Log("msg", "Starting apimon exporter version for cloud", "version", version.Info(), "cloud", cloud)
 		level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
@@ -87,7 +87,7 @@ func metricHandler(api config.ApiConfig, cloud string, logger log.Logger) http.H
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range api.Services {
-			exp, err := exporters.EnableExporter(service, api.Prefix.Name, cloud, []string{}, api.EndpointType.Type, *api.CollectTime.IsEnabled, *api.Slow.Skip, *api.Deprecated.Skip, false, "", nil, logger)
+			exp, err := exporters.EnableExporter(name, service, api.Prefix.Name, cloud, []string{}, api.EndpointType.Type, *api.CollectTime.IsEnabled, *api.Slow.Skip, *api.Deprecated.Skip, false, "", nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
@@ -99,8 +99,7 @@ func metricHandler(api config.ApiConfig, cloud string, logger log.Logger) http.H
 		}
 
 		if enabledExporters == 0 {
-			level.Error(logger).Log("err", "no exporter has been enabled, exiting")
-			os.Exit(-1)
+			level.Error(logger).Log("err", "no exporter has been enabled for API", "name", name)
 		}
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})

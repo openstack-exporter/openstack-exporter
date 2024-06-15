@@ -1,4 +1,4 @@
-package exporters
+package openstack
 
 import (
 	"errors"
@@ -20,7 +20,7 @@ type BaseOpenStackTestSuite struct {
 	suite.Suite
 	ServiceName string
 	Prefix      string
-	Exporter    *OpenStackExporter
+	Exporter    *Exporter
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {

@@ -18,23 +18,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Login to GitHub Container Registry
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.CI_USERNAME }}
-          password: ${{ secrets.CI_PAT }}
-
-      - name: Set up QEMU
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/setup-qemu-action@v2
-
-      - name: Set up Docker Buildx
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: docker/setup-buildx-action@v2
-
+#
+#      - name: Login to GitHub Container Registry
+#        if: ${{ github.event_name != 'pull_request' }}
+#        uses: docker/login-action@v2
+#        with:
+#          registry: ghcr.io
+#          username: ${{ secrets.CI_USERNAME }}
+#          password: ${{ secrets.CI_PAT }}
+#
+#      - name: Set up QEMU
+#        if: ${{ github.event_name != 'pull_request' }}
+#        uses: docker/setup-qemu-action@v2
+#
+#      - name: Set up Docker Buildx
+#        if: ${{ github.event_name != 'pull_request' }}
+#        uses: docker/setup-buildx-action@v2
+#
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
@@ -51,33 +51,33 @@ jobs:
       - name: Unit tests
         run: |
           go test -v -covermode=atomic -coverprofile=coverage.out ./...
-
-      - name: Extract metadata from ghcr image
-        if: ${{ github.event_name != 'pull_request' }}
-        id: meta-github-image
-        uses: docker/metadata-action@v4
-        with:
-          images: ghcr.io/${{ github.repository }}
-          tags: |
-            type=semver,pattern={{version}}
-            type=ref,event=pr
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
-
-      - name: Build docker image
-        uses: docker/build-push-action@v3
-        if: ${{ github.event_name != 'pull_request' }}
-        with:
-          context: .
-          platforms: linux/amd64, linux/arm64, linux/s390x
-          push: true
-          tags: ${{ steps.meta-github-image.outputs.tags }}
-          labels: ${{ steps.meta-github-image.outputs.labels }}
-
-      - name: Run Goreleaser
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: goreleaser/goreleaser-action@v3
-        with:
-          version: latest
-          args: release --rm-dist
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#
+#      - name: Extract metadata from ghcr image
+#        if: ${{ github.event_name != 'pull_request' }}
+#        id: meta-github-image
+#        uses: docker/metadata-action@v4
+#        with:
+#          images: ghcr.io/${{ github.repository }}
+#          tags: |
+#            type=semver,pattern={{version}}
+#            type=ref,event=pr
+#            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+#
+#      - name: Build docker image
+#        uses: docker/build-push-action@v3
+#        if: ${{ github.event_name != 'pull_request' }}
+#        with:
+#          context: .
+#          platforms: linux/amd64, linux/arm64, linux/s390x
+#          push: true
+#          tags: ${{ steps.meta-github-image.outputs.tags }}
+#          labels: ${{ steps.meta-github-image.outputs.labels }}
+#
+#      - name: Run Goreleaser
+#        if: ${{ github.event_name != 'pull_request' }}
+#        uses: goreleaser/goreleaser-action@v3
+#        with:
+#          version: latest
+#          args: release --clean
+#        env:
+#          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

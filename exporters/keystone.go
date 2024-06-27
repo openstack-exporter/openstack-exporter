@@ -18,6 +18,7 @@ type KeystoneExporter struct {
 
 var defaultKeystoneMetrics = []Metric{
 	{Name: "domains", Fn: ListDomains},
+	{Name: "domain_info", Labels: []string{"description", "enabled", "id", "name"}},
 	{Name: "users", Fn: ListUsers},
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
@@ -60,7 +61,13 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
-
+  if !exporter.MetricIsDisabled("domain_info") {
+    for _, d := range allDomains {
+      ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
+        prometheus.GaugeValue, 1.0,
+        d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
+    }
+  }
 	return nil
 }
 

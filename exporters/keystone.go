@@ -2,8 +2,7 @@ package exporters
 
 import (
 	"strconv"
-
-  "strings"
+	"strings"
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"

@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
@@ -58,6 +59,21 @@ func mapServerStatus(current string) int {
 	return -1
 }
 
+func mapToString(m map[string]string) string {
+    var sb strings.Builder
+    for k, v := range m {
+        sb.WriteString(k)
+        sb.WriteString("=")
+        sb.WriteString(v)
+        sb.WriteString(",")
+    }
+    result := sb.String()
+    if len(result) > 0 {
+        result = result[:len(result)-1]
+    }
+    return result
+}
+
 func searchFlavorIDbyName(flavorName interface{}, allFlavors []flavors.Flavor) string {
 	// flavor name is unique, making it suitable as the key for searching
 	for _, f := range allFlavors {
@@ -89,7 +105,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}},
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "metadata"}},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
@@ -333,12 +349,12 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
 					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName)
+					server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName, mapToString(server.Metadata))
 			} else {
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
 					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
 					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName)
+					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName, mapToString(server.Metadata))
 			}
 		}
 	}

@@ -44,3 +44,6 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+// NOTE: Temporary for testing purposes
+replace github.com/gophercloud/gophercloud/v2 => github.com/Sharpz7/gophercloud/v2 v2.0.0-20240719114351-6815cc5264b6

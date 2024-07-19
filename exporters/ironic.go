@@ -15,7 +15,7 @@ type IronicExporter struct {
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk"}, Fn: ListNodes},
+	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
 }
 
 // NewIronicExporter : returns a pointer to IronicExporter

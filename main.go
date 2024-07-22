@@ -37,6 +37,7 @@ var (
 	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
 	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
+	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
 )
 
 func main() {
@@ -110,6 +111,10 @@ func main() {
 		level.Info(logger).Log("msg", "Gathering metrics for configured domain ID", "domain_id", *domainID)
 	}
 
+	if *tenantID != "" {
+		level.Info(logger).Log("msg", "Gathering metrics for configured tenant ID", "tenant_id", *tenantID)
+	}
+
 	srv := &http.Server{}
 	if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
 		level.Error(logger).Log("err", err)
@@ -150,7 +155,7 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
 
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
 			if err != nil {
 				level.Error(logger).Log("err", "Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -178,7 +183,7 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 		enabledExporters := 0
 		for service, disabled := range services {
 			if !*disabled {
-				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
+				exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
 				if err != nil {
 					// Log error and continue with enabling other exporters
 					level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)

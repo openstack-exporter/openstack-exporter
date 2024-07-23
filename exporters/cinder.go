@@ -97,10 +97,15 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	var allVolumes []VolumeWithExt
+	var volumeListOption volumes.ListOpts
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
-		AllTenants: true,
-	}).AllPages()
+	if exporter.TenantID == "" {
+		volumeListOption = volumes.ListOpts{AllTenants: true}
+	} else {
+		volumeListOption = volumes.ListOpts{TenantID: exporter.TenantID}
+	}
+
+	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOption).AllPages()
 	if err != nil {
 		return err
 	}

@@ -15,7 +15,7 @@ type IronicExporter struct {
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk"}, Fn: ListNodes},
+	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
 }
 
 // NewIronicExporter : returns a pointer to IronicExporter
@@ -76,7 +76,7 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
 			strconv.FormatBool(node.Maintenance), strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
-			deployKernel, deployRamdisk)
+			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason)
 	}
 
 	return nil

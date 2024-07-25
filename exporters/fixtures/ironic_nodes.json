@@ -118,7 +118,9 @@
       "chassis_uuid": "e502b695-a037-4613-a9ec-dd2fefa4eff5",
       "owner": null,
       "instance_info": {},
-      "allocation_uuid": null
+      "allocation_uuid": null,
+      "retired": true,
+      "retired_reason": "No longer needed"
     },
     {
       "target_power_state": null,
@@ -240,7 +242,9 @@
       "chassis_uuid": "3d3c84db-88e8-4130-b082-ed344ac09be0",
       "owner": null,
       "instance_info": {},
-      "allocation_uuid": null
+      "allocation_uuid": null,
+      "retired": true,
+      "retired_reason": "No longer needed"
     },
     {
       "target_power_state": null,
@@ -366,7 +370,9 @@
       "chassis_uuid": "a771c716-ee9b-4aa5-bc7c-c60883d10003",
       "owner": null,
       "instance_info": {},
-      "allocation_uuid": null
+      "allocation_uuid": null,
+      "retired": true,
+      "retired_reason": "No longer needed"
     },
     {
       "target_power_state": null,
@@ -504,7 +510,9 @@
         "swap_mb": "0",
         "nova_host_id": "ironic01"
       },
-      "allocation_uuid": null
+      "allocation_uuid": null,
+      "retired": true,
+      "retired_reason": "No longer needed"
     },
     {
       "target_power_state": null,
@@ -638,7 +646,9 @@
         "swap_mb": "0",
         "nova_host_id": "ironic01"
       },
-      "allocation_uuid": null
+      "allocation_uuid": null,
+      "retired": true,
+      "retired_reason": "No longer needed"
     }
   ]
 }

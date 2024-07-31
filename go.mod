@@ -11,6 +11,7 @@ require (
 	github.com/gophercloud/gophercloud/v2 v2.7.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
 	github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da
+	github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.4.0
 	github.com/prometheus/client_golang v1.16.0

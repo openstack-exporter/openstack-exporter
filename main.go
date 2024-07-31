@@ -74,6 +74,11 @@ func main() {
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
+	if _, err := os.Stat(*osClientConfig); err != nil {
+		level.Error(logger).Log("err", "Could not read config file", "error", err)
+		os.Exit(1)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

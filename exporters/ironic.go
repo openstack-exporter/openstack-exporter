@@ -1,11 +1,12 @@
 package exporters
 
 import (
+	"context"
 	"strconv"
 
 	"github.com/go-kit/log"
-	"github.com/gophercloud/gophercloud/openstack/baremetal/apiversions"
-	"github.com/gophercloud/gophercloud/openstack/baremetal/v1/nodes"
+	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/apiversions"
+	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -37,10 +38,14 @@ func NewIronicExporter(config *ExporterConfig, logger log.Logger) (*IronicExport
 		}
 	}
 
+	// Remove v1 from ResourceBase
+	config.ClientV2.ResourceBase = config.ClientV2.Endpoint
+
 	// Set Microversion workaround
-	microversion, err := apiversions.Get(config.Client, "v1").Extract()
+	microversion, err := apiversions.Get(context.TODO(), config.ClientV2, "v1").Extract()
 	if err == nil {
-		exporter.Client.Microversion = microversion.Version
+		config.ClientV2.Microversion = microversion.Version
+		config.Client.Microversion = microversion.Version
 	}
 
 	return &exporter, nil
@@ -48,7 +53,7 @@ func NewIronicExporter(config *ExporterConfig, logger log.Logger) (*IronicExport
 
 // ListNodes : list nodes
 func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.Client, nodes.ListOpts{}).AllPages()
+	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}

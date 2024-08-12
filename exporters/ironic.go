@@ -38,7 +38,9 @@ func NewIronicExporter(config *ExporterConfig, logger log.Logger) (*IronicExport
 		}
 	}
 
-	// Remove v1 from ResourceBase
+	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
+	// For whatever reason, it adds a v1 field to the URL,
+	// so it sends requests to /v1/v1 if left unfixed.
 	config.ClientV2.ResourceBase = config.ClientV2.Endpoint
 
 	// Set Microversion workaround

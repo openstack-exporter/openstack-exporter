@@ -20,7 +20,7 @@ import (
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
 	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, func() (string, error), log.Logger,
+		string, string, string, []string, string, bool, bool, bool, bool, string, string, func() (string, error), log.Logger,
 	) (*exporters.OpenStackExporter, error),
 	multiCloud bool,
 	services map[string]*bool, prefix,
@@ -32,6 +32,7 @@ func CollectCache(
 	disableDeprecatedMetrics bool,
 	disableCinderAgentUUID bool,
 	domainID string,
+	tenantID string,
 	uuidGenFunc func() (string, error),
 	logger log.Logger,
 ) error {
@@ -68,7 +69,7 @@ func CollectCache(
 
 		for _, service := range enabledServices {
 			level.Info(logger).Log("msg", "Start collect cache data", "cloud", cloud, "service", service)
-			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, nil, logger)
+			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				level.Error(logger).Log("err", "enabling exporter for service failed", "cloud", cloud, "service", service, "error", err)

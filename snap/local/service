@@ -28,6 +28,7 @@ add_arg() {
 }
 
 
+add_flag cache
 add_flag collect-metric-time
 add_flag disable-cinder-agent-uuid
 add_flag disable-deprecated-metrics
@@ -47,6 +48,7 @@ add_flag disable-service.placement
 add_flag disable-service.volume
 add_flag disable-slow-metrics
 add_flag multi-cloud
+add_option cache-ttl
 add_option endpoint-type
 add_option domain-id
 add_option log.format

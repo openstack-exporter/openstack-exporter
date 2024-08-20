@@ -193,6 +193,10 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	}
 
 	for _, hypervisor := range allHypervisors {
+		// Remove any unreachable hypervisors as it breaks the rest of the loop
+		if hypervisor == nil {
+			continue
+		}
 		availabilityZone := ""
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val

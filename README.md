@@ -108,6 +108,9 @@ Flags:
                                  Disable UUID generation for Cinder agents
       --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
+      --[no-]cache               Enable Cache mechanism globally
+      --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
+
       --[no-]disable-service.network  
                                  Disable the network service exporter
       --[no-]disable-service.compute  
@@ -232,6 +235,21 @@ openstack_nova_limits_memory_used
 openstack_nova_limits_instances_max
 openstack_nova_limits_instances_used
 ```
+
+### Cache mechanism
+
+Enabling the cache with `--cache` changes the exporter's metric collection and delivery:
+
+- **Background Service:**
+  - Collects metrics at the start and subsequently every half cache TTL.
+  - Updates the cache backend after completing each collection cycle.
+  - Flushes expired cache data every cache TTL.
+
+- **Exporter API:**
+  - Returns no data if the cache is empty or expired.
+  - Retrieves and returns cached data from the backend.
+
+
 
 ## Contributing
 

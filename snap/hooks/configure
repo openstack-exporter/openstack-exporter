@@ -3,6 +3,8 @@
 # Register config variables if unset,
 # so users can see available variables by running
 # `sudo snap get golang-openstack-exporter`.
+[ -z "$(snapctl get cache)" ] && snapctl set cache=false
+[ -z "$(snapctl get cache-ttl)" ] && snapctl set cache-ttl=
 [ -z "$(snapctl get cloud)" ] && snapctl set cloud=
 [ -z "$(snapctl get collect-metric-time)" ] && snapctl set collect-metric-time=false
 [ -z "$(snapctl get disable-cinder-agent-uuid)" ] && snapctl set disable-cinder-agent-uuid=false
@@ -62,3 +64,4 @@ validate_bool disable-service.placement
 validate_bool disable-service.volume
 validate_bool disable-slow-metrics
 validate_bool multi-cloud
+validate_bool cache

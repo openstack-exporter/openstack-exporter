@@ -2,7 +2,7 @@ package exporters
 
 import (
 	"strconv"
-
+	"strings"
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
@@ -18,10 +18,11 @@ type KeystoneExporter struct {
 
 var defaultKeystoneMetrics = []Metric{
 	{Name: "domains", Fn: ListDomains},
+	{Name: "domain_info", Labels: []string{"description", "enabled", "id", "name"}},
 	{Name: "users", Fn: ListUsers},
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
-	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name", "parent_id"}},
+	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name", "parent_id", "tags"}},
 	{Name: "regions", Fn: ListRegions},
 }
 
@@ -60,7 +61,13 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
-
+  if !exporter.MetricIsDisabled("domain_info") {
+    for _, d := range allDomains {
+      ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
+        prometheus.GaugeValue, 1.0,
+        d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
+    }
+  }
 	return nil
 }
 
@@ -84,7 +91,7 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
 				prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
 				p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name,
-				p.ParentID)
+				p.ParentID, strings.Join(p.Tags, ","))
 		}
 	}
 	return nil

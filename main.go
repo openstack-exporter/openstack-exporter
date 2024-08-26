@@ -24,7 +24,7 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
@@ -73,6 +73,11 @@ func main() {
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
 		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
+	}
+
+	if _, err := os.Stat(*osClientConfig); err != nil {
+		level.Error(logger).Log("err", "Could not read config file", "error", err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())

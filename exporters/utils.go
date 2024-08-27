@@ -14,6 +14,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/utils/gnocchi"
 	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/grafana/regexp"
 )
 
 func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
@@ -232,4 +233,13 @@ func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, e
 		}
 	}
 	return trustedCAs, nil
+}
+
+// SanitizeLabelName replaces anything that doesn't match
+// client_label.LabelNameRE with an underscore.
+//
+// This has been copied from Prometheus sources at util/strutil/strconv.go
+var invalidLabelCharRE = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+func SanitizeLabelName(name string) string {
+	return invalidLabelCharRE.ReplaceAllString(name, "_")
 }

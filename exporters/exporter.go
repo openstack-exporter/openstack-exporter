@@ -188,6 +188,20 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
+func (exporter *BaseOpenStackExporter) UpdateMetric(name string, labels []string, constLabels prometheus.Labels) {
+	if constLabels == nil {
+		constLabels = prometheus.Labels{}
+	}
+	if metric, ok := exporter.Metrics[name]; ok {
+		level.Info(exporter.logger).Log("msg", "Updating metric for exporter", "metric", name, "exporter", exporter.Name)
+		metric.Metric = prometheus.NewDesc(
+			prometheus.BuildFQName(exporter.GetName(), "", name),
+			name, labels, constLabels)
+	}
+}
+
+
+
 func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error

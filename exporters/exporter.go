@@ -43,8 +43,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -67,6 +67,7 @@ type ExporterConfig struct {
 	DisableDeprecatedMetrics bool
 	DisableCinderAgentUUID   bool
 	DomainID                 string
+	TenantID                 string
 }
 
 type BaseOpenStackExporter struct {
@@ -193,7 +194,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -245,6 +246,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		DisableDeprecatedMetrics: disableDeprecatedMetrics,
 		DisableCinderAgentUUID:   disableCinderAgentUUID,
 		DomainID:                 domainID,
+		TenantID:                 tenantID,
 	}
 
 	switch name {
@@ -275,7 +277,20 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	case "orchestration":
 		exporter, err = NewHeatExporter(&exporterConfig, logger)
 	case "placement":
-		exporter, err = NewPlacementExporter(&exporterConfig, logger)
+		{
+			exporter, err = NewPlacementExporter(&exporterConfig, logger)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+	case "sharev2":
+		{
+			exporter, err = NewManilaExporter(&exporterConfig, logger)
+			if err != nil {
+				return nil, err
+			}
+		}
 	default:
 		return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)
 	}

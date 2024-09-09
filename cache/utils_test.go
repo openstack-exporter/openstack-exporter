@@ -27,6 +27,7 @@ func mockEnableExporter(
 	disableDeprecatedMetrics bool,
 	disableCinderAgentUUID bool,
 	domainID string,
+	tenantID string,
 	uuidGenFunc func() (string, error),
 	logger log.Logger,
 ) (*exporters.OpenStackExporter, error) {
@@ -82,6 +83,7 @@ func TestCollectCache(t *testing.T) {
 	disableDeprecatedMetrics := true
 	disableCinderAgentUUID := false
 	domainID := ""
+	tenantID := ""
 	logger := log.NewLogfmtLogger(os.Stdout)
 
 	if err := CollectCache(
@@ -97,6 +99,7 @@ func TestCollectCache(t *testing.T) {
 		disableDeprecatedMetrics,
 		disableCinderAgentUUID,
 		domainID,
+		tenantID,
 		nil,
 		logger,
 	); err != nil {

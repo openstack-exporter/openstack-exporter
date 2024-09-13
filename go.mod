@@ -6,9 +6,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-kit/log v0.2.1
 	github.com/gophercloud/gophercloud v1.14.0
-	github.com/gophercloud/gophercloud/v2 v2.1.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
-	github.com/gophercloud/utils/v2 v2.0.0-20240725072607-4241c98875fa
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.3.1
 	github.com/prometheus/client_golang v1.16.0
@@ -26,7 +24,6 @@ require (
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
-	github.com/gofrs/uuid/v5 v5.2.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect

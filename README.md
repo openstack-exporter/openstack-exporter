@@ -372,6 +372,19 @@ openstack_placement_resource_reserved| hostname="compute-01",resourcetype="DISK_
 openstack_placement_resource_total| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|80 (float)
 openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|40 (float)
 openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"}                                                                                                                                                                                                                                                 |1.27843913| Only if --collect-metric-time is passed
+openstack_nova_quota_fixed_ips quota_fixed_ips|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_floating_ips quota_floating_ips|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_injected_file_content_bytes quota_injected_file_content_bytes|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_injected_file_path_bytes quota_injected_file_path_bytes|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_injected_files quota_injected_files|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_instances quota_instances|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_key_pairs quota_key_pairs|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_metadata_items quota_metadata_items|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_ram quota_ram|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_security_group_rules quota_security_group_rules|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_security_groups quota_security_groups|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_server_group_members quota_server_group_members|tenant="admin",type="in_use"| 0 (float)             |
+openstack_nova_quota_server_groups quota_server_groups|tenant="admin",type="in_use"| 0 (float)             |
 
 ## Cinder Volume Status Description
 Index | Status

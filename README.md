@@ -139,6 +139,8 @@ Flags:
                                  Disable the orchestration service exporter
       --[no-]disable-service.placement
                                  Disable the placement service exporter
+      --[no-]disable-service.sharev2  
+                                 Disable the share service exporter
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...
                                  Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
@@ -409,6 +411,30 @@ Index | Status
 17 |uploading
 18 |retyping
 19 |extending
+
+## Manila Share Status Description
+Index | Status
+------|-------
+0 |creating
+1 |available
+2 |updating
+3 |migrating
+4 |migration_error
+5 |extending
+6 |deleting
+7 |shrinking
+8 |error
+9 |error_deleting
+10 |shrinking_error
+11 |reverting_error
+12 |restoring-backup
+13 |restoring
+14 |reverting
+15 |managing
+16 |unmanaging
+17 |reverting_to_snapshot
+18 |soft_deleting
+19 |inactive
 
 
 ## Example metrics
@@ -1317,6 +1343,40 @@ openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resource
 # HELP openstack_placement_up up
 # TYPE openstack_placement_up gauge
 openstack_placement_up 1
+# HELP openstack_sharev2_share_gb share_gb
+# TYPE openstack_sharev2_share_gb gauge
+openstack_sharev2_share_gb{availability_zone="az1",id="4be93e2e-ffff-4362-ffff-603e3ec2a5d6",name="share-test",share_proto="NFS",share_type="az1",share_type_name="",status="available"} 1
+# HELP openstack_sharev2_share_status share_status
+# TYPE openstack_sharev2_share_status gauge
+openstack_sharev2_share_status{id="4be93e2e-ffff-4362-ffff-603e3ec2a5d6",name="share-test",share_proto="NFS",share_type="az1",share_type_name="",size="1",status="available"} 1
+# HELP openstack_sharev2_share_status_counter share_status_counter
+# TYPE openstack_sharev2_share_status_counter gauge
+openstack_sharev2_share_status_counter{status="available"} 1
+openstack_sharev2_share_status_counter{status="creating"} 0
+openstack_sharev2_share_status_counter{status="deleting"} 0
+openstack_sharev2_share_status_counter{status="error"} 0
+openstack_sharev2_share_status_counter{status="error_deleting"} 0
+openstack_sharev2_share_status_counter{status="extending"} 0
+openstack_sharev2_share_status_counter{status="inactive"} 0
+openstack_sharev2_share_status_counter{status="managing"} 0
+openstack_sharev2_share_status_counter{status="migrating"} 0
+openstack_sharev2_share_status_counter{status="migration_error"} 0
+openstack_sharev2_share_status_counter{status="restoring"} 0
+openstack_sharev2_share_status_counter{status="reverting"} 0
+openstack_sharev2_share_status_counter{status="reverting_error"} 0
+openstack_sharev2_share_status_counter{status="reverting_to_snapshot"} 0
+openstack_sharev2_share_status_counter{status="shrinking"} 0
+openstack_sharev2_share_status_counter{status="shrinking_error"} 0
+openstack_sharev2_share_status_counter{status="soft_deleting"} 0
+openstack_sharev2_share_status_counter{status="unmanaging"} 0
+openstack_sharev2_share_status_counter{status="updating"} 0
+# HELP openstack_sharev2_shares_counter shares_counter
+# TYPE openstack_sharev2_shares_counter gauge
+openstack_sharev2_shares_counter 1
+# HELP openstack_sharev2_up up
+# TYPE openstack_sharev2_up gauge
+openstack_sharev2_up 1
+
 ```
 
 ### Communication

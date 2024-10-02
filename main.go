@@ -24,7 +24,7 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement"}
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
@@ -43,6 +43,7 @@ var (
 	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
 	cacheEnable              = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
+	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
 )
 
 func main() {
@@ -72,6 +73,11 @@ func main() {
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
 		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
+	}
+
+	if _, err := os.Stat(*osClientConfig); err != nil {
+		level.Error(logger).Log("err", "Could not read config file", "error", err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -113,7 +119,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID , nil, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		errChan <- err
 		return
@@ -122,7 +128,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
 				errChan <- err
 				return
 			}
@@ -179,6 +185,10 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 		level.Info(logger).Log("msg", "Gathering metrics for configured domain ID", "domain_id", *domainID)
 	}
 
+	if *tenantID != "" {
+		level.Info(logger).Log("msg", "Gathering metrics for configured tenant ID", "tenant_id", *tenantID)
+	}
+
 	srv := &http.Server{}
 	go func() {
 		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
@@ -232,7 +242,7 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
 			if err != nil {
 				level.Error(logger).Log("err", "Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -274,7 +284,7 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID,nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)

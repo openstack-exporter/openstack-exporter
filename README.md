@@ -56,7 +56,7 @@ The exporter can operate in 2 modes
 
 - A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
 - A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
-  And where `/metrics` URL is serving own exporter metrics 
+  And where `/metrics` URL is serving own exporter metrics
 
 You can build it by yourself by cloning this repository and run:
 
@@ -91,58 +91,58 @@ usage: openstack-exporter [<flags>] [<cloud>]
 
 Flags:
   -h, --[no-]help                Show context-sensitive help (also try --help-long and --help-man).
-      --web.telemetry-path="/metrics"  
+      --web.telemetry-path="/metrics"
                                  uri path to expose metrics
-      --os-client-config="/etc/openstack/clouds.yaml"  
+      --os-client-config="/etc/openstack/clouds.yaml"
                                  Path to the cloud configuration file
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
-      --[no-]collect-metric-time  
+      --[no-]collect-metric-time
                                  time spent collecting each metric
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
-      --[no-]disable-slow-metrics  
+      --[no-]disable-slow-metrics
                                  Disable slow metrics for performance reasons
-      --[no-]disable-deprecated-metrics  
+      --[no-]disable-deprecated-metrics
                                  Disable deprecated metrics
-      --[no-]disable-cinder-agent-uuid  
+      --[no-]disable-cinder-agent-uuid
                                  Disable UUID generation for Cinder agents
       --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
       --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
 
-      --[no-]disable-service.network  
+      --[no-]disable-service.network
                                  Disable the network service exporter
-      --[no-]disable-service.compute  
+      --[no-]disable-service.compute
                                  Disable the compute service exporter
-      --[no-]disable-service.image  
+      --[no-]disable-service.image
                                  Disable the image service exporter
-      --[no-]disable-service.volume  
+      --[no-]disable-service.volume
                                  Disable the volume service exporter
-      --[no-]disable-service.identity  
+      --[no-]disable-service.identity
                                  Disable the identity service exporter
-      --[no-]disable-service.object-store  
+      --[no-]disable-service.object-store
                                  Disable the object-store service exporter
-      --[no-]disable-service.load-balancer  
+      --[no-]disable-service.load-balancer
                                  Disable the load-balancer service exporter
-      --[no-]disable-service.container-infra  
+      --[no-]disable-service.container-infra
                                  Disable the container-infra service exporter
-      --[no-]disable-service.dns  
+      --[no-]disable-service.dns
                                  Disable the dns service exporter
-      --[no-]disable-service.baremetal  
+      --[no-]disable-service.baremetal
                                  Disable the baremetal service exporter
-      --[no-]disable-service.gnocchi  
+      --[no-]disable-service.gnocchi
                                  Disable the gnocchi service exporter
-      --[no-]disable-service.database  
+      --[no-]disable-service.database
                                  Disable the database service exporter
-      --[no-]disable-service.orchestration  
+      --[no-]disable-service.orchestration
                                  Disable the orchestration service exporter
-      --[no-]disable-service.placement  
+      --[no-]disable-service.placement
                                  Disable the placement service exporter
       --[no-]disable-service.sharev2  
                                  Disable the share service exporter
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
-      --web.listen-address=:9180 ...  
+      --web.listen-address=:9180 ...
                                  Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
       --web.config.file=""       [EXPERIMENTAL] Path to configuration file that can enable TLS or authentication. See:
                                  https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
@@ -258,6 +258,21 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
 
+
+### Operational Concerns
+
+#### OpenStack Exporter Compatibility with Older OpenStack Versions
+
+OpenStack evolves with new features and fields added to the API over time, leveraging a system of microversions to allow for incremental changes while maintaining backward compatibility. However, not all OpenStack deployments will be running the latest microversions, meaning certain fields or metrics may not be available when using an older version of OpenStack. Similarly, as newer OpenStack versions are adopted with more recent microversions, these changes are also seamlessly handled.
+
+OpenStack-Exporter is designed to handle both older and newer microversions gracefully by default. When querying an OpenStack environment, it ensures compatibility with various microversions, using fallback behaviors for missing fields introduced in newer microversions:
+
+- For Boolean Fields: Assumes the default value of false.
+- For Numeric Fields: Missing numeric fields will default to 0
+- For String Fields: Typically default to an empty string ("")
+
+This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
+
 ## Metrics
 
 #### Slow metrics
@@ -282,7 +297,7 @@ limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
 image_bytes | glance
 image_created_at | glance
-#### Deprecated Metrics 
+#### Deprecated Metrics
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------
 openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_cinder_volume_gb

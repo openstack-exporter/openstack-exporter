@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"strings"
@@ -10,6 +11,9 @@ import (
 	"net/netip"
 
 	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
@@ -17,6 +21,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/quotas"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -70,6 +75,18 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
+	{Name: "limits_network_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListNetworkLimits, Slow: true},
+	{Name: "limits_network_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_subnet_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_subnet_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_port_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_port_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_routers_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_routers_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_floating_ip_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_floating_ip_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_security_groups_ip_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_security_groups_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -564,6 +581,83 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
 			}
 		}
+	}
+
+	return nil
+}
+
+func ListNetworkLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["network"]; ok {
+		eo = v
+	} else {
+		return errors.New("No EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range allProjects {
+		// Limits are obtained from the neutron API, so now we can just use this exporter's client
+		limits, err := quotas.GetDetail(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_network_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Network.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_network_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Network.Used), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_subnet_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Subnet.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_subnet_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Subnet.Used), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_port_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Port.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_port_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Port.Used), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_routers_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Router.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_routers_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Router.Used), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_floating_ip_max"].Metric,
+			prometheus.GaugeValue, float64(limits.FloatingIP.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_floating_ip_used"].Metric,
+			prometheus.GaugeValue, float64(limits.FloatingIP.Used), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_security_groups_ip_max"].Metric,
+			prometheus.GaugeValue, float64(limits.SecurityGroup.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_security_groups_used"].Metric,
+			prometheus.GaugeValue, float64(limits.SecurityGroup.Used), p.Name, p.ID)
 	}
 
 	return nil

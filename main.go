@@ -119,7 +119,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID , nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		errChan <- err
 		return
@@ -284,7 +284,7 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID,nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)

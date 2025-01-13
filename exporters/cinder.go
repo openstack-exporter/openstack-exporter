@@ -1,20 +1,17 @@
 package exporters
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
 	"github.com/go-kit/log"
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -97,15 +94,9 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	var allVolumes []VolumeWithExt
-	var volumeListOption volumes.ListOpts
+	volumeListOptions := getVolumeListOptions(exporter.TenantID)
 
-	if exporter.TenantID == "" {
-		volumeListOption = volumes.ListOpts{AllTenants: true}
-	} else {
-		volumeListOption = volumes.ListOpts{TenantID: exporter.TenantID}
-	}
-
-	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOption).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -137,10 +128,9 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 
 	var allVolumes []VolumeWithExt
+	volumeListOptions := getVolumeListOptions(exporter.TenantID)
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
-		AllTenants: true,
-	}).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -207,8 +197,9 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSnapshots []snapshots.Snapshot
+	snapshotListOptions := getSnapshotListOptions(exporter.TenantID)
 
-	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
+	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshotListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -282,36 +273,13 @@ func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prome
 }
 
 func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
-
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["volume"]; ok {
-		eo = v
-	} else {
-		return errors.New("No EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(exporter)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range allProjects {
+		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "service", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
 		if err != nil {
@@ -333,4 +301,24 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 
 	return nil
+}
+
+func getVolumeListOptions(tenantID string) volumes.ListOpts {
+	var volumeListOptions volumes.ListOpts
+	if tenantID == "" {
+		volumeListOptions = volumes.ListOpts{AllTenants: true}
+	} else {
+		volumeListOptions = volumes.ListOpts{TenantID: tenantID}
+	}
+	return volumeListOptions
+}
+
+func getSnapshotListOptions(tenantID string) snapshots.ListOpts {
+	var snapshotListOptions snapshots.ListOpts
+	if tenantID == "" {
+		snapshotListOptions = snapshots.ListOpts{AllTenants: true}
+	} else {
+		snapshotListOptions = snapshots.ListOpts{TenantID: tenantID}
+	}
+	return snapshotListOptions
 }

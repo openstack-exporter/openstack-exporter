@@ -440,11 +440,8 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 }
 
 func getServerListOptions(tenantID string) servers.ListOpts {
-	var serverListOptions servers.ListOpts
 	if tenantID == "" {
-		serverListOptions = servers.ListOpts{AllTenants: true}
-	} else {
-		serverListOptions = servers.ListOpts{TenantID: tenantID}
+		return servers.ListOpts{AllTenants: true}
 	}
-	return serverListOptions
+	return servers.ListOpts{TenantID: tenantID}
 }

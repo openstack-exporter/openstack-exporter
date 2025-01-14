@@ -304,21 +304,15 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 }
 
 func getVolumeListOptions(tenantID string) volumes.ListOpts {
-	var volumeListOptions volumes.ListOpts
 	if tenantID == "" {
-		volumeListOptions = volumes.ListOpts{AllTenants: true}
-	} else {
-		volumeListOptions = volumes.ListOpts{TenantID: tenantID}
+		return volumes.ListOpts{AllTenants: true}
 	}
-	return volumeListOptions
+	return volumes.ListOpts{TenantID: tenantID}
 }
 
 func getSnapshotListOptions(tenantID string) snapshots.ListOpts {
-	var snapshotListOptions snapshots.ListOpts
 	if tenantID == "" {
-		snapshotListOptions = snapshots.ListOpts{AllTenants: true}
-	} else {
-		snapshotListOptions = snapshots.ListOpts{TenantID: tenantID}
+		return snapshots.ListOpts{AllTenants: true}
 	}
-	return snapshotListOptions
+	return snapshots.ListOpts{TenantID: tenantID}
 }

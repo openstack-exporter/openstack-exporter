@@ -62,6 +62,7 @@ func main() {
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+
 	logger := promlog.New(promlogConfig)
 
 	if *cloud == "" && !*multiCloud {
@@ -230,7 +231,7 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 
 		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
 		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
-		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
+		level.Info(logger).Log("msg", "Enabled services", "enabled_services", strings.Join(enabledServices, ","))
 
 		// Get data from cache
 		if *cacheEnable {

@@ -279,7 +279,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 
 	for _, p := range allProjects {
-		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "service", exporter.Name)
+		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
 		if err != nil {

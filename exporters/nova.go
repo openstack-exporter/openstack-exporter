@@ -351,7 +351,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	for _, p := range allProjects {
-		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "service", exporter.Name)
+		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 
 		// If projectID == configured tenantID we don't provide getOpts, since specifying
 		// a tenantID requires `os_compute_api:limits:other_project` permissions, even

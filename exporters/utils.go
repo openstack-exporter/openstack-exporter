@@ -357,8 +357,8 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 	// If possible, use the EndpointOpts specific to the identity service.
 	if v, ok := endpointOpts["identity"]; ok {
 		eo = v
-	} else if v, ok := endpointOpts[exporter.Client.Type]; ok {
-		level.Warn(exporter.logger).Log("msg", "Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.Client.Type)
+	} else if v, ok := endpointOpts[exporter.ServiceName]; ok {
+		level.Warn(exporter.logger).Log("msg", "Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
 		eo = v
 	} else {
 		return nil, errors.New("No EndpointOpts available to create Identity client")

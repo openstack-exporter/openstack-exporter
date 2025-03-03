@@ -61,7 +61,16 @@ The exporter can operate in 2 modes
 You can build it by yourself by cloning this repository and run:
 
 ```sh
-go build -o ./openstack-exporter .
+# LDFLAGS are used to set the version information
+VERSION=$(cat VERSION)
+REVISION=$(git rev-parse --short HEAD)
+BRANCH=$(git rev-parse --abbrev-ref HEAD)
+BUILD_USER=$(whoami)
+BUILD_DATE=$(date -u '+%Y%m%d-%H:%M:%S')
+
+LDFLAGS="-X github.com/prometheus/common/version.Version=$VERSION -X github.com/prometheus/common/version.Revision=$REVISION -X github.com/prometheus/common/version.Branch=$BRANCH -X github.com/prometheus/common/version.BuildUser=$BUILD_USER -X github.com/prometheus/common/version.BuildDate=$BUILD_DATE"
+
+go build -ldflags "$LDFLAGS" -o openstack-exporter .
 ```
 Multi cloud mode
 ```sh
@@ -139,7 +148,7 @@ Flags:
                                  Disable the orchestration service exporter
       --[no-]disable-service.placement
                                  Disable the placement service exporter
-      --[no-]disable-service.sharev2  
+      --[no-]disable-service.sharev2
                                  Disable the share service exporter
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...

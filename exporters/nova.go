@@ -436,8 +436,16 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	var allServers []ServerWithExt
 	var allFlavors []flavors.Flavor
+	var serverListOption servers.ListOpts
 
-	allPagesServers, err := servers.List(exporter.Client, servers.ListOpts{AllTenants: true}).AllPages()
+	if exporter.TenantID == "" {
+		serverListOption = servers.ListOpts{AllTenants: true}
+	} else {
+		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
+
+	}
+	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
+
 	if err != nil {
 		return err
 	}

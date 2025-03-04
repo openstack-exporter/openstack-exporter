@@ -9,7 +9,9 @@ import (
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
+	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/utils/openstack/clientconfig"
+	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -41,8 +43,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -56,6 +58,7 @@ type PrometheusMetric struct {
 
 type ExporterConfig struct {
 	Client                   *gophercloud.ServiceClient
+	ClientV2                 *gophercloudv2.ServiceClient
 	Prefix                   string
 	DisabledMetrics          []string
 	CollectTime              bool
@@ -64,6 +67,7 @@ type ExporterConfig struct {
 	DisableDeprecatedMetrics bool
 	DisableCinderAgentUUID   bool
 	DomainID                 string
+	TenantID                 string
 }
 
 type BaseOpenStackExporter struct {
@@ -76,6 +80,8 @@ type BaseOpenStackExporter struct {
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
 var endpointOpts map[string]gophercloud.EndpointOpts
+
+var endpointOptsV2 map[string]gophercloudv2.EndpointOpts
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -188,13 +194,14 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
 	var tlsConfig tls.Config
 
 	opts := clientconfig.ClientOpts{Cloud: cloud}
+	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
 
 	config, err := clientconfig.GetCloudFromYAML(&opts)
 	if err != nil {
@@ -219,12 +226,18 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
+	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
+	if err != nil {
+		return nil, err
+	}
+
 	if uuidGenFunc == nil {
 		uuidGenFunc = uuid.GenerateUUID
 	}
 
 	exporterConfig := ExporterConfig{
 		Client:                   client,
+		ClientV2:                 clientV2,
 		Prefix:                   prefix,
 		DisabledMetrics:          disabledMetrics,
 		CollectTime:              collectTime,
@@ -233,111 +246,46 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		DisableDeprecatedMetrics: disableDeprecatedMetrics,
 		DisableCinderAgentUUID:   disableCinderAgentUUID,
 		DomainID:                 domainID,
+		TenantID:                 tenantID,
 	}
 
 	switch name {
 	case "network":
-		{
-			exporter, err = NewNeutronExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewNeutronExporter(&exporterConfig, logger)
 	case "compute":
-		{
-			exporter, err = NewNovaExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewNovaExporter(&exporterConfig, logger)
 	case "image":
-		{
-			exporter, err = NewGlanceExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewGlanceExporter(&exporterConfig, logger)
 	case "volume":
-		{
-			exporter, err = NewCinderExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewCinderExporter(&exporterConfig, logger)
 	case "identity":
-		{
-			exporter, err = NewKeystoneExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewKeystoneExporter(&exporterConfig, logger)
 	case "object-store":
-		{
-			exporter, err = NewObjectStoreExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewObjectStoreExporter(&exporterConfig, logger)
 	case "load-balancer":
-		{
-			exporter, err = NewLoadbalancerExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewLoadbalancerExporter(&exporterConfig, logger)
 	case "container-infra":
-		{
-			exporter, err = NewContainerInfraExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewContainerInfraExporter(&exporterConfig, logger)
 	case "dns":
-		{
-			exporter, err = NewDesignateExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewDesignateExporter(&exporterConfig, logger)
 	case "baremetal":
-		{
-			exporter, err = NewIronicExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewIronicExporter(&exporterConfig, logger)
 	case "gnocchi":
-		{
-			exporter, err = NewGnocchiExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewGnocchiExporter(&exporterConfig, logger)
 	case "database":
-		{
-			exporter, err = NewTroveExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewTroveExporter(&exporterConfig, logger)
 	case "orchestration":
-		{
-			exporter, err = NewHeatExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewHeatExporter(&exporterConfig, logger)
 	case "placement":
-		{
-			exporter, err = NewPlacementExporter(&exporterConfig, logger)
-			if err != nil {
-				return nil, err
-			}
-		}
+		exporter, err = NewPlacementExporter(&exporterConfig, logger)
+	case "sharev2":
+		exporter, err = NewManilaExporter(&exporterConfig, logger)
 	default:
-		{
-			return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)
-		}
+		return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)
+	}
+
+	if err != nil {
+		return nil, err
 	}
 
 	return exporter, nil

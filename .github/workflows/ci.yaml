@@ -50,7 +50,7 @@ jobs:
 
       - name: Unit tests
         run: |
-          go test -v -covermode=atomic -coverprofile=coverage.out ./...
+          go test -v -covermode=atomic -coverprofile=coverage.out $(go list ./... | grep -v ./integration)
 
       - name: Extract metadata from ghcr image
         if: ${{ github.event_name != 'pull_request' }}

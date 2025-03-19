@@ -1,10 +1,8 @@
 name: functional-baremetal
 on:
   pull_request:
-    paths:
-      - '**baremetal**'
-  schedule:
-    - cron: '0 0 */3 * *'
+  workflow_dispatch:
+
 jobs:
   functional-baremetal:
     strategy:

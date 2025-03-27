@@ -3,10 +3,10 @@ package exporters
 import (
 	"strconv"
 	"strings"
+
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
@@ -61,25 +61,18 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
-  if !exporter.MetricIsDisabled("domain_info") {
-    for _, d := range allDomains {
-      ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
-        prometheus.GaugeValue, 1.0,
-        d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
-    }
-  }
+	if !exporter.MetricIsDisabled("domain_info") {
+		for _, d := range allDomains {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
+				prometheus.GaugeValue, 1.0,
+				d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
+		}
+	}
 	return nil
 }
 
 func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(exporter)
 	if err != nil {
 		return err
 	}

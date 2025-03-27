@@ -1,15 +1,13 @@
 package exporters
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"strconv"
 
 	"github.com/go-kit/log"
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
@@ -21,7 +19,6 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -297,15 +294,9 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	var allServers []ServerWithExt
 	var allFlavors []flavors.Flavor
-	var serverListOption servers.ListOpts
 
-	if exporter.TenantID == "" {
-		serverListOption = servers.ListOpts{AllTenants: true}
-	} else {
-		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
-
-	}
-	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
+	serverListOptions := getServerListOptions(exporter.TenantID)
+	allPagesServers, err := servers.List(exporter.Client, serverListOptions).AllPages()
 
 	if err != nil {
 		return err
@@ -354,38 +345,24 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 }
 
 func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
-
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["compute"]; ok {
-		eo = v
-	} else {
-		return errors.New("No EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(exporter)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range allProjects {
+		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "exporter", exporter.Name)
+
+		// If projectID == configured tenantID we don't provide getOpts, since specifying
+		// a tenantID requires `os_compute_api:limits:other_project` permissions, even
+		// if TenantID  is the project to which the current credential is scoped.
+		limitGetOpts := limits.GetOpts{TenantID: p.ID}
+		if p.ID == exporter.TenantID {
+			limitGetOpts = limits.GetOpts{}
+		}
+
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
-		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		limits, err := limits.Get(exporter.Client, limitGetOpts).Extract()
 		if err != nil {
 			return err
 		}
@@ -460,4 +437,11 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 		}
 	}
 	return label
+}
+
+func getServerListOptions(tenantID string) servers.ListOpts {
+	if tenantID == "" {
+		return servers.ListOpts{AllTenants: true}
+	}
+	return servers.ListOpts{TenantID: tenantID}
 }

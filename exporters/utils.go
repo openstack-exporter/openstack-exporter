@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	openstackv2 "github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gophercloud/utils/gnocchi"
@@ -348,6 +350,55 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 	}
 
 	return nil, fmt.Errorf("unable to create a service client for %s", service)
+}
+
+// GetProjects returns all projects for domain or given project based on whether tenantID is configured.
+func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within the exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts specific to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts[exporter.ServiceName]; ok {
+		level.Warn(exporter.logger).Log("msg", "Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
+		eo = v
+	} else {
+		return nil, errors.New("No EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return nil, err
+	}
+
+	var allProjects []projects.Project
+	if exporter.TenantID == "" {
+		// If no tenantID is configured we get all the tenants.
+		level.Debug(exporter.logger).Log("msg", "retrieving all projects based for given domainName", "domain", exporter.DomainID)
+
+		allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+		if err != nil {
+			return nil, err
+		}
+
+		allProjects, err = projects.ExtractProjects(allPagesProject)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Retrieve the specific project specified by tenantID.
+		level.Debug(exporter.logger).Log("msg", "retrieving single project based on configured tenantID", "project", exporter.TenantID)
+
+		project, err := projects.Get(c, exporter.TenantID).Extract()
+		if err != nil {
+			return nil, err
+		}
+		allProjects = []projects.Project{*project}
+	}
+
+	return allProjects, nil
 }
 
 // GetEndpointType return openstack endpoints for configured type

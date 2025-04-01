@@ -4,7 +4,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -51,7 +52,7 @@ var defaultManilaMetrics = []Metric{
 	{Name: "share_status_counter", Labels: []string{"status"}, Fn: nil},
 }
 
-func NewManilaExporter(config *ExporterConfig, logger log.Logger) (*ManilaExporter, error) {
+func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExporter, error) {
 	exporter := ManilaExporter{
 		BaseOpenStackExporter{
 

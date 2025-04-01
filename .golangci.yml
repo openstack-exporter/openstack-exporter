@@ -2,4 +2,4 @@
 linters-settings:
   errcheck:
     exclude-functions:
-      - (github.com/go-kit/log.Logger).Log
+      - (github.com/go-kit/*slog.Logger).Log

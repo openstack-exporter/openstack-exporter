@@ -1,7 +1,8 @@
 package exporters
 
 import (
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/db/v1/datastores"
 	"github.com/gophercloud/gophercloud/openstack/db/v1/instances"
@@ -87,7 +88,7 @@ var defaultTroveMetrics = []Metric{
 	{Name: "instance_volume_used_gb", Labels: []string{"datastore_type", "datastore_version", "health_status", "id", "name", "region", "status", "tenant_id"}, Fn: nil},
 }
 
-func NewTroveExporter(config *ExporterConfig, logger log.Logger) (*TroveExporter, error) {
+func NewTroveExporter(config *ExporterConfig, logger *slog.Logger) (*TroveExporter, error) {
 	exporter := TroveExporter{
 		BaseOpenStackExporter{
 			Name:           "trove",

@@ -1,5 +1,10 @@
 ---
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - (github.com/go-kit/*slog.Logger).Log
+version: "2"
+linters:
+  settings:
+    errcheck:
+      exclude-functions:
+        - (log/slog.Logger).Debug
+        - (log/slog.Logger).Info
+        - (log/slog.Logger).Warn
+        - (log/slog.Logger).Error

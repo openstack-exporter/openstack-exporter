@@ -8,7 +8,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/suite"
 )
@@ -123,14 +124,7 @@ var fixtures map[string]string = map[string]string{
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/usages":      "resource_provider_1_usage",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/usages":      "resource_provider_2_usage",
-	"/compute/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/2db68fed84324f29bb73130c6c2094fb/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/3d594eb0f04741069dbbb521635b21c7/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/43ebde53fc314b1c9ea2b8c5dc744927/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/5961c443439d4fcebe42643723755e9d/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e/detail":                 "nova_quotas_1_usage",
-	"/compute/os-quota-sets/4b1eb781a47440acb8af9850103e537f/detail":                 "nova_quotas_1_usage",
+	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -144,8 +138,8 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	logger := log.NewNopLogger()
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", func() (string, error) {
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)
 
@@ -201,4 +195,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &TroveTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "database"}})
 	suite.Run(t, &HeatTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "orchestration"}})
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
+	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
 }

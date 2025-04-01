@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
@@ -70,7 +71,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volume_type_quota_gigabytes", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
 }
 
-func NewCinderExporter(config *ExporterConfig, logger log.Logger) (*CinderExporter, error) {
+func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
 			Name:           "cinder",

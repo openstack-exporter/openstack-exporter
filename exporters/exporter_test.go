@@ -120,9 +120,8 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f?usage=true":   "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d?usage=true":   "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e?usage=true":   "cinder_os_quota_sets_usage",
-
-	"/designate/v2/zones": "designate_zones",
-	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
+	"/designate/v2/zones":                                                  "designate_zones",
+	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets":  "designate_recordsets",
 	"/database/": "trove_api_discovery",
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",

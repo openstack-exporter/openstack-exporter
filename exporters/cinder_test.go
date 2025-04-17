@@ -105,12 +105,23 @@ openstack_cinder_volume_status_counter{status="reserved"} 0
 openstack_cinder_volume_status_counter{status="restoring-backup"} 0
 openstack_cinder_volume_status_counter{status="retyping"} 0
 openstack_cinder_volume_status_counter{status="uploading"} 0
+# HELP openstack_cinder_volume_type_quota_gigabytes volume_type_quota_gigabytes
+# TYPE openstack_cinder_volume_type_quota_gigabytes gauge
+openstack_cinder_volume_type_quota_gigabytes{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",volume_type="lvmdriver-1"} 1000
 # HELP openstack_cinder_volumes volumes
 # TYPE openstack_cinder_volumes gauge
 openstack_cinder_volumes 2
 `
 
 func (suite *CinderTestSuite) TestCinderExporter() {
+
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
 	assert.NoError(suite.T(), err)
 }

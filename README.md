@@ -295,6 +295,7 @@ limits_volume_max_gb | cinder
 limits_volume_used_gb |  cinder
 limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
+volume_type_quota_gigabytes | cinder
 image_bytes | glance
 image_created_at | glance
 #### Deprecated Metrics
@@ -359,6 +360,7 @@ openstack_cinder_limits_volume_max_gb| tenant="demo-project",tenant_id="0c4e939a
 openstack_cinder_limits_volume_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |40000.0 (float)
 openstack_cinder_limits_backup_max_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |1000.0 (float)
 openstack_cinder_limits_backup_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |0.0 (float)
+openstack_cinder_volume_type_quota_gigabytes| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |1000.0 (float)
 openstack_cinder_volumes| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
 openstack_cinder_snapshots| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
 openstack_cinder_volume_status| region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"                                                                   |4.0 (float)
@@ -510,6 +512,16 @@ openstack_cinder_limits_volume_used_gb{tenant="service",tenant_id="3d594eb0f0474
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 0
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
+# HELP openstack_cinder_volume_type_quota_gigabytes volume_type_quota_gigabytes
+# TYPE openstack_cinder_volume_type_quota_gigabytes gauge
+openstack_cinder_volume_type_quota_gigabytes{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",volume_type="lvmdriver-1"} 1000
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
 openstack_cinder_snapshots{region="Region"} 0.0

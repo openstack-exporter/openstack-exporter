@@ -1,13 +1,15 @@
 package exporters
 
 import (
+	"encoding/json"
+	"fmt"
 	"math"
+	"math/big"
+	"net/netip"
 	"strconv"
 	"strings"
 
 	"go4.org/netipx"
-
-	"net/netip"
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
@@ -313,42 +315,81 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 
 // ListNetworkIPAvailabilities : count total number of used IPs per Network
 func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
 
-	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
+	type CustomSubnetIPAvailability struct {
+		SubnetName string      `json:"subnet_name"`
+		CIDR       string      `json:"cidr"`
+		IPVersion  int         `json:"ip_version"`
+		TotalIPs   json.Number `json:"total_ips"`
+		UsedIPs    json.Number `json:"used_ips"`
+	}
+
+	type CustomNetworkIPAvailability struct {
+		NetworkID              string                       `json:"network_id"`
+		NetworkName            string                       `json:"network_name"`
+		ProjectID              string                       `json:"project_id"`
+		TenantID               string                       `json:"tenant_id"`
+		SubnetIPAvailabilities []CustomSubnetIPAvailability `json:"subnet_ip_availability"`
+	}
+
+	type availabilityWrapper struct {
+		NetworkIPAvailabilities []CustomNetworkIPAvailability `json:"network_ip_availabilities"`
+	}
+
+	// Getting raw response
+	allPages, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
 
-	allNetworkIPAvailabilities, err = networkipavailabilities.ExtractNetworkIPAvailabilities(allPagesNetworkIPAvailabilities)
-	if err != nil {
-		return err
+	// Decode raw JSON manually to avoid gophercloud unmarshaling big.Int error
+	body := allPages.GetBody()
+	bodyMap, ok := body.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected type for body: %T", body)
 	}
 
-	for _, NetworkIPAvailabilities := range allNetworkIPAvailabilities {
-		projectID := NetworkIPAvailabilities.ProjectID
-		if projectID == "" && NetworkIPAvailabilities.TenantID != "" {
-			projectID = NetworkIPAvailabilities.TenantID
+	bodyBytes, err := json.Marshal(bodyMap)
+	if err != nil {
+		return fmt.Errorf("failed to marshal body back to JSON: %w", err)
+	}
+
+	var wrapper availabilityWrapper
+	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+		return fmt.Errorf("failed to unmarshal network_ip_availabilities JSON: %w", err)
+	}
+
+	for _, network := range wrapper.NetworkIPAvailabilities {
+		projectID := network.ProjectID
+		if projectID == "" && network.TenantID != "" {
+			projectID = network.TenantID
 		}
 
-		for _, SubnetIPAvailability := range NetworkIPAvailabilities.SubnetIPAvailabilities {
-			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
-			if err != nil {
-				return err
+		for _, subnet := range network.SubnetIPAvailabilities {
+			// Use big.Float to parse TotalIPs
+			totalBig := new(big.Float)
+			_, ok := totalBig.SetString(subnet.TotalIPs.String())
+			if !ok {
+				return fmt.Errorf("failed to parse total IPs: %s", subnet.TotalIPs.String())
 			}
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
-				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, projectID)
+			totalFloat64, _ := totalBig.Float64()
 
-			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
-			if err != nil {
-				return err
+			usedBig := new(big.Float)
+			_, ok = usedBig.SetString(subnet.UsedIPs.String())
+			if !ok {
+				return fmt.Errorf("failed to parse used IPs: %s", subnet.UsedIPs.String())
 			}
+			usedFloat64, _ := usedBig.Float64()
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
+				prometheus.GaugeValue, totalFloat64, network.NetworkID,
+				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+				subnet.SubnetName, projectID)
+
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
-				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, projectID)
+				prometheus.GaugeValue, usedFloat64, network.NetworkID,
+				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+				subnet.SubnetName, projectID)
 		}
 	}
 

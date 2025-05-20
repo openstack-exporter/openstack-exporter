@@ -3,11 +3,11 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sort"
 	"strconv"
 
-	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
@@ -99,7 +99,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 }
 
-func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
@@ -303,7 +303,6 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		serverListOption = servers.ListOpts{AllTenants: true}
 	} else {
 		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
-
 	}
 	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
 

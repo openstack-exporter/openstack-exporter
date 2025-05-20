@@ -3,12 +3,11 @@ package exporters
 import (
 	"crypto/tls"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/utils/openstack/clientconfig"
@@ -44,7 +43,7 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (*OpenStackExporter, error) {
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
 	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
@@ -75,7 +74,7 @@ type BaseOpenStackExporter struct {
 	ExporterConfig
 	Name    string
 	Metrics map[string]*PrometheusMetric
-	logger  log.Logger
+	logger  *slog.Logger
 }
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
@@ -108,15 +107,15 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 }
 
-func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger log.Logger) error {
-	level.Info(logger).Log("msg", "Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
+func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	logger.Info("msg", "Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
 	err := metric.Fn(exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}
 
-	level.Info(logger).Log("msg", "Collected metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
+	logger.Info("msg", "Collected metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	if exporter.CollectTime {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
@@ -129,13 +128,13 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
-			level.Debug(exporter.logger).Log("msg", "No function handler set for metric", "metric", name)
+			exporter.logger.Debug("msg", "No function handler set for metric", "metric", name)
 			metricsCount--
 			continue
 		}
 
 		if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
-			level.Error(exporter.logger).Log("err", "Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
+			exporter.logger.Error("err", "Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
 			metricsDown++
 		}
 	}
@@ -160,12 +159,12 @@ func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
 
 	if exporter.MetricIsDisabled(name) {
-		level.Warn(exporter.logger).Log("msg", "metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
+		exporter.logger.Warn("msg", "metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
 	}
 
 	if len(deprecatedVersion) > 0 {
-		level.Warn(exporter.logger).Log("msg", "metric has been deprecated on exporter in version and it will be removed in next release", "metric", name, "exporter", exporter.Name, "version", deprecatedVersion)
+		exporter.logger.Warn("msg", "metric has been deprecated on exporter in version and it will be removed in next release", "metric", name, "exporter", exporter.Name, "version", deprecatedVersion)
 	}
 
 	if exporter.Metrics == nil {
@@ -190,7 +189,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	// @TODO: get the region. constLabels["region"] = exporter.
 
 	if _, ok := exporter.Metrics[name]; !ok {
-		level.Info(exporter.logger).Log("msg", "Adding metric to exporter", "metric", name, "exporter", exporter.Name)
+		exporter.logger.Info("msg", "Adding metric to exporter", "metric", name, "exporter", exporter.Name)
 		exporter.Metrics[name] = &PrometheusMetric{
 			Metric: prometheus.NewDesc(
 				prometheus.BuildFQName(exporter.GetName(), "", name),
@@ -200,7 +199,7 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -215,13 +214,13 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	if !*config.Verify {
-		level.Info(logger).Log("msg", "SSL verification disabled on transport")
+		logger.Info("msg", "SSL verification disabled on transport")
 		tlsConfig.InsecureSkipVerify = true
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	} else if config.CACertFile != "" {
 		certPool, err := additionalTLSTrust(config.CACertFile, logger)
 		if err != nil {
-			level.Error(logger).Log("msg", "Failed to include additional certificates to ca-trust", "err", err)
+			logger.Error("msg", "Failed to include additional certificates to ca-trust", "err", err)
 		}
 		tlsConfig.RootCAs = certPool
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}

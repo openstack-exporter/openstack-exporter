@@ -5,12 +5,11 @@ import (
 	"context"
 	"crypto/x509"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
@@ -390,11 +389,11 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
+func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {
-		level.Info(logger).Log("msg", "Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
+		logger.Info("msg", "Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
 		trustedCAs = x509.NewCertPool()
 	}
 	// check if string is not a path, but PEM contents such as: -----BEGIN CERTIFICATE-----

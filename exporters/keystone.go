@@ -1,15 +1,15 @@
 package exporters
 
 import (
-	"strconv"
-	"strings"
-	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
+	"log/slog"
+	"strconv"
+	"strings"
 )
 
 type KeystoneExporter struct {
@@ -26,7 +26,7 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "regions", Fn: ListRegions},
 }
 
-func NewKeystoneExporter(config *ExporterConfig, logger log.Logger) (*KeystoneExporter, error) {
+func NewKeystoneExporter(config *ExporterConfig, logger *slog.Logger) (*KeystoneExporter, error) {
 	exporter := KeystoneExporter{
 		BaseOpenStackExporter{
 			Name:           "identity",
@@ -61,13 +61,13 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
-  if !exporter.MetricIsDisabled("domain_info") {
-    for _, d := range allDomains {
-      ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
-        prometheus.GaugeValue, 1.0,
-        d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
-    }
-  }
+	if !exporter.MetricIsDisabled("domain_info") {
+		for _, d := range allDomains {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
+				prometheus.GaugeValue, 1.0,
+				d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
+		}
+	}
 	return nil
 }
 

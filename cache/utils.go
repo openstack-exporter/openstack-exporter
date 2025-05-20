@@ -4,12 +4,11 @@ package cache
 
 import (
 	"bytes"
+	"log/slog"
 	"net/http"
 	"slices"
 	"time"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,7 +19,7 @@ import (
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
 	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, string, func() (string, error), log.Logger,
+		string, string, string, []string, string, bool, bool, bool, bool, string, string, func() (string, error), *slog.Logger,
 	) (*exporters.OpenStackExporter, error),
 	multiCloud bool,
 	services map[string]*bool, prefix,
@@ -34,9 +33,9 @@ func CollectCache(
 	domainID string,
 	tenantID string,
 	uuidGenFunc func() (string, error),
-	logger log.Logger,
+	logger *slog.Logger,
 ) error {
-	level.Info(logger).Log("msg", "Run collect cache job")
+	logger.Info("msg", "Run collect cache job")
 	cacheBackend := GetCache()
 
 	clouds := []string{}
@@ -62,17 +61,17 @@ func CollectCache(
 	}
 
 	for _, cloud := range clouds {
-		level.Info(logger).Log("msg", "Start update cache data", "cloud", cloud)
+		logger.Info("msg", "Start update cache data", "cloud", cloud)
 		// Update cloud's cache once finish all exporters' collection job. so we won't mix the old
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
 		for _, service := range enabledServices {
-			level.Info(logger).Log("msg", "Start collect cache data", "cloud", cloud, "service", service)
+			logger.Info("msg", "Start collect cache data", "cloud", cloud, "service", service)
 			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
-				level.Error(logger).Log("err", "enabling exporter for service failed", "cloud", cloud, "service", service, "error", err)
+				logger.Error("err", "enabling exporter for service failed", "cloud", cloud, "service", service, "error", err)
 				continue
 			}
 			registry := prometheus.NewPedanticRegistry()
@@ -80,7 +79,7 @@ func CollectCache(
 
 			metricFamilies, err := registry.Gather()
 			if err != nil {
-				level.Error(logger).Log("err", "Create gather failed", "cloud", cloud, "service", service, "error", err)
+				logger.Error("err", "Create gather failed", "cloud", cloud, "service", service, "error", err)
 				continue
 			}
 			for _, mf := range metricFamilies {
@@ -91,9 +90,9 @@ func CollectCache(
 						MF:      mf,
 					},
 				)
-				level.Debug(logger).Log("msg", "Update cache data", "cloud", cloud, "service", service, "MetricsFamily", mf.Name)
+				logger.Debug("msg", "Update cache data", "cloud", cloud, "service", service, "MetricsFamily", mf.Name)
 			}
-			level.Info(logger).Log("msg", "Finish update cache data", "cloud", cloud, "service", service)
+			logger.Info("msg", "Finish update cache data", "cloud", cloud, "service", service)
 		}
 		cacheBackend.SetCloudCache(
 			cloud, cloudCache,
@@ -104,12 +103,12 @@ func CollectCache(
 }
 
 // BufferFromCache reads cloud's MetricsFamily data from cache and writes into a buffer.
-func BufferFromCache(cloud string, services []string, logger log.Logger) (bytes.Buffer, error) {
+func BufferFromCache(cloud string, services []string, logger *slog.Logger) (bytes.Buffer, error) {
 	cacheBackend := GetCache()
 	var buf bytes.Buffer
 	cloudCache, exists := cacheBackend.GetCloudCache(cloud)
 	if !exists {
-		level.Debug(logger).Log("msg", "Cache not exists", "cloud", cloud)
+		logger.Debug("msg", "Cache not exists", "cloud", cloud)
 		return buf, nil
 	}
 
@@ -131,7 +130,7 @@ func FlushExpiredCloudCaches(ttl time.Duration) {
 }
 
 // WriteCacheToResponse read cache and write to the connection as part of an HTTP reply.
-func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, enabledServices []string, logger log.Logger) error {
+func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, enabledServices []string, logger *slog.Logger) error {
 	buf, err := BufferFromCache(cloud, enabledServices, logger)
 	if err != nil {
 		http.Error(w, "Failed to encode metrics", http.StatusInternalServerError)

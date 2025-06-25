@@ -46,8 +46,8 @@ func mapShareStatus(volStatus string) int {
 
 var defaultManilaMetrics = []Metric{
 	{Name: "shares_counter", Fn: CountShares},
-	{Name: "share_gb", Labels: []string{"id", "name", "status", "availability_zone", "share_type", "share_proto", "share_type_name"}, Fn: nil},
-	{Name: "share_status", Labels: []string{"id", "name", "status", "size", "share_type", "share_proto", "share_type_name"}, Fn: ListShareStatus},
+	{Name: "share_gb", Labels: []string{"id", "name", "status", "availability_zone", "share_type", "share_proto", "share_type_name", "project_id"}, Fn: nil},
+	{Name: "share_status", Labels: []string{"id", "name", "status", "size", "share_type", "share_proto", "share_type_name", "project_id"}, Fn: ListShareStatus},
 	{Name: "share_status_counter", Labels: []string{"status"}, Fn: nil},
 }
 
@@ -94,7 +94,7 @@ func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	for _, share := range allShares {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_gb"].Metric,
 			prometheus.GaugeValue, float64(share.Size), share.ID, share.Name,
-			share.Status, share.AvailabilityZone, share.ShareType, share.ShareProto, share.ShareTypeName)
+			share.Status, share.AvailabilityZone, share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
 	}
 
 	share_status_counter := map[string]int{
@@ -153,7 +153,7 @@ func ListShareStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	for _, share := range allShares {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_status"].Metric,
 			prometheus.GaugeValue, float64(mapVolumeStatus(share.Status)), share.ID, share.Name,
-			share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName)
+			share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
 	}
 	return nil
 }

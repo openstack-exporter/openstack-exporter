@@ -135,7 +135,7 @@ openstack_nova_total_vms 1
 openstack_nova_up 1
 # HELP openstack_nova_vcpus_available vcpus_available
 # TYPE openstack_nova_vcpus_available gauge
-openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host1"} 2
+openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host1"} 4
 # HELP openstack_nova_vcpus_used vcpus_used
 # TYPE openstack_nova_vcpus_used gauge
 openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0

@@ -40,6 +40,7 @@ snap install --channel edge golang-openstack-exporter
 ```
 
 For installing the latest stable version (stable channel):
+
 ```sh
 snap install --channel stable golang-openstack-exporter
 ```
@@ -64,16 +65,21 @@ You can build it by yourself by cloning this repository and run:
 ```sh
 go build -o ./openstack-exporter .
 ```
+
 Multi cloud mode
+
 ```sh
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --multi-cloud
 curl "http://localhost:9180/probe?cloud=region.mycludprovider.org"
 ```
+
 or Legacy mode
+
 ```sh
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yaml myregion.cloud.org
 curl "http://localhost:9180/metrics" +
 ```
+
 Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
 details):
 
@@ -86,6 +92,7 @@ curl "http://localhost:9180/probe?cloud=my-cloud.org"
 ### Command line options
 
 The current list of command line options (by running --help)
+
 ```sh
 usage: openstack-exporter [<flags>] [<cloud>]
 

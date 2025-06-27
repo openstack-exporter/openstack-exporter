@@ -1,9 +1,9 @@
 package exporters
 
 import (
+	"log/slog"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/pools"
@@ -84,7 +84,7 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "pool_status", Labels: []string{"id", "provisioning_status", "name", "loadbalancers", "protocol", "lb_algorithm", "operating_status", "project_id"}},
 }
 
-func NewLoadbalancerExporter(config *ExporterConfig, logger log.Logger) (*LoadbalancerExporter, error) {
+func NewLoadbalancerExporter(config *ExporterConfig, logger *slog.Logger) (*LoadbalancerExporter, error) {
 	exporter := LoadbalancerExporter{
 		BaseOpenStackExporter{
 			Name:           "loadbalancer",

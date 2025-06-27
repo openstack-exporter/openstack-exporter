@@ -7,9 +7,9 @@ import (
 
 	"go4.org/netipx"
 
+	"log/slog"
 	"net/netip"
 
-	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
@@ -73,7 +73,7 @@ var defaultNeutronMetrics = []Metric{
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
-func NewNeutronExporter(config *ExporterConfig, logger log.Logger) (*NeutronExporter, error) {
+func NewNeutronExporter(config *ExporterConfig, logger *slog.Logger) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
 			Name:           "neutron",

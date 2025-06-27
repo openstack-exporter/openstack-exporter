@@ -23,11 +23,13 @@ docker pull ghcr.io/openstack-exporter/openstack-exporter:latest
 ```
 
 ### Release Docker images
+
 Multi-arch images (amd64, arm64 and s390x)
 
 ```sh
 docker pull ghcr.io/openstack-exporter/openstack-exporter:1.6.0
 ```
+
 ### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
@@ -302,7 +304,9 @@ limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
 image_bytes | glance
 image_created_at | glance
+
 #### Deprecated Metrics
+
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------
 openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_cinder_volume_gb
@@ -394,6 +398,7 @@ openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB\
 openstack_metric_collect_seconds | openstack_metric="agent_state",openstack_service="openstack_cinder"                                                                                                                                                                                                                                                 |1.27843913| Metric collection time (only if --collect-metric-time is passed)
 
 ## Cinder Volume Status Description
+
 Index | Status
 ------|-------
 0 |creating
@@ -418,6 +423,7 @@ Index | Status
 19 |extending
 
 ## Manila Share Status Description
+
 Index | Status
 ------|-------
 0 |creating

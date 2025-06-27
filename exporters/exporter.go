@@ -154,7 +154,7 @@ func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
 }
 
 func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
+	return exporter.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {

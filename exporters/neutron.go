@@ -157,7 +157,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 		id = agent.ID
 		if id == "" {
-			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+			if id, err = exporter.UUIDGenFunc(); err != nil {
 				return err
 			}
 		}

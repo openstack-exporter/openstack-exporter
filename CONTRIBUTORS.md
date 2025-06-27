@@ -1,11 +1,11 @@
 # Contributors
 
-### Maintainer
+## Maintainers
 
 * Jorge Niedbalski (<jnr@metaklass.org>)
 * Alexey Myltsev (<alexey.myltsev@leroymerlin.ru>)
 
-##### Contributors:
+## Contributors
 
 * William Huang <ai.william@outlook.com>
 * Mikael Johansson <mik.json@gmail.com>

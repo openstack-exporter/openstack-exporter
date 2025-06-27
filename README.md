@@ -1400,7 +1400,3 @@ openstack_sharev2_up 1
 ### Communication
 
 Please join us at #openstack-exporter at [OFTC](https://www.oftc.net/)
-
-## Metrics
-
-Please note that by convention resources metrics such as memory or storage are returned in bytes.

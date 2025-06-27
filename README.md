@@ -56,8 +56,8 @@ Other options as the binding address/port can by explored with the --help flag.
 
 The exporter can operate in 2 modes
 
-- A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
-- A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
+* A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+* A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
   And where `/metrics` URL is serving own exporter metrics
 
 You can build it by yourself by cloning this repository and run:
@@ -236,37 +236,37 @@ The following metrics are filtered for the domain ID provided (the others remain
 
 #### Cinder
 
-- `openstack_cinder_limits_volume_max_gb`
-- `openstack_cinder_limits_volume_used_gb`
-- `openstack_cinder_limits_backup_max_gb`
-- `openstack_cinder_limits_backup_used_gb`
+* `openstack_cinder_limits_volume_max_gb`
+* `openstack_cinder_limits_volume_used_gb`
+* `openstack_cinder_limits_backup_max_gb`
+* `openstack_cinder_limits_backup_used_gb`
 
 #### Keystone
 
-- `openstack_identity_projects`
-- `openstack_identity_project_info`
+* `openstack_identity_projects`
+* `openstack_identity_project_info`
 
 #### Nova
 
-- `openstack_nova_limits_vcpus_max`
-- `openstack_nova_limits_vcpus_used`
-- `openstack_nova_limits_memory_max`
-- `openstack_nova_limits_memory_used`
-- `openstack_nova_limits_instances_max`
-- `openstack_nova_limits_instances_used`
+* `openstack_nova_limits_vcpus_max`
+* `openstack_nova_limits_vcpus_used`
+* `openstack_nova_limits_memory_max`
+* `openstack_nova_limits_memory_used`
+* `openstack_nova_limits_instances_max`
+* `openstack_nova_limits_instances_used`
 
 ### Cache mechanism
 
 Enabling the cache with `--cache` changes the exporter's metric collection and delivery:
 
-- **Background Service:**
-  - Collects metrics at the start and subsequently every half cache TTL.
-  - Updates the cache backend after completing each collection cycle.
-  - Flushes expired cache data every cache TTL.
+#### Background Service
+* Collects metrics at the start and subsequently every half cache TTL.
+* Updates the cache backend after completing each collection cycle.
+* Flushes expired cache data every cache TTL.
 
-- **Exporter API:**
-  - Returns no data if the cache is empty or expired.
-  - Retrieves and returns cached data from the backend.
+#### Exporter API
+* Returns no data if the cache is empty or expired.
+* Retrieves and returns cached data from the backend.
 
 ## Contributing
 
@@ -281,9 +281,9 @@ OpenStack evolves with new features and fields added to the API over time, lever
 
 OpenStack-Exporter is designed to handle both older and newer microversions gracefully by default. When querying an OpenStack environment, it ensures compatibility with various microversions, using fallback behaviors for missing fields introduced in newer microversions:
 
-- For Boolean Fields: Assumes the default value of false.
-- For Numeric Fields: Missing numeric fields will default to 0
-- For String Fields: Typically default to an empty string ("")
+* For Boolean Fields: Assumes the default value of false.
+* For Numeric Fields: Missing numeric fields will default to 0
+* For String Fields: Typically default to an empty string ("")
 
 This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
 

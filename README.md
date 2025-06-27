@@ -167,15 +167,23 @@ Query Parameter | Description
 `include_services` | A comma separated list of services for which metrics will be scraped. It ignores flags for disabling services `--disable-service.*`.
 `exclude_services` | A comma separated list of services for which metrics will *not* be scraped. Default is empty: ""
 
-Examples:
-```
-## Scrape all services from `test.cloud`
+#### Examples
+
+Scrape all services from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud"
+```
 
-## Scrape only `network` and `compute` services from `test.cloud`
+Scrape only `network` and `compute` services from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud&include_services=network,compute"
+```
 
-## Scrape all services except `load-balancer` and `dns` from `test.cloud`
+Scrape all services except `load-balancer` and `dns` from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud&exclude_services=load-balancer,dns"
 ```
 
@@ -218,25 +226,26 @@ The exporter provides the flag `--domain-id`, this restricts some metrics to a s
 
 The following metrics are filtered for the domain ID provided (the others remain the same):
 
-```
-# Cinder
-openstack_cinder_limits_volume_max_gb
-openstack_cinder_limits_volume_used_gb
-openstack_cinder_limits_backup_max_gb
-openstack_cinder_limits_backup_used_gb
+#### Cinder
 
-# Keystone
-openstack_identity_projects
-openstack_identity_project_info
+- `openstack_cinder_limits_volume_max_gb`
+- `openstack_cinder_limits_volume_used_gb`
+- `openstack_cinder_limits_backup_max_gb`
+- `openstack_cinder_limits_backup_used_gb`
 
-# Nova
-openstack_nova_limits_vcpus_max
-openstack_nova_limits_vcpus_used
-openstack_nova_limits_memory_max
-openstack_nova_limits_memory_used
-openstack_nova_limits_instances_max
-openstack_nova_limits_instances_used
-```
+#### Keystone
+
+- `openstack_identity_projects`
+- `openstack_identity_project_info`
+
+#### Nova
+
+- `openstack_nova_limits_vcpus_max`
+- `openstack_nova_limits_vcpus_used`
+- `openstack_nova_limits_memory_max`
+- `openstack_nova_limits_memory_used`
+- `openstack_nova_limits_instances_max`
+- `openstack_nova_limits_instances_used`
 
 ### Cache mechanism
 
@@ -438,7 +447,8 @@ Index | Status
 
 
 ## Example metrics
-```
+
+```text
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-backup",zone="nova"} 1.0

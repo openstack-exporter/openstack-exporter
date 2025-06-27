@@ -7,15 +7,18 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -47,7 +50,6 @@ var (
 )
 
 func main() {
-
 	services := make(map[string]*bool)
 
 	for _, service := range defaultEnabledServices {
@@ -64,11 +66,13 @@ func main() {
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
 
+	level.Info(logger).Log("msg", "Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
+	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+
 	if *cloud == "" && !*multiCloud {
 		level.Error(logger).Log("msg", "openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
+		os.Exit(1)
 	}
-
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
 		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
@@ -90,8 +94,48 @@ func main() {
 		go cacheBackgroundService(ctx, services, errChan, logger)
 	}
 
+	var registryMap map[string]*prometheus.Registry
+	commonRegistry := prometheus.NewPedanticRegistry()
+	commonExporter := exporters.NewCommonMetricsExporter(*prefix)
+	commonRegistry.MustRegister(
+		commonExporter,
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+
+	var err error
+	if *multiCloud {
+		registryMap, err = initMultiCloudRegistries(
+			services,
+			*prefix, *disabledMetrics,
+			*endpointType,
+			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
+			*domainID, *tenantID,
+			logger,
+		)
+		if err != nil {
+			level.Error(logger).Log("msg", err)
+			os.Exit(1)
+		}
+	} else {
+		commonRegistry, err = initSingleCloudRegistry(
+			services,
+			*prefix, *cloud,
+			*disabledMetrics,
+			*endpointType,
+			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
+			*domainID, *tenantID,
+			logger,
+			commonExporter,
+		)
+		if err != nil {
+			level.Error(logger).Log("msg", err)
+			os.Exit(1)
+		}
+	}
+
 	// Start the HTTP server.
-	go startHTTPServer(ctx, services, toolkitFlags, errChan, logger)
+	go startHTTPServer(ctx, services, commonRegistry, registryMap, commonExporter, toolkitFlags, logger)
 
 	// Wait for an error from any service or a termination signal.
 	sigChan := make(chan os.Signal, 1)
@@ -99,13 +143,12 @@ func main() {
 
 	select {
 	case err := <-errChan:
-		level.Error(logger).Log("err", "Shutting down due to error", "err", err)
+		level.Error(logger).Log("msg", "Shutting down due to error", "err", err)
 		cancel()
 	case <-sigChan:
 		level.Info(logger).Log("msg", "Termination signal received. Shutting down...")
 		cancel()
 	}
-
 }
 
 // cacheBackgroundService runs a background service to collect the metrics and stores in the cache.
@@ -119,7 +162,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID , nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
 		level.Error(logger).Log("err", err)
 		errChan <- err
 		return
@@ -142,12 +185,20 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	}
 }
 
-func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, errChan chan<- error, logger log.Logger) {
+func startHTTPServer(
+	ctx context.Context,
+	services map[string]*bool,
+	commonRegistry *prometheus.Registry,
+	registryMap map[string]*prometheus.Registry,
+	commonExporter *exporters.CommonMetricsExporter,
+	toolkitFlags *web.FlagConfig,
+	logger log.Logger,
+) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
-		http.HandleFunc("/probe", probeHandler(services, logger))
-		http.Handle(*metrics, promhttp.Handler())
+		http.HandleFunc("/probe", probeHandler(services, registryMap, commonExporter, logger))
+		http.Handle(*metrics, promhttp.HandlerFor(commonRegistry, promhttp.HandlerOpts{}))
 		level.Info(logger).Log("msg", "openstack exporter started in multi cloud mode (/probe?cloud=)")
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
@@ -158,7 +209,7 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 		})
 	} else {
 		level.Info(logger).Log("msg", "openstack exporter started in legacy mode")
-		http.HandleFunc(*metrics, metricHandler(services, logger))
+		http.HandleFunc(*metrics, metricHandler(services, commonRegistry, commonExporter, logger))
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
 			Text:    "Metrics",
@@ -203,8 +254,15 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 	}
 }
 
-func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
+func probeHandler(
+	services map[string]*bool,
+	registryMap map[string]*prometheus.Registry,
+	commonExporter *exporters.CommonMetricsExporter,
+	logger log.Logger,
+) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		defer observeScrape(commonExporter)()
+
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 		r = r.WithContext(ctx)
@@ -215,92 +273,233 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 			return
 		}
 
-		enabledServices := []string{}
+		enabledServices := getEnabledServices(services)
 
-		for service, disabled := range services {
-			if !*disabled {
-				enabledServices = append(enabledServices, service)
-			}
+		if include := r.URL.Query().Get("include_services"); include != "" {
+			enabledServices = strings.Split(include, ",")
 		}
+		excludes := strings.Split(r.URL.Query().Get("exclude_services"), ",")
+		enabledServices = exporters.RemoveElements(enabledServices, excludes)
 
-		includeServices := r.URL.Query().Get("include_services")
-		if includeServices != "" {
-			enabledServices = strings.Split(includeServices, ",")
-		}
+		level.Info(logger).Log("msg", "Filtered services", "enabled_services", strings.Join(enabledServices, ","))
 
-		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
-		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
-		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
-
-		// Get data from cache
 		if *cacheEnable {
+			level.Info(logger).Log("msg", "Serving from cache", "cloud", cloud)
 			if err := cache.WriteCacheToResponse(w, r, cloud, enabledServices, logger); err != nil {
-				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
+				commonExporter.ScrapeErrors().Inc()
+				level.Error(logger).Log("msg", "Failed to write cache", "error", err)
+				http.Error(w, "Failed to serve from cache", http.StatusInternalServerError)
 			}
 			return
 		}
 
-		registry := prometheus.NewPedanticRegistry()
-		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
-			if err != nil {
-				level.Error(logger).Log("err", "Enabling exporter for service failed", "service", service, "error", err)
-				continue
-			}
-			registry.MustRegister(*exp)
-			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
-		}
+		defer withPanicRecovery(w, commonExporter, logger)
 
-		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
+		reg, ok := registryMap[cloud]
+		if !ok {
+			http.Error(w, "Unknown cloud: "+cloud, http.StatusNotFound)
+			commonExporter.ScrapeErrors().Inc()
+			return
+		}
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{}).ServeHTTP(w, r)
 	}
 }
 
-func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
+func metricHandler(services map[string]*bool, registry *prometheus.Registry, commonExporter *exporters.CommonMetricsExporter, logger log.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		level.Info(logger).Log("msg", "Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
-		level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+		defer observeScrape(commonExporter)()
 
-		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
-			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
-		}
+		enabledServices := getEnabledServices(services)
 
-		enabledServices := []string{}
-		for service, disabled := range services {
-			if !*disabled {
-				enabledServices = append(enabledServices, service)
-			}
-		}
-
-		// Get data from cache
 		if *cacheEnable {
 			if err := cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger); err != nil {
+				commonExporter.ScrapeErrors().Inc()
 				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
 			}
 			return
 		}
 
-		registry := prometheus.NewPedanticRegistry()
-		enabledExporters := 0
-		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID,nil, logger)
-			if err != nil {
-				// Log error and continue with enabling other exporters
-				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
-				continue
-			}
-			registry.MustRegister(*exp)
-			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
-			enabledExporters++
-		}
+		defer withPanicRecovery(w, commonExporter, logger)
 
-		if enabledExporters == 0 {
-			level.Error(logger).Log("err", "No exporter has been enabled, exiting")
-			os.Exit(-1)
-		}
-
-		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
+		promhttp.HandlerFor(registry, promhttp.HandlerOpts{}).ServeHTTP(w, r)
 	}
+}
+
+func buildAndValidateExporters(
+	enabledServices []string,
+	prefix, cloud string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
+	domainID, tenantID string,
+	logger log.Logger,
+) (*prometheus.Registry, int) {
+	registry := prometheus.NewPedanticRegistry()
+
+	var (
+		mu      sync.Mutex
+		wg      sync.WaitGroup
+		enabled int
+	)
+
+	for _, enabledService := range enabledServices {
+		service := enabledService
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			exp, err := exporters.EnableExporter(
+				service, prefix, cloud,
+				disabledMetrics, endpointType,
+				collectTime, disableSlowMetrics,
+				disableDeprecatedMetrics, disableCinderAgentUUID,
+				domainID, tenantID, nil, logger,
+			)
+
+			if err != nil {
+				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+			// Using prometheus.Registry as global variable is not thread safe,
+			// using mutex to be extra safe when registering the exporters.
+			registry.MustRegister(*exp)
+			enabled++
+			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
+		}()
+	}
+
+	wg.Wait()
+	return registry, enabled
+}
+
+func getEnabledServices(services map[string]*bool) []string {
+	var result []string
+	for s, disabled := range services {
+		if !*disabled {
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+func withPanicRecovery(w http.ResponseWriter, exporter *exporters.CommonMetricsExporter, logger log.Logger) {
+	if rec := recover(); rec != nil {
+		exporter.ScrapeErrors().Inc()
+		level.Error(logger).Log("msg", "Recovered from panic", "recover", rec)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+	}
+}
+
+func observeScrape(exporter *exporters.CommonMetricsExporter) func() {
+	start := time.Now()
+	exporter.TotalScrapes().Inc()
+	return func() {
+		durationMs := float64(time.Since(start).Milliseconds())
+		exporter.ScrapeDuration().Observe(durationMs)
+	}
+}
+
+func registerCommonMetrics(reg *prometheus.Registry, commonExporter *exporters.CommonMetricsExporter, logger log.Logger) {
+	reg.MustRegister(
+		commonExporter,
+		collectors.NewGoCollector(),
+		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}),
+	)
+	metrics, err := reg.Gather()
+	if err != nil {
+		level.Error(logger).Log("err", "Failed to gather metrics from registry", "error", err)
+		os.Exit(1)
+	}
+	if len(metrics) == 0 {
+		level.Error(logger).Log("err", "Registry is empty after initializing exporters, exiting")
+		os.Exit(1)
+	}
+}
+
+func initSingleCloudRegistry(
+	services map[string]*bool,
+	prefix, cloud string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
+	domainID, tenantID string,
+	logger log.Logger,
+	commonExporter *exporters.CommonMetricsExporter,
+) (*prometheus.Registry, error) {
+	enabledServices := getEnabledServices(services)
+
+	registry, enabled := buildAndValidateExporters(
+		enabledServices,
+		prefix, cloud,
+		disabledMetrics,
+		endpointType,
+		collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
+		domainID, tenantID,
+		logger,
+	)
+	if enabled == 0 {
+		return nil, fmt.Errorf("no exporters enabled for cloud: %s", cloud)
+	}
+
+	registerCommonMetrics(registry, commonExporter, logger)
+	return registry, nil
+}
+
+func initMultiCloudRegistries(
+	services map[string]*bool,
+	prefix string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
+	domainID, tenantID string,
+	logger log.Logger,
+) (map[string]*prometheus.Registry, error) {
+	allClouds, err := clientconfig.LoadCloudsYAML()
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse os-client-config file: %w", err)
+	}
+
+	registryMap := make(map[string]*prometheus.Registry)
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for name := range allClouds {
+		wg.Add(1)
+		go func(cloudName string) {
+			defer wg.Done()
+
+			enabledServices := getEnabledServices(services)
+			reg, enabled := buildAndValidateExporters(
+				enabledServices,
+				prefix, cloudName,
+				disabledMetrics,
+				endpointType,
+				collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
+				domainID, tenantID,
+				logger,
+			)
+
+			if enabled == 0 {
+				level.Warn(logger).Log("msg", "no exporters enabled for cloud", "cloud", cloudName)
+				return
+			}
+
+			mu.Lock()
+			registryMap[cloudName] = reg
+			mu.Unlock()
+			level.Info(logger).Log("msg", "initialized exporters for cloud", "cloud", cloudName)
+		}(name)
+	}
+
+	wg.Wait()
+
+	if len(registryMap) == 0 {
+		return nil, fmt.Errorf("no exporters initialized for any cloud")
+	}
+
+	return registryMap, nil
 }

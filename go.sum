@@ -35,6 +35,8 @@ github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56 h1:sH7xkTfYzxIEg
 github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56/go.mod h1:VSalo4adEk+3sNkmVJLnhHoOyOYYS8sTWLG4mv5BKto=
 github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da h1:hdJBhN3o3qB5v3J2LIwBEEiI05VglnEyr4VaU4cwNHI=
 github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da/go.mod h1:/4yWChzaUdzjyEElr6rHfasccBJBjlHeszNIj3aLaHg=
+github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc h1:GN2Lv3MGO7AS6PrRoT6yV5+wkrOpcszoIsO4+4ds248=
+github.com/grafana/regexp v0.0.0-20240518133315-a468a5bfb3bc/go.mod h1:+JKpmjMGhpgPL+rXZ5nsZieVzvarn86asRlBg4uNGnk=
 github.com/hashicorp/go-uuid v1.0.3 h1:2gKiV6YVmrJ1i2CKKa9obLvRieoRGviZFL26PcT/Co8=
 github.com/hashicorp/go-uuid v1.0.3/go.mod h1:6SBZvOh/SIDV7/2o3Jml5SYk/TvGqwFJ/bN7x4byOro=
 github.com/jarcoal/httpmock v1.3.1 h1:iUx3whfZWVf3jT01hQTO/Eo5sAYtB2/rqaUuOtpInww=

@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"

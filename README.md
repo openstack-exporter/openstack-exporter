@@ -11,8 +11,8 @@ The openstack-exporter can be deployed using the following mechanisms:
 
 * By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
-* Via docker images, available from our [repository]()
-* Via snaps []()
+* Via docker images, available from our [repository](https://github.com/openstack-exporter/openstack-exporter/pkgs/container/openstack-exporter)
+* Via snaps from [snapcraft](https://snapcraft.io/golang-openstack-exporter)
 
 ### Latest Docker main images
 

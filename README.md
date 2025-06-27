@@ -260,11 +260,13 @@ The following metrics are filtered for the domain ID provided (the others remain
 Enabling the cache with `--cache` changes the exporter's metric collection and delivery:
 
 #### Background Service
+
 * Collects metrics at the start and subsequently every half cache TTL.
 * Updates the cache backend after completing each collection cycle.
 * Flushes expired cache data every cache TTL.
 
 #### Exporter API
+
 * Returns no data if the cache is empty or expired.
 * Retrieves and returns cached data from the backend.
 

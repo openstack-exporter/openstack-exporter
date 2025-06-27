@@ -9,5 +9,3 @@
 * Mikael Johansson <mik.json@gmail.com>
 * Felipe Reyes <freyes@tty.cl>
 * Victor Coutellier <alistarle@gmail.com>
-
-

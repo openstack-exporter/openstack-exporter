@@ -13,37 +13,6 @@ type ManilaExporter struct {
 	BaseOpenStackExporter
 }
 
-var share_status = []string{
-	"creating",
-	"available",
-	"updating",
-	"migrating",
-	"migration_error",
-	"extending",
-	"deleting",
-	"shrinking",
-	"error",
-	"error_deleting",
-	"shrinking_error",
-	"reverting_error",
-	"restoring",
-	"reverting",
-	"managing",
-	"unmanaging",
-	"reverting_to_snapshot",
-	"soft_deleting",
-	"inactive",
-}
-
-func mapShareStatus(volStatus string) int {
-	for idx, status := range share_status {
-		if status == strings.ToLower(volStatus) {
-			return idx
-		}
-	}
-	return -1
-}
-
 var defaultManilaMetrics = []Metric{
 	{Name: "shares_counter", Fn: CountShares},
 	{Name: "share_gb", Labels: []string{"id", "name", "status", "availability_zone", "share_type", "share_proto", "share_type_name"}, Fn: nil},

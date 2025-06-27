@@ -150,7 +150,7 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableSlowMetrics && metric.Slow
+	return exporter.DisableSlowMetrics && metric.Slow
 }
 
 func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {

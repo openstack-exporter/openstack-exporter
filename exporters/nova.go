@@ -365,7 +365,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	} else if v, ok := endpointOpts["compute"]; ok {
 		eo = v
 	} else {
-		return errors.New("No EndpointOpts available to create Identity client")
+		return errors.New("no EndpointOpts available to create Identity client")
 	}
 
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)

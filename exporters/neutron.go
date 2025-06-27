@@ -142,7 +142,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	}
 
 	for _, agent := range allAgents {
-		var state int = 0
+		var state = 0
 		var id string
 		var zone string
 
@@ -157,7 +157,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 		id = agent.ID
 		if id == "" {
-			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+			if id, err = exporter.UUIDGenFunc(); err != nil {
 				return err
 			}
 		}
@@ -195,8 +195,8 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 		for _, net := range allNetworks {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
 				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
-				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
-				net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
+				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
 		}
 	}
 	return nil
@@ -278,7 +278,7 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 			lbaasPortsInactive++
 		}
 		if !exporter.MetricIsDisabled("port") {
-			var fixedIPs string = ""
+			var fixedIPs = ""
 
 			portFixedIPsLen := len(port.FixedIPs)
 			if portFixedIPsLen == 1 {

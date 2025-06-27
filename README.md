@@ -5,14 +5,14 @@
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
 
-### Deployment options
+## Deployment options
 
 The openstack-exporter can be deployed using the following mechanisms:
 
 * By using [kolla-ansible](https://github.com/openstack/kolla-ansible) by setting enable_prometheus_openstack_exporter: true
 * By using [helm charts](https://github.com/openstack-exporter/helm-charts)
-* Via docker images, available from our [repository]()
-* Via snaps []()
+* Via docker images, available from our [repository](https://github.com/openstack-exporter/openstack-exporter/pkgs/container/openstack-exporter)
+* Via snaps from [snapcraft](https://snapcraft.io/golang-openstack-exporter)
 
 ### Latest Docker main images
 
@@ -23,11 +23,13 @@ docker pull ghcr.io/openstack-exporter/openstack-exporter:latest
 ```
 
 ### Release Docker images
+
 Multi-arch images (amd64, arm64 and s390x)
 
 ```sh
 docker pull ghcr.io/openstack-exporter/openstack-exporter:1.6.0
 ```
+
 ### Snaps
 
 The exporter is also available on the [https://snapcraft.io/golang-openstack-exporter](https://snapcraft.io/golang-openstack-exporter)
@@ -37,8 +39,8 @@ For installing the latest master build (edge channel):
 snap install --channel edge golang-openstack-exporter
 ```
 
-
 For installing the latest stable version (stable channel):
+
 ```sh
 snap install --channel stable golang-openstack-exporter
 ```
@@ -54,8 +56,8 @@ Other options as the binding address/port can by explored with the --help flag.
 
 The exporter can operate in 2 modes
 
-- A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
-- A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
+* A Legacy mode (targetting one cloud) in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/metrics` URL.
+* A multi cloud mode in where the openstack\_exporter serves on port `0.0.0.0:9180` at the `/probe` URL.
   And where `/metrics` URL is serving own exporter metrics
 
 You can build it by yourself by cloning this repository and run:
@@ -63,16 +65,21 @@ You can build it by yourself by cloning this repository and run:
 ```sh
 go build -o ./openstack-exporter .
 ```
+
 Multi cloud mode
+
 ```sh
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yaml --multi-cloud
 curl "http://localhost:9180/probe?cloud=region.mycludprovider.org"
 ```
+
 or Legacy mode
+
 ```sh
 ./openstack-exporter --os-client-config /etc/openstack/clouds.yaml myregion.cloud.org
 curl "http://localhost:9180/metrics" +
 ```
+
 Or alternatively you can use the docker images, as follows (check the openstack configuration section for configuration
 details):
 
@@ -85,6 +92,7 @@ curl "http://localhost:9180/probe?cloud=my-cloud.org"
 ### Command line options
 
 The current list of command line options (by running --help)
+
 ```sh
 usage: openstack-exporter [<flags>] [<cloud>]
 
@@ -167,15 +175,23 @@ Query Parameter | Description
 `include_services` | A comma separated list of services for which metrics will be scraped. It ignores flags for disabling services `--disable-service.*`.
 `exclude_services` | A comma separated list of services for which metrics will *not* be scraped. Default is empty: ""
 
-Examples:
-```
-## Scrape all services from `test.cloud`
+#### Examples
+
+Scrape all services from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud"
+```
 
-## Scrape only `network` and `compute` services from `test.cloud`
+Scrape only `network` and `compute` services from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud&include_services=network,compute"
+```
 
-## Scrape all services except `load-balancer` and `dns` from `test.cloud`
+Scrape all services except `load-balancer` and `dns` from `test.cloud`:
+
+```sh
 curl "https://localhost:9180/probe?cloud=test.cloud&exclude_services=load-balancer,dns"
 ```
 
@@ -218,46 +234,46 @@ The exporter provides the flag `--domain-id`, this restricts some metrics to a s
 
 The following metrics are filtered for the domain ID provided (the others remain the same):
 
-```
-# Cinder
-openstack_cinder_limits_volume_max_gb
-openstack_cinder_limits_volume_used_gb
-openstack_cinder_limits_backup_max_gb
-openstack_cinder_limits_backup_used_gb
+#### Cinder
 
-# Keystone
-openstack_identity_projects
-openstack_identity_project_info
+* `openstack_cinder_limits_volume_max_gb`
+* `openstack_cinder_limits_volume_used_gb`
+* `openstack_cinder_limits_backup_max_gb`
+* `openstack_cinder_limits_backup_used_gb`
 
-# Nova
-openstack_nova_limits_vcpus_max
-openstack_nova_limits_vcpus_used
-openstack_nova_limits_memory_max
-openstack_nova_limits_memory_used
-openstack_nova_limits_instances_max
-openstack_nova_limits_instances_used
-```
+#### Keystone
+
+* `openstack_identity_projects`
+* `openstack_identity_project_info`
+
+#### Nova
+
+* `openstack_nova_limits_vcpus_max`
+* `openstack_nova_limits_vcpus_used`
+* `openstack_nova_limits_memory_max`
+* `openstack_nova_limits_memory_used`
+* `openstack_nova_limits_instances_max`
+* `openstack_nova_limits_instances_used`
 
 ### Cache mechanism
 
 Enabling the cache with `--cache` changes the exporter's metric collection and delivery:
 
-- **Background Service:**
-  - Collects metrics at the start and subsequently every half cache TTL.
-  - Updates the cache backend after completing each collection cycle.
-  - Flushes expired cache data every cache TTL.
+#### Background Service
 
-- **Exporter API:**
-  - Returns no data if the cache is empty or expired.
-  - Retrieves and returns cached data from the backend.
+* Collects metrics at the start and subsequently every half cache TTL.
+* Updates the cache backend after completing each collection cycle.
+* Flushes expired cache data every cache TTL.
 
+#### Exporter API
 
+* Returns no data if the cache is empty or expired.
+* Retrieves and returns cached data from the backend.
 
 ## Contributing
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
-
 
 ### Operational Concerns
 
@@ -267,15 +283,15 @@ OpenStack evolves with new features and fields added to the API over time, lever
 
 OpenStack-Exporter is designed to handle both older and newer microversions gracefully by default. When querying an OpenStack environment, it ensures compatibility with various microversions, using fallback behaviors for missing fields introduced in newer microversions:
 
-- For Boolean Fields: Assumes the default value of false.
-- For Numeric Fields: Missing numeric fields will default to 0
-- For String Fields: Typically default to an empty string ("")
+* For Boolean Fields: Assumes the default value of false.
+* For Numeric Fields: Missing numeric fields will default to 0
+* For String Fields: Typically default to an empty string ("")
 
 This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
 
 ## Metrics
 
-#### Slow metrics
+### Slow metrics
 
 There are some metrics that, depending on the cloud deployment size, can be slow to be
 collected because iteration over different projects is required. Those metrics are marked as `slow` and can be disabled with the command
@@ -297,7 +313,9 @@ limits_backup_max_gb | cinder
 limits_backup_used_gb | cinder
 image_bytes | glance
 image_created_at | glance
+
 #### Deprecated Metrics
+
 Metric name |  Since Version | Removed in Version | Notes
 ------------|------------|--------------|-------------------------------------
 openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_cinder_volume_gb
@@ -306,89 +324,91 @@ openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_ci
 
 Name     | Sample Labels                                                                                                                                                                                                                                                                                                         | Sample Value | Description
 ---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------
-openstack_glance_image_bytes| id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"                                                                                                                                                                                                |1.3167616e+07 (float)
-openstack_glance_image_created_at| hidden="false",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"                                                                                                                                                                       | 1.415380026e+09
-openstack_glance_images| region="Region"                                                                                                                                                                                                                                                                                                       |1.0 (float)
-openstack_neutron_agent_state| adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"                                                                                                                                                                                                        |1 or 0 (bool)
-openstack_neutron_floating_ip| region="RegionOne",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"                                                                                   |4.0 (float)
-openstack_neutron_floating_ips| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_neutron_networks| region="RegionOne"                                                                                                                                                                                                                                                                                                    |25.0 (float)
-openstack_neutron_ports| region="RegionOne"                                                                                                                                                                                                                                                                                                    | 1063.0 (float)
-openstack_neutron_subnets| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_neutron_subnets_total| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |8 (float)
-openstack_neutron_subnets_used| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |1 (float)
-openstack_neutron_subnets_free| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |7 (float)
-openstack_neutron_security_groups| region="RegionOne"                                                                                                                                                                                                                                                                                                    |10.0 (float)
-openstack_neutron_network_ip_availabilities_total| region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"                                                                                                                          |253.0 (float)
-openstack_neutron_network_ip_availabilities_used| region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"                                                                                                                          |151.0 (float)
-openstack_neutron_router| admin_state_up="true",external_network_id="78620e54-9ec2-4372-8b07-3ac2d02e0288",id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f",name="router2",project_id="a2a651cc26974de98c9a1f9aa88eb2e6",status="N/A"                                                                                                                  | 1.0 (float)
-openstack_neutron_routers| region="RegionOne"                                                                                                                                                                                                                                                                                                    |134.0 (float)
-openstack_neutron_l3_agent_of_router| region="RegionOne",agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"                                                                                                               |1.0 (float)
-openstack_neutron_network | id="d32019d3-bc6e-4319-9c1d-6722fc136a22",is_external="false",is_shared="false",name="net1",provider_network_type="vlan",provider_physical_network="public",provider_segmentation_id="3",status="ACTIVE",subnets="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869" | 1 (float)
-openstack_neutron_subnet | cidr="10.10.0.0/24",dns_nameservers="",enable_dhcp="true",gateway_ip="10.10.0.1",id="12769bb8-6c3c-11ec-8124-002b67875abf",name="pooled-subnet-ipv4",network_id="d32019d3-bc6e-4319-9c1d-6722fc136a22",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869"}                                                 | 1 (float)
-openstack_loadbalancer_up |                                                                                                                                                                                                                                                                                                                       | 1 (float)
-openstack_loadbalancer_total_loadbalancers|                                                                                                                                                                                                                                                                                                                       | 2 (float)
-openstack_loadbalancer_loadbalancer_status | id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"                                                                                                | 0 (float)
-openstack_loadbalancer_total_amphorae|                                                                                                                                                                                                                                                                                                                       | 2 (float)
-openstack_loadbalancer_amphora_status| cert_expiration="2020-08-08T23:44:31Z",compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"                                                   | 2.0 (float)
-openstack_loadbalancer_total_pools|                                                                                                                                                                                                                                                                                                                       | 2 (float)
-openstack_loadbalancer_pool_status| id="ca00ed86-94e3-440e-95c6-ffa35531081e",lb_algorithm="ROUND_ROBIN",loadbalancers="e7284bb2-f46a-42ca-8c9b-e08671255125",name="my_test_pool",operating_status="ERROR",project_id="8b1632d90bfe407787d9996b7f662fd7",protocol="TCP",provisioning_status="ACTIVE"                                                   | 2.0 (float)
-openstack_nova_availability_zones| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_nova_flavor| "disk", "id", "is_public", "name", "ram", "vcpus"                                                                                                                                                                                                                                                                     |1.0 (float)
-openstack_nova_flavors| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_nova_total_vms| region="RegionOne"                                                                                                                                                                                                                                                                                                    |12.0 (float)
-openstack_nova_server_status| region="RegionOne",hostname="compute-01""id", "name", "tenant_id", "user_id", "address_ipv4",                                                                     	"address_ipv6", "host_id", "uuid", "availability_zone"                                                                                             |0.0 (float)
-openstack_nova_running_vms| region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd"                                                                                                                                                                                                                              |12.0 (float)
-openstack_nova_server_local_gb| id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"}                                                                                                                                                                                                 | 10 (float)
-openstack_nova_free_disk_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |1230.0 (float)
-openstack_nova_local_storage_used_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |100.0 (float)
-openstack_nova_local_storage_available_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |30.0 (float)
-openstack_nova_memory_used_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |40000.0 (float)
-openstack_nova_memory_available_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |40000.0 (float)
-openstack_nova_agent_state| hostname="compute-01",region="RegionOne", id="288", service="nova-compute",adminState="enabled",zone="nova"                                                                                                                                                                                                           |1.0 or 0 (bool)
-openstack_nova_vcpus_available| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |128.0 (float)
-openstack_nova_vcpus_used| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |32.0 (float)
-openstack_nova_limits_vcpus_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |128.0 (float)
-openstack_nova_limits_vcpus_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |32.0 (float)
-openstack_nova_limits_memory_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |40000.0 (float)
-openstack_nova_limits_memory_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |40000.0 (float)
-openstack_nova_limits_instances_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |15.0 (float)
-openstack_nova_limits_instances_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |5.0 (float)
-openstack_cinder_service_state| hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"                                                                                                                                                                                                                     |1.0 or 0 (bool)
-openstack_cinder_limits_volume_max_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |40000.0 (float)
-openstack_cinder_limits_volume_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |40000.0 (float)
-openstack_cinder_limits_backup_max_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |1000.0 (float)
-openstack_cinder_limits_backup_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |0.0 (float)
-openstack_cinder_volumes| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_cinder_snapshots| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_cinder_volume_status| region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"                                                                   |4.0 (float)
-openstack_cinder_volume_gb| region="RegionOne",availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"        |4.0 (float)
-openstack_designate_zones| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)
-openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"                                                                                                                                                      |4.0 (float)
-openstack_designate_recordsets| region="RegionOne",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."                                                                                                                                                                           |4.0 (float)
-openstack_designate_recordsets_status| region="RegionOne",id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f",zone_name="example.com."                                                                                                                                    |4.0 (float)
-openstack_identity_domains| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)
-openstack_identity_users| region="RegionOne"                                                                                                                                                                                                                                                                                                    |30.0 (float)
-openstack_identity_projects| region="RegionOne"                                                                                                                                                                                                                                                                                                    |33.0 (float)
-openstack_identity_project_info| is_domain="false",description="This is a project description,domain_id="default",enabled="true",id="0c4e939acacf4376bdcd1129f1a054ad",name="demo-project",parent_id=""                                                                                                                                                |1.0 (float)
-openstack_identity_groups| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)
-openstack_identity_regions| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)
-openstack_object_store_objects| region="RegionOne",container_name="test2"                                                                                                                                                                                                                                                                             |1.0 (float)
-openstack_container_infra_cluster_masters| name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                                            |1 (float)
-openstack_container_infra_cluster_nodes| master_count="1",name="k8s",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                                          |1 (float)
-openstack_container_infra_cluster_status| master_count="1",name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                           |1 (float)
-openstack_trove_instance_status| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |2 (float)
-openstack_trove_instance_volume_size_gb| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |20 (float)
-openstack_trove_instance_volume_used_gb| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |0.4 (float)
-openstack_heat_stack_status| id="00cb0780-c883-4964-89c3-b79d840b3cbf",name="demo-stack2",project_id="0cbd49cbf76d405d9c86562e1d579bd3",status="CREATE_COMPLETE"                                                                                                                                                                                   |5 (float)
-openstack_heat_stack_status_counter| status="CREATE_COMPLETE"                                                                                                                                                                                                                                                                                              |1 (float)
-openstack_placement_resource_allocation_ratio| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|1.2 (float)
-openstack_placement_resource_reserved| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|8 (float)
-openstack_placement_resource_total| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|80 (float)
-openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB                                                                                                                                                                                                                                                                           |PCPU|VCPU|..."}|40 (float)
-openstack_metric_collect_seconds | {openstack_metric="agent_state",openstack_service="openstack_cinder"}                                                                                                                                                                                                                                                 |1.27843913| Only if --collect-metric-time is passed
+openstack_glance_image_bytes| id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8"                                                                                                                                                                                                |1.3167616e+07 (float)| Image size in bytes
+openstack_glance_image_created_at| hidden="false",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"                                                                                                                                                                       | 1.415380026e+09| Image creation timestamp
+openstack_glance_images| region="Region"                                                                                                                                                                                                                                                                                                       |1.0 (float)| Total number of images
+openstack_neutron_agent_state| adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"                                                                                                                                                                                                        |1 or 0 (bool)| Agent state (1=up, 0=down)
+openstack_neutron_floating_ip| region="RegionOne",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"                                                                                   |4.0 (float)| Floating IP status
+openstack_neutron_floating_ips| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of floating IPs
+openstack_neutron_networks| region="RegionOne"                                                                                                                                                                                                                                                                                                    |25.0 (float)| Total number of networks
+openstack_neutron_ports| region="RegionOne"                                                                                                                                                                                                                                                                                                    | 1063.0 (float)| Total number of ports
+openstack_neutron_subnets| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of subnets
+openstack_neutron_subnets_total| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |8 (float)| Total subnets in pool
+openstack_neutron_subnets_used| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |1 (float)| Used subnets in pool
+openstack_neutron_subnets_free| ip_version="4",prefix="10.10.0.0/21",prefix_length="24",project_id="9fadcee8aa7c40cdb2114fff7d569c08",subnet_pool_id="f49a1319-423a-4ee6-ba54-1d95a4f6cc68",subnet_pool_name="my-subnet-pool-ipv4"                                                                                                                    |7 (float)| Free subnets in pool
+openstack_neutron_security_groups| region="RegionOne"                                                                                                                                                                                                                                                                                                    |10.0 (float)| Total number of security groups
+openstack_neutron_network_ip_availabilities_total| region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"                                                                                                                          |253.0 (float)| Total available IPs in network
+openstack_neutron_network_ip_availabilities_used| region="RegionOne",network_id="23046ac4-67fc-4bf6-842b-875880019947",network_name="default-network",cidr="10.0.0.0/16",subnet_name="my-subnet",project_id="478340c7c6bf49c99ce40641fd13ba96"                                                                                                                          |151.0 (float)| Used IPs in network
+openstack_neutron_router| admin_state_up="true",external_network_id="78620e54-9ec2-4372-8b07-3ac2d02e0288",id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f",name="router2",project_id="a2a651cc26974de98c9a1f9aa88eb2e6",status="N/A"                                                                                                                  | 1.0 (float)| Router information
+openstack_neutron_routers| region="RegionOne"                                                                                                                                                                                                                                                                                                    |134.0 (float)| Total number of routers
+openstack_neutron_l3_agent_of_router| region="RegionOne",agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f"                                                                                                               |1.0 (float)| L3 agent router assignment
+openstack_neutron_network | id="d32019d3-bc6e-4319-9c1d-6722fc136a22",is_external="false",is_shared="false",name="net1",provider_network_type="vlan",provider_physical_network="public",provider_segmentation_id="3",status="ACTIVE",subnets="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869" | 1 (float)| Network information
+openstack_neutron_subnet | cidr="10.10.0.0/24",dns_nameservers="",enable_dhcp="true",gateway_ip="10.10.0.1",id="12769bb8-6c3c-11ec-8124-002b67875abf",name="pooled-subnet-ipv4",network_id="d32019d3-bc6e-4319-9c1d-6722fc136a22",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869"                                                 | 1 (float)| Subnet information
+openstack_loadbalancer_up |                                                                                                                                                                                                                                                                                                                       | 1 (float)| Load balancer service status
+openstack_loadbalancer_total_loadbalancers|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of load balancers
+openstack_loadbalancer_loadbalancer_status | id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"                                                                                                | 0 (float)| Load balancer status
+openstack_loadbalancer_total_amphorae|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of amphorae
+openstack_loadbalancer_amphora_status| cert_expiration="2020-08-08T23:44:31Z",compute_id="667bb225-69aa-44b1-8908-694dc624c267",ha_ip="10.0.0.6",id="45f40289-0551-483a-b089-47214bc2a8a4",lb_network_ip="192.168.0.6",loadbalancer_id="882f2a9d-9d53-4bd0-b0e9-08e9d0de11f9",role="MASTER",status="READY"                                                   | 2.0 (float)| Amphora status
+openstack_loadbalancer_total_pools|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of pools
+openstack_loadbalancer_pool_status| id="ca00ed86-94e3-440e-95c6-ffa35531081e",lb_algorithm="ROUND_ROBIN",loadbalancers="e7284bb2-f46a-42ca-8c9b-e08671255125",name="my_test_pool",operating_status="ERROR",project_id="8b1632d90bfe407787d9996b7f662fd7",protocol="TCP",provisioning_status="ACTIVE"                                                   | 2.0 (float)| Pool status
+openstack_nova_availability_zones| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of availability zones
+openstack_nova_flavor| disk="disk",id="id",is_public="is_public",name="name",ram="ram",vcpus="vcpus"                                                                                                                                                                                                                                                     |1.0 (float)| Flavor information
+openstack_nova_flavors| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of flavors
+openstack_nova_total_vms| region="RegionOne"                                                                                                                                                                                                                                                                                                    |12.0 (float)| Total number of VMs
+openstack_nova_server_status| region="RegionOne",hostname="compute-01",id="id",name="name",tenant_id="tenant_id",user_id="user_id",address_ipv4="address_ipv4",address_ipv6="address_ipv6",host_id="host_id",uuid="uuid",availability_zone="availability_zone"                                                                                             |0.0 (float)| Server status
+openstack_nova_running_vms| region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd"                                                                                                                                                                                                                              |12.0 (float)| Number of running VMs
+openstack_nova_server_local_gb| id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"                                                                                                                                                                                                 | 10 (float)| Server local disk size
+openstack_nova_free_disk_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |1230.0 (float)| Free disk space in bytes
+openstack_nova_local_storage_used_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |100.0 (float)| Used local storage in bytes
+openstack_nova_local_storage_available_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |30.0 (float)| Available local storage in bytes
+openstack_nova_memory_used_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |40000.0 (float)| Used memory in bytes
+openstack_nova_memory_available_bytes| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |40000.0 (float)| Available memory in bytes
+openstack_nova_agent_state| hostname="compute-01",region="RegionOne",id="288",service="nova-compute",adminState="enabled",zone="nova"                                                                                                                                                                                                           |1.0 or 0 (bool)| Agent state (1=up, 0=down)
+openstack_nova_vcpus_available| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |128.0 (float)| Available vCPUs
+openstack_nova_vcpus_used| region="RegionOne",hostname="compute-01",aggregates="shared,ssd"                                                                                                                                                                                                                                                      |32.0 (float)| Used vCPUs
+openstack_nova_limits_vcpus_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |128.0 (float)| Maximum vCPUs limit
+openstack_nova_limits_vcpus_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |32.0 (float)| Used vCPUs count
+openstack_nova_limits_memory_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |40000.0 (float)| Maximum memory limit
+openstack_nova_limits_memory_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |40000.0 (float)| Used memory count
+openstack_nova_limits_instances_max| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |15.0 (float)| Maximum instances limit
+openstack_nova_limits_instances_used| tenant="demo-project"                                                                                                                                                                                                                                                                                                 |5.0 (float)| Used instances count
+openstack_cinder_service_state| hostname="compute-01",region="RegionOne",service="cinder-backup",adminState="enabled",zone="nova"                                                                                                                                                                                                                     |1.0 or 0 (bool)| Service state (1=up, 0=down)
+openstack_cinder_limits_volume_max_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |40000.0 (float)| Maximum volume size limit
+openstack_cinder_limits_volume_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |40000.0 (float)| Used volume size
+openstack_cinder_limits_backup_max_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |1000.0 (float)| Maximum backup size limit
+openstack_cinder_limits_backup_used_gb| tenant="demo-project",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"                                                                                                                                                                                                                                                    |0.0 (float)| Used backup size
+openstack_cinder_volumes| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of volumes
+openstack_cinder_snapshots| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of snapshots
+openstack_cinder_volume_status| region="RegionOne",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"                                                                   |4.0 (float)| Volume status
+openstack_cinder_volume_gb| region="RegionOne",availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b"        |4.0 (float)| Volume size in GB
+openstack_designate_zones| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of DNS zones
+openstack_designate_zone_status| region="RegionOne",id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",name="example.org.",status="ACTIVE",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",type="PRIMARY"                                                                                                                                                      |4.0 (float)| DNS zone status
+openstack_designate_recordsets| region="RegionOne",tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."                                                                                                                                                                           |4.0 (float)| Total number of recordsets
+openstack_designate_recordsets_status| region="RegionOne",id="f7b10e9b-0cae-4a91-b162-562bc6096648",name="example.org.",status="PENDING",type="A",zone_id="2150b1bf-dee2-4221-9d85-11f7886fb15f",zone_name="example.com."                                                                                                                                    |4.0 (float)| Recordset status
+openstack_identity_domains| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)| Total number of domains
+openstack_identity_users| region="RegionOne"                                                                                                                                                                                                                                                                                                    |30.0 (float)| Total number of users
+openstack_identity_projects| region="RegionOne"                                                                                                                                                                                                                                                                                                    |33.0 (float)| Total number of projects
+openstack_identity_project_info| is_domain="false",description="This is a project description",domain_id="default",enabled="true",id="0c4e939acacf4376bdcd1129f1a054ad",name="demo-project",parent_id=""                                                                                                                                                |1.0 (float)| Project information
+openstack_identity_groups| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)| Total number of groups
+openstack_identity_regions| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)| Total number of regions
+openstack_object_store_objects| region="RegionOne",container_name="test2"                                                                                                                                                                                                                                                                             |1.0 (float)| Number of objects in container
+openstack_object_store_bytes|region="RegionOne",container_name="test2"                                                                                                                                                                                                                                                                             |1.0 (float) | Object bytes in a container
+openstack_container_infra_cluster_masters| name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                                            |1 (float)| Number of cluster master nodes
+openstack_container_infra_cluster_nodes| master_count="1",name="k8s",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                                          |1 (float)| Number of cluster worker nodes
+openstack_container_infra_cluster_status| master_count="1",name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"                                                                                                           |1 (float)| Cluster status
+openstack_trove_instance_status| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |2 (float)| Database instance status
+openstack_trove_instance_volume_size_gb| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |20 (float)| Database instance volume size
+openstack_trove_instance_volume_used_gb| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |0.4 (float)| Database instance volume used
+openstack_heat_stack_status| id="00cb0780-c883-4964-89c3-b79d840b3cbf",name="demo-stack2",project_id="0cbd49cbf76d405d9c86562e1d579bd3",status="CREATE_COMPLETE"                                                                                                                                                                                   |5 (float)| Heat stack status
+openstack_heat_stack_status_counter| status="CREATE_COMPLETE"                                                                                                                                                                                                                                                                                              |1 (float)| Heat stack status counter
+openstack_placement_resource_allocation_ratio| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |1.2 (float)| Resource allocation ratio
+openstack_placement_resource_reserved| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |8 (float)| Reserved resources
+openstack_placement_resource_total| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |80 (float)| Total resources
+openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |40 (float)| Used resources
+openstack_metric_collect_seconds | openstack_metric="agent_state",openstack_service="openstack_cinder"                                                                                                                                                                                                                                                 |1.27843913| Metric collection time (only if --collect-metric-time is passed)
 
 ## Cinder Volume Status Description
+
 Index | Status
 ------|-------
 0 |creating
@@ -413,6 +433,7 @@ Index | Status
 19 |extending
 
 ## Manila Share Status Description
+
 Index | Status
 ------|-------
 0 |creating
@@ -436,9 +457,9 @@ Index | Status
 18 |soft_deleting
 19 |inactive
 
-
 ## Example metrics
-```
+
+```text
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-backup",zone="nova"} 1.0
@@ -1382,7 +1403,3 @@ openstack_sharev2_up 1
 ### Communication
 
 Please join us at #openstack-exporter at [OFTC](https://www.oftc.net/)
-
-## Metrics
-
-Please note that by convention resources metrics such as memory or storage are returned in bytes.

@@ -1,12 +1,12 @@
 # openstack-exporter snap
 
-Snap published at https://snapcraft.io/golang-openstack-exporter
+Snap published at <https://snapcraft.io/golang-openstack-exporter>
 
 ## Command
 
 The command is provided in the snap as:
 
-```
+```sh
 $ golang-openstack-exporter.openstack-exporter --help
 usage: openstack-exporter [<flags>] [<cloud>]
 ...
@@ -14,13 +14,13 @@ usage: openstack-exporter [<flags>] [<cloud>]
 
 This can be aliased to `openstack-exporter` if you wish:
 
-```
+```sh
 sudo snap alias golang-openstack-exporter.openstack-exporter openstack-exporter
 ```
 
 ## Service
 
-```
+```sh
 $ snap services golang-openstack-exporter.service
 Service                            Startup   Current   Notes
 golang-openstack-exporter.service  disabled  inactive  -
@@ -31,7 +31,7 @@ but then it can be managed as a snap service.
 At least one of `cloud` or `multi-cloud` must be set,
 and credentials will likely be required.
 
-```
+```sh
 sudo snap set golang-openstack-exporter cloud=mycloud os-client-config=/etc/openstack/clouds.yaml
 sudo snap start golang-openstack-exporter
 ```
@@ -40,7 +40,7 @@ sudo snap start golang-openstack-exporter
 
 Logs for the service can be viewed by running:
 
-```
+```sh
 sudo snap logs golang-openstack-exporter
 ```
 
@@ -48,7 +48,7 @@ sudo snap logs golang-openstack-exporter
 
 To allow the snap to read from the `/etc/openstack/`, you may need to manually add the connection:
 
-```
+```sh
 $ snap connections golang-openstack-exporter
 Interface     Plug                                     Slot           Notes
 home          golang-openstack-exporter:home           :home          -
@@ -71,7 +71,7 @@ system-files  golang-openstack-exporter:etc-openstack  :system-files  manual
 The following config items are supported for the service.
 Note that the service must be restarted for configuration changes to be applied.
 
-```
+```sh
 $ sudo snap get -d golang-openstack-exporter
 {
         "cloud": "",
@@ -139,7 +139,7 @@ If set to "true", the corresponding flag is passed to the openstack-exporter.
 
 Examples of configuring these options:
 
-```
+```sh
 # turn on the option
 sudo snap set golang-openstack-exporter multi-cloud=true
 sudo snap set golang-openstack-exporter collect-metric-time=true
@@ -150,7 +150,6 @@ sudo snap set golang-openstack-exporter disable-service.dns=false
 # unsetting will reset to the default, which is false
 sudo snap unset golang-openstack-exporter disable-slow-metrics
 ```
-
 
 ## Options with a value
 
@@ -168,7 +167,7 @@ These are options that take a value that is passed to the openstack-exporter cli
 
 Examples of configuring these options:
 
-```
+```sh
 # set a value
 sudo snap set golang-openstack-exporter cloud=openstack
 sudo snap set golang-openstack-exporter os-client-config=/etc/openstack/clouds.yaml

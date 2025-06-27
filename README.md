@@ -37,7 +37,6 @@ For installing the latest master build (edge channel):
 snap install --channel edge golang-openstack-exporter
 ```
 
-
 For installing the latest stable version (stable channel):
 ```sh
 snap install --channel stable golang-openstack-exporter
@@ -260,13 +259,10 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
   - Returns no data if the cache is empty or expired.
   - Retrieves and returns cached data from the backend.
 
-
-
 ## Contributing
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
-
 
 ### Operational Concerns
 
@@ -446,7 +442,6 @@ Index | Status
 17 |reverting_to_snapshot
 18 |soft_deleting
 19 |inactive
-
 
 ## Example metrics
 

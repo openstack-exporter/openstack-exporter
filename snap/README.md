@@ -151,7 +151,6 @@ sudo snap set golang-openstack-exporter disable-service.dns=false
 sudo snap unset golang-openstack-exporter disable-slow-metrics
 ```
 
-
 ## Options with a value
 
 These are options that take a value that is passed to the openstack-exporter cli:

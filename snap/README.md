@@ -1,6 +1,6 @@
 # openstack-exporter snap
 
-Snap published at https://snapcraft.io/golang-openstack-exporter
+Snap published at <https://snapcraft.io/golang-openstack-exporter>
 
 ## Command
 

@@ -65,6 +65,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Login to GitHub Container Registry
         if: ${{ github.event_name != 'pull_request' }}
@@ -120,11 +122,22 @@ jobs:
           tags: ${{ steps.meta-github-image.outputs.tags }}
           labels: ${{ steps.meta-github-image.outputs.labels }}
 
-      - name: Run Goreleaser
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: goreleaser/goreleaser-action@v6
+      # This step runs ONLY when a tag is pushed
+      - name: Run GoReleaser (Tag Release)
+        if: contains(github.ref, 'refs/tags/')
+        uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
           args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # This step runs on anything EXCEPT tags
+      - name: Run GoReleaser (Snapshot)
+        if: ${{ !contains(github.ref, 'refs/tags/') }}
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --snapshot --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

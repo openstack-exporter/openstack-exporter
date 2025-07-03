@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
 
@@ -75,9 +76,6 @@ type NovaExporter struct {
 var defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
 	"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
 
-var defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-	"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
-
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
 	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
@@ -94,7 +92,6 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
-	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
 	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
@@ -357,6 +354,10 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			if len(server.Metadata) > 0 {
 				for key, value := range server.Metadata {
 					sanitizedKey := SanitizeLabelName(key)
+					if slices.Contains(labels, sanitizedKey) {
+						// If the label is already exist, we skip it to avoid duplicates
+						continue
+					}
 					labels = append(labels, sanitizedKey)
 					labelsValue = append(labelsValue, value)
 				}

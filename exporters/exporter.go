@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-kit/log"
@@ -79,9 +80,14 @@ type BaseOpenStackExporter struct {
 
 type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var endpointOpts map[string]gophercloud.EndpointOpts
-
-var endpointOptsV2 map[string]gophercloudv2.EndpointOpts
+var (
+	endpointOpts   = make(map[string]gophercloud.EndpointOpts)
+	endpointOptsMu sync.Mutex
+)
+var (
+	endpointOptsV2   map[string]gophercloudv2.EndpointOpts
+	endpointOptsV2Mu sync.Mutex
+)
 
 func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
@@ -144,11 +150,11 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableSlowMetrics && metric.Slow
+	return exporter.DisableSlowMetrics && metric.Slow
 }
 
 func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
+	return exporter.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {

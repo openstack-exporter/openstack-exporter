@@ -1,7 +1,8 @@
 package exporters
 
 import (
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/utils/gnocchi/metric/v1/metrics"
 	"github.com/gophercloud/utils/gnocchi/metric/v1/status"
 	"github.com/prometheus/client_golang/prometheus"
@@ -18,7 +19,7 @@ var defaultGnocchiMetrics = []Metric{
 	{Name: "total_metrics", Fn: ListAllMetrics},
 }
 
-func NewGnocchiExporter(config *ExporterConfig, logger log.Logger) (*GnocchiExporter, error) {
+func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiExporter, error) {
 	exporter := GnocchiExporter{
 		BaseOpenStackExporter{
 			Name:           "gnocchi",

@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/gophercloud/utils/gnocchi/metric/v1/metrics"
 	"github.com/gophercloud/utils/gnocchi/metric/v1/status"
 	"github.com/prometheus/client_golang/prometheus"
@@ -38,17 +39,25 @@ func NewGnocchiExporter(config *ExporterConfig, logger log.Logger) (*GnocchiExpo
 }
 
 func ListAllMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allMetrics []metrics.Metric
-	allPagesMetrics, err := metrics.List(exporter.Client, metrics.ListOpts{}).AllPages()
-	if err != nil {
-		return err
-	}
-	allMetrics, err = metrics.ExtractMetrics(allPagesMetrics)
+	// Use pagination to count metrics without storing all in memory
+	// If you want you can set Limit for each page that by default set to max_limit value of gnocchi_api config
+	// If you have not max_limit, it may be set to 1000
+	var totalMetrics int
+	pager := metrics.List(exporter.Client, metrics.ListOpts{})
+	err := pager.EachPage(func(page pagination.Page) (bool, error) {
+		metricList, err := metrics.ExtractMetrics(page)
+		if err != nil {
+			return false, err
+		}
+		totalMetrics += len(metricList)
+		return true, nil
+	})
+
 	if err != nil {
 		return err
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_metrics"].Metric,
-		prometheus.GaugeValue, float64(len(allMetrics)))
+		prometheus.GaugeValue, float64(totalMetrics))
 
 	return nil
 }

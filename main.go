@@ -63,12 +63,11 @@ func main() {
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
+	level.Info(logger).Log("version_info", version.Info(), "build_context", version.BuildContext())
 
 	if *cloud == "" && !*multiCloud {
 		level.Error(logger).Log("msg", "openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
 	}
-
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
 
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
 		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)

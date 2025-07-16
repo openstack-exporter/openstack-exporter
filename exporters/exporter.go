@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -14,6 +15,7 @@ import (
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
+	"github.com/mitchellh/go-homedir"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -150,11 +152,11 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableSlowMetrics && metric.Slow
+	return exporter.DisableSlowMetrics && metric.Slow
 }
 
 func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
-	return exporter.ExporterConfig.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
+	return exporter.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
@@ -200,6 +202,33 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
+// took from here:
+// https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L87
+func pathOrContents(poc string) ([]byte, bool, error) {
+	if len(poc) == 0 {
+		return nil, false, nil
+	}
+
+	path := poc
+	if path[0] == '~' {
+		var err error
+		path, err = homedir.Expand(path)
+		if err != nil {
+			return []byte(path), true, err
+		}
+	}
+
+	if _, err := os.Stat(path); err == nil {
+		contents, err := os.ReadFile(path)
+		if err != nil {
+			return contents, true, err
+		}
+		return contents, true, nil
+	}
+
+	return []byte(poc), false, nil
+}
+
 func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, uuidGenFunc func() (string, error), logger log.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
@@ -214,16 +243,39 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
+	var configureTransport = false
 	if !*config.Verify {
 		level.Info(logger).Log("msg", "SSL verification disabled on transport")
 		tlsConfig.InsecureSkipVerify = true
-		transport = &http.Transport{TLSClientConfig: &tlsConfig}
+		configureTransport = true
 	} else if config.CACertFile != "" {
 		certPool, err := additionalTLSTrust(config.CACertFile, logger)
 		if err != nil {
 			level.Error(logger).Log("msg", "Failed to include additional certificates to ca-trust", "err", err)
 		}
 		tlsConfig.RootCAs = certPool
+		configureTransport = true
+	}
+
+	// took from here:
+	// https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L65
+	if config.ClientCertFile != "" && config.ClientKeyFile != "" {
+		clientCert, _, err := pathOrContents(config.ClientCertFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Client Cert: %s", err)
+		}
+		clientKey, _, err := pathOrContents(config.ClientKeyFile)
+		if err != nil {
+			return nil, fmt.Errorf("error reading Client Key: %s", err)
+		}
+		cert, err := tls.X509KeyPair(clientCert, clientKey)
+		if err != nil {
+			return nil, err
+		}
+		tlsConfig.Certificates = []tls.Certificate{cert}
+		configureTransport = true
+	}
+	if configureTransport {
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	}
 

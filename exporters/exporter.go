@@ -202,6 +202,18 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
+func (exporter *BaseOpenStackExporter) UpdateMetric(name string, labels []string, constLabels prometheus.Labels) {
+	if constLabels == nil {
+		constLabels = prometheus.Labels{}
+	}
+	if metric, ok := exporter.Metrics[name]; ok {
+		level.Info(exporter.logger).Log("msg", "Updating metric for exporter", "metric", name, "exporter", exporter.Name)
+		metric.Metric = prometheus.NewDesc(
+			prometheus.BuildFQName(exporter.GetName(), "", name),
+			name, labels, constLabels)
+	}
+}
+
 // took from here:
 // https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L87
 func pathOrContents(poc string) ([]byte, bool, error) {

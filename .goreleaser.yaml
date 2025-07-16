@@ -12,3 +12,9 @@ builds:
       - amd64
       - arm64
       - s390x
+    ldflags:
+      - -w -s
+        -X github.com/prometheus/common/version.Version={{ .Version }}
+        -X github.com/prometheus/common/version.Revision={{ .Commit }}
+        -X github.com/prometheus/common/version.Branch={{ .Branch }}
+        -X github.com/prometheus/common/version.BuildDate={{ .Date }}

@@ -1,7 +1,8 @@
 package exporters
 
 import (
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -17,7 +18,7 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_usage", Labels: []string{"hostname", "resourcetype"}},
 }
 
-func NewPlacementExporter(config *ExporterConfig, logger log.Logger) (*PlacementExporter, error) {
+func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
 	exporter := PlacementExporter{
 		BaseOpenStackExporter{
 			Name:           "placement",

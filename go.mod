@@ -1,8 +1,6 @@
 module github.com/openstack-exporter/openstack-exporter
 
-go 1.22.0
-
-toolchain go1.22.12
+go 1.23.0
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
@@ -13,6 +11,7 @@ require (
 	github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.4.0
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.44.0
@@ -33,14 +32,13 @@ require (
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	golang.org/x/crypto v0.33.0 // indirect
 	golang.org/x/net v0.27.0 // indirect
-	golang.org/x/oauth2 v0.21.0 // indirect
+	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sync v0.11.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect

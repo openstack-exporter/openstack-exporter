@@ -8,11 +8,12 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-kit/log v0.2.1
 	github.com/gophercloud/gophercloud v1.14.0
-	github.com/gophercloud/gophercloud/v2 v2.7.0
+	github.com/gophercloud/gophercloud/v2 v2.8.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
 	github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.4.0
+	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/prometheus/client_model v0.6.2
 	github.com/prometheus/common v0.44.0
@@ -33,7 +34,6 @@ require (
 	github.com/jpillora/backoff v1.0.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
-	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/procfs v0.15.1 // indirect

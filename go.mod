@@ -8,7 +8,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/go-kit/log v0.2.1
 	github.com/gophercloud/gophercloud v1.14.0
-	github.com/gophercloud/gophercloud/v2 v2.7.0
+	github.com/gophercloud/gophercloud/v2 v2.8.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
 	github.com/gophercloud/utils/v2 v2.0.0-20240912080913-c094a6e5b7da
 	github.com/hashicorp/go-uuid v1.0.3

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -93,6 +94,39 @@ func TestNetworkingIntegration(t *testing.T) {
 		}
 		if !foundAny {
 			t.Log("Note: Expected Neutron metrics HELP headers not found; Neutron may not be fully available")
+		}
+	})
+
+	// Regex-based specificity checks for a network metric line
+	t.Run("neutron_network_line_format", func(t *testing.T) {
+		lineRe := regexp.MustCompile(`(?m)^openstack_neutron_network\{.*\} [0-9.e\+\-]+$`)
+		lines := lineRe.FindAllString(bodyString, -1)
+		if len(lines) == 0 {
+			t.Fatalf("No 'openstack_neutron_network' lines found matching expected format")
+		}
+		labelChecks := []*regexp.Regexp{
+			regexp.MustCompile(`\bid="[^"]+"`),
+			regexp.MustCompile(`\bname="[^"]+"`),
+			regexp.MustCompile(`\bis_external="(?:true|false)"`),
+			regexp.MustCompile(`\bis_shared="(?:true|false)"`),
+			regexp.MustCompile(`\bprovider_network_type="[^"]*"`),
+		}
+		matched := false
+		for _, l := range lines {
+			ok := true
+			for _, re := range labelChecks {
+				if !re.MatchString(l) {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			t.Errorf("No 'openstack_neutron_network' line contained required labels (id,name,is_external,is_shared,provider_network_type)")
 		}
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -91,6 +92,40 @@ func TestIdentityIntegration(t *testing.T) {
 		}
 		if !foundAny {
 			t.Log("Note: Expected Identity metrics HELP headers not found; Keystone may not be fully available")
+		}
+	})
+
+	// Regex-based specificity checks against project_info metric line
+	t.Run("identity_project_info_line_format", func(t *testing.T) {
+		lineRe := regexp.MustCompile(`(?m)^openstack_identity_project_info\{.*\} [0-9.e\+\-]+$`)
+		lines := lineRe.FindAllString(bodyString, -1)
+		if len(lines) == 0 {
+			t.Fatalf("No 'openstack_identity_project_info' lines found matching expected format")
+		}
+		// Validate key labels exist within a matched line (order-independent)
+		labelChecks := []*regexp.Regexp{
+			regexp.MustCompile(`\bid="[^"]+"`),
+			regexp.MustCompile(`\bname="[^"]+"`),
+			regexp.MustCompile(`\bdomain_id="[^"]+"`),
+			regexp.MustCompile(`\benabled="(?:true|false)"`),
+			regexp.MustCompile(`\bparent_id="[^"]+"`),
+		}
+		matched := false
+		for _, l := range lines {
+			ok := true
+			for _, re := range labelChecks {
+				if !re.MatchString(l) {
+					ok = false
+					break
+				}
+			}
+			if ok {
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			t.Errorf("No 'openstack_identity_project_info' line contained required labels (id,name,domain_id,enabled,parent_id)")
 		}
 	})
 }

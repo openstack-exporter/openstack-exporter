@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -91,6 +92,21 @@ func TestImagesIntegration(t *testing.T) {
 		}
 		if !foundAny {
 			t.Log("Note: Expected Glance metrics HELP headers not found; Glance may not be fully available")
+		}
+	})
+
+	// Regex-based specificity checks against actual metric lines
+	t.Run("glance_image_bytes_line_format", func(t *testing.T) {
+		re := regexp.MustCompile(`(?m)^openstack_glance_image_bytes\{id="[^"]+",name="[^"]+",tenant_id="[^"]+"\} [0-9.e\+\-]+$`)
+		if !re.MatchString(bodyString) {
+			t.Errorf("No 'openstack_glance_image_bytes' line matched expected format")
+		}
+	})
+
+	t.Run("glance_image_created_at_line_format", func(t *testing.T) {
+		re := regexp.MustCompile(`(?m)^openstack_glance_image_created_at\{hidden="(?:true|false)",id="[^"]+",name="[^"]+",status="[^"]+",tenant_id="[^"]+",visibility="[^"]+"\} [0-9.e\+\-]+$`)
+		if !re.MatchString(bodyString) {
+			t.Errorf("No 'openstack_glance_image_created_at' line matched expected format with labels hidden,id,name,status,tenant_id,visibility")
 		}
 	})
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -92,6 +93,14 @@ func TestPlacementIntegration(t *testing.T) {
 		}
 		if !foundAny {
 			t.Log("Note: Expected Placement metrics HELP headers not found; Placement may not be fully available")
+		}
+	})
+
+	// Regex-based specificity checks for a placement resource metric line
+	t.Run("placement_resource_line_format", func(t *testing.T) {
+		re := regexp.MustCompile(`(?m)^openstack_placement_resource_(?:total|usage|reserved|allocation_ratio)\{resource_class="[^"]+",resource_provider="[^"]+"\} [0-9.e\+\-]+$`)
+		if !re.MatchString(bodyString) {
+			t.Errorf("No placement resource metric line matched expected format with labels resource_class,resource_provider")
 		}
 	})
 }

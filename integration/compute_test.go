@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -81,6 +82,14 @@ func TestComputeIntegration(t *testing.T) {
 		if !strings.Contains(bodyString, "# HELP openstack_nova_flavors") &&
 			!strings.Contains(bodyString, "# HELP openstack_nova_total_vms") {
 			t.Log("Note: Neither flavors nor total_vms HELP headers found; Nova may be partially configured")
+		}
+	})
+
+	// Regex-based specificity check for a flavor metric line
+	t.Run("nova_flavor_line_format", func(t *testing.T) {
+		re := regexp.MustCompile(`(?m)^openstack_nova_flavor\{id="[^"]+",name="[^"]+",disk="[0-9]+",ram="[0-9]+",vcpus="[0-9]+",is_public="(?:true|false)"\} [0-9.e\+\-]+$`)
+		if !re.MatchString(bodyString) {
+			t.Errorf("No 'openstack_nova_flavor' line matched expected format with labels id,name,disk,ram,vcpus,is_public")
 		}
 	})
 }

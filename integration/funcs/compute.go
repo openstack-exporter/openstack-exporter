@@ -4,8 +4,6 @@ package funcs
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"testing"
@@ -27,8 +25,6 @@ import (
 	th "github.com/gophercloud/gophercloud/v2/testhelper"
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 	"github.com/openstack-exporter/openstack-exporter/integration/tools"
-
-	"golang.org/x/crypto/ssh"
 )
 
 // AttachInterface will create and attach an interface on a given server.
@@ -177,23 +173,6 @@ func CreateFlavor(t *testing.T, client *gophercloud.ServiceClient) (*flavors.Fla
 	th.AssertEquals(t, flavorDescription, flavor.Description)
 
 	return flavor, nil
-}
-
-func createKey() (string, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", err
-	}
-
-	publicKey := privateKey.PublicKey
-	pub, err := ssh.NewPublicKey(&publicKey)
-	if err != nil {
-		return "", err
-	}
-
-	pubBytes := ssh.MarshalAuthorizedKey(pub)
-	pk := string(pubBytes)
-	return pk, nil
 }
 
 // CreateKeyPair will create a KeyPair with a random name. An error will occur

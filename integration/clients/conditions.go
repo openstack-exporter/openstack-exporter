@@ -166,7 +166,7 @@ func IsCurrentAbove(t *testing.T, release string) bool {
 		if isReleaseNumeral(current) && !isReleaseNumeral(release) {
 			return true
 		}
-		if current > release && !(!isReleaseNumeral(current) && isReleaseNumeral(release)) {
+		if current > release && (isReleaseNumeral(current) || !isReleaseNumeral(release)) {
 			return true
 		}
 	}
@@ -189,7 +189,7 @@ func IsCurrentBelow(t *testing.T, release string) bool {
 		if isReleaseNumeral(release) && !isReleaseNumeral(current) {
 			return true
 		}
-		if release > current && !(!isReleaseNumeral(release) && isReleaseNumeral(current)) {
+		if release > current && (isReleaseNumeral(release) || !isReleaseNumeral(current)) {
 			return true
 		}
 	}

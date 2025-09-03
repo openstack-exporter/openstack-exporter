@@ -151,8 +151,6 @@ func DeployFakeNode(t *testing.T, client *gophercloud.ServiceClient, node *nodes
 		if err != nil {
 			return node, err
 		}
-
-		currentState = string(nodes.Available)
 	}
 
 	t.Logf("deploying fake node %s", node.UUID)

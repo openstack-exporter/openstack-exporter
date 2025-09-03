@@ -23,7 +23,7 @@ func TestBaremetalIntegration(t *testing.T) {
 	node, err := funcs.CreateFakeNode(t, client)
 	th.AssertNoErr(t, err)
 
-	node, err = funcs.DeployFakeNode(t, client, node)
+	_, err = funcs.DeployFakeNode(t, client, node)
 	th.AssertNoErr(t, err)
 
 	// Start the OpenStack exporter

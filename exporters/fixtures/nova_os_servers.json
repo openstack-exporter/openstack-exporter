@@ -68,7 +68,8 @@
       "locked": true,
       "locked_reason": "I don't want to work",
       "metadata": {
-        "My Server Name": "Apache1"
+        "My Server Name": "Apache1",
+        "My Datacenter": "DC1"
       },
       "name": "new-server-test",
       "os-extended-volumes:volumes_attached": [],

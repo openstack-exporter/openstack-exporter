@@ -108,12 +108,12 @@ func AcceptanceTestChoicesFromEnv() (*AcceptanceTestChoices, error) {
 	}
 
 	if len(missing) > 0 {
-		text := "You're missing some important setup:\n * These environment variables must be provided: %s"
+		text := "you're missing some important setup:\n * these environment variables must be provided: %s"
 		return nil, fmt.Errorf(text, strings.Join(missing, ", "))
 	}
 
 	if notDistinct != "" {
-		text := "You're missing some important setup:\n * %s"
+		text := "you're missing some important setup:\n * %s"
 		return nil, fmt.Errorf(text, notDistinct)
 	}
 

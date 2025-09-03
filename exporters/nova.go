@@ -3,12 +3,13 @@ package exporters
 import (
 	"errors"
 	"fmt"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
+	"log/slog"
 	"os"
 	"sort"
 	"strconv"
 
-	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
@@ -114,7 +115,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "quota_injected_files", Labels: []string{"type", "tenant"}},
 }
 
-func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",

@@ -158,7 +158,10 @@ func TestBufferFromCache(t *testing.T) {
 		t.Error(err)
 	}
 	for _, mf := range mfs {
-		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
+		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
+		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
+		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
 	}
 
 }
@@ -211,7 +214,10 @@ func TestWriteCacheToResponse(t *testing.T) {
 		t.Error(err)
 	}
 	for _, mf := range mfs {
-		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
+		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
+		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
+		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
 	}
 }
 

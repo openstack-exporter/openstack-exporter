@@ -2,9 +2,9 @@ package exporters
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 
-	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/apiversions"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
 	"github.com/prometheus/client_golang/prometheus"
@@ -20,7 +20,7 @@ var defaultIronicMetrics = []Metric{
 }
 
 // NewIronicExporter : returns a pointer to IronicExporter
-func NewIronicExporter(config *ExporterConfig, logger log.Logger) (*IronicExporter, error) {
+func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExporter, error) {
 	exporter := IronicExporter{
 		BaseOpenStackExporter{
 			Name:           "ironic",

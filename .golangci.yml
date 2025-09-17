@@ -1,9 +1,13 @@
+---
 version: "2"
 linters:
   settings:
     errcheck:
       exclude-functions:
-        - (github.com/go-kit/log.Logger).Log
+        - (log/slog.Logger).Debug
+        - (log/slog.Logger).Info
+        - (log/slog.Logger).Warn
+        - (log/slog.Logger).Error
   exclusions:
     generated: lax
     presets:

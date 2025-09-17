@@ -8,7 +8,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/suite"
 )
@@ -145,7 +146,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)

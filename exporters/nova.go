@@ -3,12 +3,14 @@ package exporters
 import (
 	"errors"
 	"fmt"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
+	"log/slog"
 	"os"
 	"sort"
 	"strconv"
+	"reflect"
 
-	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
@@ -114,7 +116,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "quota_injected_files", Labels: []string{"type", "tenant"}},
 }
 
-func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
@@ -218,8 +220,14 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
+		var vcpus int
+		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
+			vcpus = hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+		} else {
+			vcpus = hypervisor.VCPUs
+		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))

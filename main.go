@@ -120,7 +120,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		errChan <- err
 		return
@@ -129,7 +129,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
 				errChan <- err
 				return
 			}
@@ -243,7 +243,7 @@ func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFu
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
 			if err != nil {
 				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -285,7 +285,7 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				logger.Error("enabling exporter for service failed", "service", service, "error", err)

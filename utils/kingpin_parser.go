@@ -15,7 +15,12 @@ var (
 	ErrLabelName = errors.New("bad label name")
 )
 
-// NOTE: unfortunately go's regexp do not support group inverse match
+// Prometheus label names must:
+// - Not start from number
+// - Not use `__` prefix
+// - Use only latin letters, digits and underscore
+//
+// See: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
 var labelNameConstraintRe = regexp.MustCompile(`^([^_0-9][^_][a-zA-Z]|(?:_)[a-zA-Z0-9]|[a-zA-Z])[a-zA-Z0-9_]*$`)
 
 // LabelMappingFlag parse server metadata to label kingpin option

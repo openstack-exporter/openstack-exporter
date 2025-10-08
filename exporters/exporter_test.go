@@ -147,9 +147,9 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	novaMatadataMapping := new(utils.LabelMappingFlag)
+	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMatadataMapping, func() (string, error) {
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)
 

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/openstack-exporter/openstack-exporter/exporters"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
@@ -28,6 +29,7 @@ func mockEnableExporter(
 	disableCinderAgentUUID bool,
 	domainID string,
 	tenantID string,
+	novaMetadataMapping *utils.LabelMappingFlag,
 	uuidGenFunc func() (string, error),
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
@@ -84,6 +86,7 @@ func TestCollectCache(t *testing.T) {
 	disableCinderAgentUUID := false
 	domainID := ""
 	tenantID := ""
+	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	if err := CollectCache(
@@ -100,6 +103,7 @@ func TestCollectCache(t *testing.T) {
 		disableCinderAgentUUID,
 		domainID,
 		tenantID,
+		novaMetadataMapping,
 		nil,
 		logger,
 	); err != nil {

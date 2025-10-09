@@ -48,7 +48,7 @@ func (s *LabelMappingFlag) Set(value string) error {
 		return nil
 	}
 
-	for kv := range strings.SplitSeq(value, ",") {
+	for _, kv := range strings.Split(value, ",") {
 		label, key, ok := strings.Cut(kv, "=")
 		if !ok {
 			key = label

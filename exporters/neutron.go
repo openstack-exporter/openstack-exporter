@@ -7,6 +7,7 @@ import (
 	"strings"
 	"go4.org/netipx"
 
+	"log/slog"
 	"net/netip"
 
 	"github.com/go-kit/log"
@@ -86,7 +87,7 @@ var defaultNeutronMetrics = []Metric{
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
-func NewNeutronExporter(config *ExporterConfig, logger log.Logger) (*NeutronExporter, error) {
+func NewNeutronExporter(config *ExporterConfig, logger *slog.Logger) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
 			Name:           "neutron",

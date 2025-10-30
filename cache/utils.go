@@ -12,6 +12,7 @@ import (
 
 	"github.com/gophercloud/utils/openstack/clientconfig"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
@@ -20,7 +21,7 @@ import (
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
 	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, string, func() (string, error), *slog.Logger,
+		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, func() (string, error), *slog.Logger,
 	) (*exporters.OpenStackExporter, error),
 	multiCloud bool,
 	services map[string]*bool, prefix,
@@ -33,6 +34,7 @@ func CollectCache(
 	disableCinderAgentUUID bool,
 	domainID string,
 	tenantID string,
+	novaMetadataMapping *utils.LabelMappingFlag,
 	uuidGenFunc func() (string, error),
 	logger *slog.Logger,
 ) error {
@@ -69,7 +71,7 @@ func CollectCache(
 
 		for _, service := range enabledServices {
 			logger.Info("Start collect cache data", "cloud", cloud, "service", service)
-			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, nil, logger)
+			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				logger.Error("enabling exporter for service failed", "cloud", cloud, "service", service, "error", err)

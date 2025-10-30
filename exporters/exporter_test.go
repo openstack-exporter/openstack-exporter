@@ -8,7 +8,8 @@ import (
 	"path"
 	"testing"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/jarcoal/httpmock"
 	"github.com/stretchr/testify/suite"
 )
@@ -131,6 +132,14 @@ var fixtures map[string]string = map[string]string{
 	"/compute/os-quota-sets/5961c443439d4fcebe42643723755e9d/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/4b1eb781a47440acb8af9850103e537f/detail":                 "nova_quotas_1_usage",
+	"/neutron/v2.0/quotas/0c4e939acacf4376bdcd1129f1a054ad/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/0cbd49cbf76d405d9c86562e1d579bd3/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/2db68fed84324f29bb73130c6c2094fb/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/3d594eb0f04741069dbbb521635b21c7/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/43ebde53fc314b1c9ea2b8c5dc744927/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/5961c443439d4fcebe42643723755e9d/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":                 "neutron_quotas_1_usage",
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
 }
 
@@ -145,7 +154,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	os.Setenv("OS_CLIENT_CONFIG_FILE", path.Join(baseFixturePath, "test_config.yaml"))
 
-	logger := log.NewNopLogger()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)

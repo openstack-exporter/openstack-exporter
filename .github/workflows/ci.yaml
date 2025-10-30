@@ -77,17 +77,15 @@ jobs:
           password: ${{ secrets.CI_PAT }}
 
       - name: Set up QEMU
-        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
-        if: ${{ github.event_name != 'pull_request' }}
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.22
+          go-version: 1.23
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -102,7 +100,6 @@ jobs:
           go test -v -covermode=atomic -coverprofile=coverage.out ./...
 
       - name: Extract metadata from ghcr image
-        if: ${{ github.event_name != 'pull_request' }}
         id: meta-github-image
         uses: docker/metadata-action@v5
         with:
@@ -114,11 +111,10 @@ jobs:
 
       - name: Build docker image
         uses: docker/build-push-action@v6
-        if: ${{ github.event_name != 'pull_request' }}
         with:
           context: .
           platforms: linux/amd64, linux/arm64, linux/s390x
-          push: true
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-github-image.outputs.tags }}
           labels: ${{ steps.meta-github-image.outputs.labels }}
 

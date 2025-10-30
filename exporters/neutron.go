@@ -5,6 +5,7 @@ import (
 	"math"
 	"strconv"
 	"strings"
+
 	"go4.org/netipx"
 
 	"log/slog"
@@ -17,6 +18,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/mtu"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
@@ -56,7 +58,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address"}},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "network", Labels: []string{"id", "tenant_id", "status", "name", "is_shared", "is_external", "provider_network_type",
-		"provider_physical_network", "provider_segmentation_id", "subnets", "tags"}},
+		"provider_physical_network", "provider_segmentation_id", "subnets", "tags", "mtu"}},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
 	{Name: "subnet", Labels: []string{"id", "tenant_id", "name", "network_id", "cidr", "gateway_ip", "enable_dhcp", "dns_nameservers", "tags"}},
@@ -74,15 +76,15 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
-	{Name: "quota_network", Labels: []string{"type","tenant"}, Fn: ListNetworkQuotas, Slow: true},
-	{Name: "quota_subnet", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_subnetpool", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_port", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_router", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_floatingip", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group_rule", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_rbac_policy", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_network", Labels: []string{"type", "tenant"}, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -190,6 +192,7 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 		networks.Network
 		external.NetworkExternalExt
 		provider.NetworkProviderExt
+		mtu.NetworkMTUExt
 	}
 	var allNetworks []NetworkWithExt
 
@@ -208,8 +211,8 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 		for _, net := range allNetworks {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
 				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
-				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
-				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
+				net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","), strconv.Itoa(net.MTU))
 		}
 	}
 	return nil

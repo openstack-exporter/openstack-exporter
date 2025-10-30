@@ -1,15 +1,18 @@
 package exporters
 
 import (
+	"errors"
 	"math"
 	"strconv"
 	"strings"
-
 	"go4.org/netipx"
 
 	"log/slog"
 	"net/netip"
 
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
@@ -17,6 +20,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/quotas"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -70,6 +74,15 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
+	{Name: "quota_network", Labels: []string{"type","tenant"}, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -566,5 +579,100 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		}
 	}
 
+	return nil
+}
+
+func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["network"]; ok {
+		eo = v
+	} else {
+		return errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range allProjects {
+		// quota are obtained from the neutron API, so now we can just use this exporter's client
+		quota, err := quotas.GetDetail(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
+	}
 	return nil
 }

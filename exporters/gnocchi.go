@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gophercloud/utils/gnocchi/metric/v1/metrics"
@@ -38,7 +39,7 @@ func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiEx
 	return &exporter, nil
 }
 
-func ListAllMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllMetrics(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allMetrics []metrics.Metric
 	allPagesMetrics, err := metrics.List(exporter.Client, metrics.ListOpts{}).AllPages()
 	if err != nil {
@@ -54,7 +55,7 @@ func ListAllMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	return nil
 }
 
-func getMetricStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func getMetricStatus(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	details := true
 	metricStatus, err := status.Get(exporter.Client, status.GetOpts{Details: &details}).Extract()
 	if err != nil {

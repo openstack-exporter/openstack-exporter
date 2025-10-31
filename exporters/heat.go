@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
@@ -94,7 +95,7 @@ func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter
 	return &exporter, nil
 }
 
-func ListAllStacks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allStacks []listedStack
 	allPagesStacks, err := stacks.List(exporter.Client, stacks.ListOpts{}).AllPages()
 	if err != nil {

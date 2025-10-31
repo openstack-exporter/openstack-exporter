@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"strconv"
 
 	"log/slog"
@@ -42,7 +43,7 @@ func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExpo
 	return &exporter, nil
 }
 
-func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func CountShares(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	var allShares []shares.Share
 
@@ -104,7 +105,7 @@ func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	return nil
 }
 
-func ListShareStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListShareStatus(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 
 	var allShares []shares.Share
 

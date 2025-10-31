@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
@@ -37,7 +38,7 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	return &exporter, nil
 }
 
-func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListPlacementResourceProviders(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
 
 	allPagesResourceProviders, err := resourceproviders.List(exporter.Client, resourceproviders.ListOpts{}).AllPages()

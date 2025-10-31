@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -11,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/aggregates"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/availabilityzones"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/flavors"
@@ -268,7 +266,7 @@ func ListFlavors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
-	cli, err := newIdentityV3ClientFromExporter(exporter)
+	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
 	if err != nil {
 		return err
 	}
@@ -474,7 +472,7 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
-	cli, err := newIdentityV3ClientFromExporter(exporter)
+	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
 	if err != nil {
 		return err
 	}
@@ -559,28 +557,6 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 		return strings.Join(aggregates, ",")
 	}
 	return ""
-}
-
-func newIdentityV3ClientFromExporter(exporter *BaseOpenStackExporter) (*gophercloud.ServiceClient, error) {
-	var eo gophercloud.EndpointOpts
-
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOptsV2["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOptsV2["compute"]; ok {
-		eo = v
-	} else {
-		return nil, errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	cli, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
-	if err != nil {
-		return nil, err
-	}
-
-	return cli, nil
 }
 
 // flavorIDMapper helper storage to map from Flavor Name to ID

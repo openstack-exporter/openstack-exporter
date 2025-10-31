@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -151,4 +154,26 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		prometheus.GaugeValue, float64(len(allGroups)))
 
 	return nil
+}
+
+func newIdentityV3ClientV2FromExporter(exporter *BaseOpenStackExporter, fallbackServiceName string) (*gophercloud.ServiceClient, error) {
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOptsV2["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOptsV2[fallbackServiceName]; ok {
+		eo = v
+	} else {
+		return nil, errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	cli, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
+	if err != nil {
+		return nil, err
+	}
+
+	return cli, nil
 }

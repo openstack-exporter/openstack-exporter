@@ -54,8 +54,8 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 }
 
 // ListNodes : list nodes
-func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(context.TODO())
+func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,19 +66,8 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	}
 
 	for _, node := range allNodes {
-		var deployKernel, deployRamdisk string
-
-		if value, found := node.DriverInfo["deploy_kernel"]; found {
-			if kernelValue, ok := value.(string); ok {
-				deployKernel = kernelValue
-			}
-		}
-
-		if value, found := node.DriverInfo["deploy_ramdisk"]; found {
-			if ramdiskValue, ok := value.(string); ok {
-				deployRamdisk = ramdiskValue
-			}
-		}
+		deployKernel := getDriverInfoString(node.DriverInfo, "deploy_kernel")
+		deployRamdisk := getDriverInfoString(node.DriverInfo, "deploy_ramdisk")
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
@@ -87,4 +76,18 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	}
 
 	return nil
+}
+
+func getDriverInfoString(driverInfo map[string]any, key string) string {
+	v, ok := driverInfo[key]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
 }

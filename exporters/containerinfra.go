@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"strconv"
 
@@ -68,7 +69,7 @@ func NewContainerInfraExporter(config *ExporterConfig, logger *slog.Logger) (*Co
 	return &exporter, nil
 }
 
-func ListAllClusters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllClusters(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allClusters []clusters.Cluster
 	allPagesClusters, err := clusters.List(exporter.Client, clusters.ListOpts{}).AllPages()
 	if err != nil {

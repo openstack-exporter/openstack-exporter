@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud"
@@ -106,7 +107,7 @@ func NewTroveExporter(config *ExporterConfig, logger *slog.Logger) (*TroveExport
 	return &exporter, nil
 }
 
-func ListAllInstances(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllInstances(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allInstances []instanceAttributesExt
 	allPagesInstances, err := list(exporter.Client).AllPages()
 	if err != nil {

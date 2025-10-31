@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -98,7 +99,7 @@ func NewLoadbalancerExporter(config *ExporterConfig, logger *slog.Logger) (*Load
 	return &exporter, nil
 }
 
-func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllLoadbalancers(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allLoadbalancers []loadbalancers.LoadBalancer
 	allPagesLoadbalancers, err := loadbalancers.List(exporter.Client, loadbalancers.ListOpts{}).AllPages()
 	if err != nil {
@@ -120,7 +121,7 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	return nil
 }
 
-func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllAmphorae(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAmphorae []amphorae.Amphora
 	allPagesAmphorae, err := amphorae.List(exporter.Client, amphorae.ListOpts{}).AllPages()
 	if err != nil {
@@ -142,7 +143,7 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	return nil
 }
 
-func ListAllPools(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllPools(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allPools []pools.Pool
 	allPagesPools, err := pools.List(exporter.Client, pools.ListOpts{}).AllPages()
 	if err != nil {

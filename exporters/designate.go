@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 
@@ -75,7 +76,7 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 	return &exporter, nil
 }
 
-func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListZonesAndRecordsets(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	allPagesZones, err := zones.List(exporter.Client, zones.ListOpts{}).AllPages()
 	if err != nil {
 		return err

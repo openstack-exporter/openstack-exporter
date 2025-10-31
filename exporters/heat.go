@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
@@ -94,7 +95,7 @@ func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter
 	return &exporter, nil
 }
 
-func ListAllStacks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allStacks []listedStack
 	allPagesStacks, err := stacks.List(exporter.Client, stacks.ListOpts{}).AllPages()
 	if err != nil {
@@ -105,13 +106,14 @@ func ListAllStacks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 		return err
 	}
 
-	var stack_status_counter = make(map[string]int, len(server_status))
-	for _, s := range stack_status {
-		stack_status_counter[s] = 0
+	var stack_status_counter = make(map[string]int, len(knownServerStatuses))
+	for k := range knownServerStatuses {
+		stack_status_counter[k] = 0
 	}
 
 	for _, stack := range allStacks {
 		stack_status_counter[stack.Status]++
+
 		// Stack status metrics
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stack_status"].Metric,
 			prometheus.GaugeValue, float64(mapHeatStatus(stack.Status)), stack.ID, stack.Name, stack.Project, stack.Status)

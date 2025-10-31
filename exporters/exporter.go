@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -80,7 +81,7 @@ type BaseOpenStackExporter struct {
 	logger  *slog.Logger
 }
 
-type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
+type ListFunc func(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
 var (
 	endpointOpts   = make(map[string]gophercloud.EndpointOpts)
@@ -111,9 +112,11 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	ctx := context.TODO()
+
 	exporter.logger.Info("Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
-	err := metric.Fn(exporter, ch)
+	err := metric.Fn(ctx, exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}

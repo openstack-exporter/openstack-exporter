@@ -1,74 +1,60 @@
 package exporters
 
 import (
-	"errors"
+	"context"
 	"fmt"
 	"log/slog"
-	"os"
 	"reflect"
-	"sort"
+	"slices"
 	"strconv"
+	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
-
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/aggregates"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/availabilityzones"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/flavors"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/hypervisors"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/limits"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/quotasets"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var server_status = []string{
-	"ACTIVE",
-	"BUILD",             // The server has not finished the original build process.
-	"BUILD(spawning)",   // The server has not finished the original build process but networking works (HP Cloud specific)
-	"DELETED",           // The server is deleted.
-	"ERROR",             // The server is in error.
-	"HARD_REBOOT",       // The server is hard rebooting.
-	"PASSWORD",          // The password is being reset on the server.
-	"REBOOT",            // The server is in a soft reboot state.
-	"REBUILD",           // The server is currently being rebuilt from an image.
-	"RESCUE",            // The server is in rescue mode.
-	"RESIZE",            // Server is performing the differential copy of data that changed during its initial copy.
-	"SHUTOFF",           // The virtual machine (VM) was powered down by the user, but not through the OpenStack Compute API.
-	"SUSPENDED",         // The server is suspended, either by request or necessity.
-	"UNKNOWN",           // The state of the server is unknown. Contact your cloud provider.
-	"VERIFY_RESIZE",     // System is awaiting confirmation that the server is operational after a move or resize.
-	"MIGRATING",         // The server is migrating. This is caused by a live migration (moving a server that is active) action.
-	"PAUSED",            // The server is paused.
-	"REVERT_RESIZE",     // The resize or migration of a server failed for some reason. The destination server is being cleaned up and the original source server is restarting.
-	"SHELVED",           // The server is in shelved state. Depends on the shelve offload time, the server will be automatically shelved off loaded.
-	"SHELVED_OFFLOADED", // The shelved server is offloaded (removed from the compute host) and it needs unshelved action to be used again.
-	"SOFT_DELETED",      // The server is marked as deleted but will remain in the cloud for some configurable amount of time.
+// Latest supported microversion for Nova which provides all metrics
+// See also: https://github.com/openstack-exporter/openstack-exporter/issues/249
+const novaLatestSupportedMicroversion = "2.87"
+
+var knownServerStatuses = map[string]int{
+	"ACTIVE":            0,
+	"BUILD":             1,  // The server has not finished the original build process.
+	"BUILD(spawning)":   2,  // The server has not finished the original build process but networking works (HP Cloud specific)
+	"DELETED":           3,  // The server is deleted.
+	"ERROR":             4,  // The server is in error.
+	"HARD_REBOOT":       5,  // The server is hard rebooting.
+	"PASSWORD":          6,  // The password is being reset on the server.
+	"REBOOT":            7,  // The server is in a soft reboot state.
+	"REBUILD":           8,  // The server is currently being rebuilt from an image.
+	"RESCUE":            9,  // The server is in rescue mode.
+	"RESIZE":            10, // Server is performing the differential copy of data that changed during its initial copy.
+	"SHUTOFF":           11, // The virtual machine (VM) was powered down by the user, but not through the OpenStack Compute API.
+	"SUSPENDED":         12, // The server is suspended, either by request or necessity.
+	"UNKNOWN":           13, // The state of the server is unknown. Contact your cloud provider.
+	"VERIFY_RESIZE":     14, // System is awaiting confirmation that the server is operational after a move or resize.
+	"MIGRATING":         15, // The server is migrating. This is caused by a live migration (moving a server that is active) action.
+	"PAUSED":            16, // The server is paused.
+	"REVERT_RESIZE":     17, // The resize or migration of a server failed for some reason. The destination server is being cleaned up and the original source server is restarting.
+	"SHELVED":           18, // The server is in shelved state. Depends on the shelve offload time, the server will be automatically shelved off loaded.
+	"SHELVED_OFFLOADED": 19, // The shelved server is offloaded (removed from the compute host) and it needs unshelved action to be used again.
+	"SOFT_DELETED":      20, // The server is marked as deleted but will remain in the cloud for some configurable amount of time.
 }
 
 func mapServerStatus(current string) int {
-	for idx, status := range server_status {
-		if current == status {
-			return idx
-		}
-	}
-	return -1
-}
-
-func searchFlavorIDbyName(flavorName interface{}, allFlavors []flavors.Flavor) string {
-	// flavor name is unique, making it suitable as the key for searching
-	for _, f := range allFlavors {
-		if f.Name == flavorName {
-			return f.ID
-		}
-	}
-	return ""
+	return mapStatus(knownServerStatuses, current)
 }
 
 type NovaExporter struct {
@@ -119,6 +105,13 @@ var defaultNovaMetrics = []Metric{
 }
 
 func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
+	ctx := context.TODO()
+
+	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_COMPUTE_API_VERSION", novaLatestSupportedMicroversion, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
@@ -138,24 +131,13 @@ func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter
 		}
 	}
 
-	envMicroversion, present := os.LookupEnv("OS_COMPUTE_API_VERSION")
-	if present {
-		exporter.Client.Microversion = envMicroversion
-	} else {
-
-		microversion, err := apiversions.Get(config.Client, "v2.1").Extract()
-		if err == nil {
-			exporter.Client.Microversion = microversion.Version
-		}
-	}
-
 	return &exporter, nil
 }
 
-func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListNovaAgentState(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
-	allPagesServices, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	allPagesServices, err := services.List(exporter.ClientV2, services.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -176,25 +158,27 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 	return nil
 }
 
-func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
-	allPagesHypervisors, err := hypervisors.List(exporter.Client, nil).AllPages()
+	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, nil).AllPages(ctx)
 	if err != nil {
 		return err
 	}
 
-	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
-		return err
-	}
-
-	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
+	allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors)
 	if err != nil {
 		return err
 	}
 
-	if allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates); err != nil {
+	allPagesAggregates, err := aggregates.List(exporter.ClientV2).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+
+	allAggregates, err = aggregates.ExtractAggregates(allPagesAggregates)
+	if err != nil {
 		return err
 	}
 
@@ -219,48 +203,49 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val
 		}
+		aggregates := aggregatesLabel(hypervisor.Service.Host, hostToAggrMap)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		var vcpus int
 		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
-			vcpus = hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+			vcpus = max(hypervisor.CPUInfo.Topology.Cells, 1) * hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
 		} else {
 			vcpus = hypervisor.VCPUs
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 	}
 
 	return nil
 }
 
-func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListFlavors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFlavors []flavors.Flavor
 
-	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
+	allPagesFlavors, err := flavors.ListDetail(exporter.ClientV2, flavors.ListOpts{AccessType: "None"}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -280,27 +265,15 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	return nil
 }
 
-func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
 
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["compute"]; ok {
-		eo = v
-	} else {
-		return errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
 	if err != nil {
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -311,7 +284,7 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	}
 
 	for _, p := range allProjects {
-		quotaSet, err := quotasets.GetDetail(exporter.Client, p.ID).Extract()
+		quotaSet, err := quotasets.GetDetail(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}
@@ -404,10 +377,10 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	return nil
 }
 
-func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAZs(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAZs []availabilityzones.AvailabilityZone
 
-	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
+	allPagesAZs, err := availabilityzones.List(exporter.ClientV2).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -422,10 +395,10 @@ func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 	return nil
 }
 
-func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListComputeSecGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSecurityGroups []secgroups.SecurityGroup
 
-	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
+	allPagesSecurityGroups, err := secgroups.List(exporter.ClientV2).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -440,16 +413,12 @@ func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	return nil
 }
 
-func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	type ServerWithExt struct {
-		servers.Server
-		availabilityzones.ServerAvailabilityZoneExt
-		extendedserverattributes.ServerAttributesExt
-	}
+func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type ServerWithExt = servers.Server
 
 	var allServers []ServerWithExt
-	var allFlavors []flavors.Flavor
 	var serverListOption servers.ListOpts
+	var flavorIDMapper flavorIDMapper
 
 	if exporter.TenantID == "" {
 		serverListOption = servers.ListOpts{AllTenants: true}
@@ -457,8 +426,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
 
 	}
-	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
-
+	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -468,29 +436,36 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		return err
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
-		prometheus.GaugeValue, float64(len(allServers)))
-	apiMv, _ := strconv.ParseFloat(exporter.Client.Microversion, 64)
-	if apiMv >= 2.46 {
+	// check if flavor.id present, if not - we probably got response like for 2.46+
+	var mapperRequired bool
+	for _, server := range allServers {
+		if _, ok := server.Flavor["id"]; !ok {
+			mapperRequired = true
+			break
+		}
+	}
+
+	apiMv, _ := strconv.ParseFloat(exporter.ClientV2.Microversion, 64)
+	if apiMv >= 2.46 || mapperRequired {
 		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
 		// ***
 		// If micro-version is greater than 2.46,
 		// we need to retrieve all flavors once again and search for flavor_id by name,
 		// as flavor_id are only available in server's detail data up to that version.
-		allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
-		if err != nil {
-			return err
-		}
-		allFlavors, err = flavors.ExtractFlavors(allPagesFlavors)
+		flavorIDMapper, err = newFlavorIDMapper(ctx, exporter.ClientV2)
 		if err != nil {
 			return err
 		}
 	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
+		prometheus.GaugeValue, float64(len(allServers)))
+
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
 			labelValues := func() []string {
-				if len(allFlavors) == 0 {
+				if flavorIDMapper == nil {
 					return []string{
 						server.ID, server.Status, server.Name, server.TenantID,
 						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
@@ -500,7 +475,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 				return []string{
 					server.ID, server.Status, server.Name, server.TenantID,
 					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName,
+					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName,
 				}
 			}()
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
@@ -512,27 +487,15 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	return nil
 }
 
-func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
 
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["compute"]; ok {
-		eo = v
-	} else {
-		return errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
 	if err != nil {
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -544,7 +507,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
-		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		limits, err := limits.Get(ctx, exporter.ClientV2, limits.GetOpts{TenantID: p.ID}).Extract()
 		if err != nil {
 			return err
 		}
@@ -572,8 +535,8 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 }
 
 // ListUsage add metrics about usage
-func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesUsage, err := usage.AllTenants(exporter.Client, usage.AllTenantsOpts{Detailed: true}).AllPages()
+func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesUsage, err := usage.AllTenants(exporter.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -589,7 +552,6 @@ func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_local_gb"].Metric,
 				prometheus.GaugeValue, float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
 		}
-
 	}
 
 	return nil
@@ -607,16 +569,41 @@ func isAzAggregate(a aggregates.Aggregate) bool {
 }
 
 func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
-	label := ""
 	if aggregates, ok := hostToAggrMap[h]; ok {
-		sort.Strings(aggregates)
-		for k, a := range aggregates {
-			if k == 0 {
-				label += a
-			} else {
-				label += "," + a
-			}
-		}
+		slices.Sort(aggregates)
+		return strings.Join(aggregates, ",")
 	}
-	return label
+	return ""
+}
+
+// flavorIDMapper helper storage to map from Flavor Name to ID
+type flavorIDMapper map[string]string
+
+func newFlavorIDMapper(ctx context.Context, cli *gophercloud.ServiceClient) (flavorIDMapper, error) {
+	allPagesFlavors, err := flavors.ListDetail(cli, flavors.ListOpts{AccessType: "None"}).AllPages(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	allFlavors, err := flavors.ExtractFlavors(allPagesFlavors)
+	if err != nil {
+		return nil, err
+	}
+
+	m := make(flavorIDMapper, len(allFlavors))
+	for _, f := range allFlavors {
+		m[f.Name] = f.ID
+	}
+
+	return m, nil
+}
+
+func (s flavorIDMapper) Search(flavorName any) string {
+	// flavor name is unique, making it suitable as the key for searching
+	key, ok := flavorName.(string)
+	if !ok {
+		return ""
+	}
+
+	return s[key]
 }

@@ -106,13 +106,14 @@ func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<-
 		return err
 	}
 
-	var stack_status_counter = make(map[string]int, len(server_status))
-	for _, s := range stack_status {
-		stack_status_counter[s] = 0
+	var stack_status_counter = make(map[string]int, len(knownServerStatuses))
+	for k := range knownServerStatuses {
+		stack_status_counter[k] = 0
 	}
 
 	for _, stack := range allStacks {
 		stack_status_counter[stack.Status]++
+
 		// Stack status metrics
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stack_status"].Metric,
 			prometheus.GaugeValue, float64(mapHeatStatus(stack.Status)), stack.ID, stack.Name, stack.Project, stack.Status)

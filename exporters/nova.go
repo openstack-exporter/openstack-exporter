@@ -1,30 +1,29 @@
 package exporters
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
-	"reflect"
 
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
-
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/aggregates"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/availabilityzones"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/extendedserverattributes"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/hypervisors"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/limits"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/secgroups"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/services"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
-	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/apiversions"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/aggregates"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/availabilityzones"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/flavors"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/hypervisors"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/limits"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/quotasets"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -150,7 +149,7 @@ func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter
 func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
-	allPagesServices, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	allPagesServices, err := services.List(exporter.ClientV2, services.ListOpts{}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -175,7 +174,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
-	allPagesHypervisors, err := hypervisors.List(exporter.Client, nil).AllPages()
+	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, nil).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -184,7 +183,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
-	allPagesAggregates, err := aggregates.List(exporter.Client).AllPages()
+	allPagesAggregates, err := aggregates.List(exporter.ClientV2).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -255,7 +254,7 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFlavors []flavors.Flavor
 
-	allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
+	allPagesFlavors, err := flavors.ListDetail(exporter.ClientV2, flavors.ListOpts{AccessType: "None"}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -290,12 +289,12 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		return errors.New("no EndpointOpts available to create Identity client")
 	}
 
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	c, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
 	if err != nil {
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -306,7 +305,7 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	}
 
 	for _, p := range allProjects {
-		quotaSet, err := quotasets.GetDetail(exporter.Client, p.ID).Extract()
+		quotaSet, err := quotasets.GetDetail(context.TODO(), exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}
@@ -402,7 +401,7 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAZs []availabilityzones.AvailabilityZone
 
-	allPagesAZs, err := availabilityzones.List(exporter.Client).AllPages()
+	allPagesAZs, err := availabilityzones.List(exporter.ClientV2).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -420,7 +419,7 @@ func ListAZs(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSecurityGroups []secgroups.SecurityGroup
 
-	allPagesSecurityGroups, err := secgroups.List(exporter.Client).AllPages()
+	allPagesSecurityGroups, err := secgroups.List(exporter.ClientV2).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -436,11 +435,7 @@ func ListComputeSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 }
 
 func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	type ServerWithExt struct {
-		servers.Server
-		availabilityzones.ServerAvailabilityZoneExt
-		extendedserverattributes.ServerAttributesExt
-	}
+	type ServerWithExt = servers.Server
 
 	var allServers []ServerWithExt
 	var allFlavors []flavors.Flavor
@@ -452,7 +447,7 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
 
 	}
-	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
+	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(context.TODO())
 
 	if err != nil {
 		return err
@@ -465,14 +460,14 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
-	apiMv, _ := strconv.ParseFloat(exporter.Client.Microversion, 64)
+	apiMv, _ := strconv.ParseFloat(exporter.ClientV2.Microversion, 64)
 	if apiMv >= 2.46 {
 		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
 		// ***
 		// If micro-version is greater than 2.46,
 		// we need to retrieve all flavors once again and search for flavor_id by name,
 		// as flavor_id are only available in server's detail data up to that version.
-		allPagesFlavors, err := flavors.ListDetail(exporter.Client, flavors.ListOpts{AccessType: "None"}).AllPages()
+		allPagesFlavors, err := flavors.ListDetail(exporter.ClientV2, flavors.ListOpts{AccessType: "None"}).AllPages(context.TODO())
 		if err != nil {
 			return err
 		}
@@ -515,12 +510,12 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		return errors.New("no EndpointOpts available to create Identity client")
 	}
 
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	c, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
 	if err != nil {
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}
@@ -532,7 +527,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
-		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		limits, err := limits.Get(context.TODO(), exporter.ClientV2, limits.GetOpts{TenantID: p.ID}).Extract()
 		if err != nil {
 			return err
 		}
@@ -561,7 +556,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 // ListUsage add metrics about usage
 func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesUsage, err := usage.AllTenants(exporter.Client, usage.AllTenantsOpts{Detailed: true}).AllPages()
+	allPagesUsage, err := usage.AllTenants(exporter.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(context.TODO())
 	if err != nil {
 		return err
 	}

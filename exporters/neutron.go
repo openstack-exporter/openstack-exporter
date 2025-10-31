@@ -1,48 +1,45 @@
 package exporters
 
 import (
-	"errors"
+	"context"
+	"log/slog"
 	"math"
+	"net/netip"
 	"strconv"
 	"strings"
+
 	"go4.org/netipx"
 
-	"log/slog"
-	"net/netip"
-
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/quotas"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
-	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/agents"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/external"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/floatingips"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/routers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/networkipavailabilities"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/portsbinding"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/provider"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/quotas"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/security/groups"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/subnetpools"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var network_status = []string{
-	"ACTIVE",
-	"BUILD",
-	"DOWN",
-	"ERROR",
+var knownNetworkStatus = map[string]int{
+	"ACTIVE": 0,
+	"BUILD":  1,
+	"DOWN":   2,
+	"ERROR":  3,
 }
 
 func mapNetworkStatus(current string) int {
-	for idx, status := range network_status {
-		if current == status {
-			return idx
-		}
+	v, ok := knownNetworkStatus[current]
+	if !ok {
+		return -1
 	}
-	return -1
+	return v
 }
 
 // NeutronExporter : extends BaseOpenStackExporter
@@ -74,15 +71,15 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
-	{Name: "quota_network", Labels: []string{"type","tenant"}, Fn: ListNetworkQuotas, Slow: true},
-	{Name: "quota_subnet", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_subnetpool", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_port", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_router", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_floatingip", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group_rule", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_rbac_policy", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_network", Labels: []string{"type", "tenant"}, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -108,10 +105,10 @@ func NewNeutronExporter(config *ExporterConfig, logger *slog.Logger) (*NeutronEx
 }
 
 // ListFloatingIps : count total number of instantiated FloatingIPs and those that are associated to private IP but not in ACTIVE state
-func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListFloatingIps(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allFloatingIPs []floatingips.FloatingIP
 
-	allPagesFloatingIPs, err := floatingips.List(exporter.Client, floatingips.ListOpts{}).AllPages()
+	allPagesFloatingIPs, err := floatingips.List(exporter.ClientV2, floatingips.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -125,10 +122,9 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	for _, fip := range allFloatingIPs {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ip"].Metric,
 			prometheus.GaugeValue, 1, fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP)
-		if fip.FixedIP != "" {
-			if fip.Status != "ACTIVE" {
-				failedFIPs = failedFIPs + 1
-			}
+
+		if fip.FixedIP != "" && fip.Status != "ACTIVE" {
+			failedFIPs = failedFIPs + 1
 		}
 	}
 
@@ -141,10 +137,10 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 }
 
 // ListAgentStates : list agent state per node
-func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAgentStates(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAgents []agents.Agent
 
-	allPagesAgents, err := agents.List(exporter.Client, agents.ListOpts{}).AllPages()
+	allPagesAgents, err := agents.List(exporter.ClientV2, agents.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -185,15 +181,16 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 }
 
 // ListNetworks : Count total number of instantiated Networks and list each Network info
-func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListNetworks(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	type NetworkWithExt struct {
 		networks.Network
 		external.NetworkExternalExt
 		provider.NetworkProviderExt
 	}
+
 	var allNetworks []NetworkWithExt
 
-	allPagesNetworks, err := networks.List(exporter.Client, networks.ListOpts{}).AllPages()
+	allPagesNetworks, err := networks.List(exporter.ClientV2, networks.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -202,8 +199,10 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
+
 	if !exporter.MetricIsDisabled("network") {
 		for _, net := range allNetworks {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
@@ -212,14 +211,15 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
 		}
 	}
+
 	return nil
 }
 
 // ListSecGroups : count total number of instantiated Security Groups
-func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListSecGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSecurityGroups []groups.SecGroup
 
-	allPagesSecurityGroups, err := groups.List(exporter.Client, groups.ListOpts{}).AllPages()
+	allPagesSecurityGroups, err := groups.List(exporter.ClientV2, groups.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -228,6 +228,7 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["security_groups"].Metric,
 		prometheus.GaugeValue, float64(len(allSecurityGroups)))
 
@@ -235,10 +236,10 @@ func ListSecGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 }
 
 // ListSubnets : count total number of instantiated Subnets and list each Subnet info
-func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListSubnets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSubnets []subnets.Subnet
 
-	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
+	allPagesSubnets, err := subnets.List(exporter.ClientV2, subnets.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -247,8 +248,10 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
+
 	if !exporter.MetricIsDisabled("subnet") {
 		for _, subnet := range allSubnets {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
@@ -256,20 +259,20 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 				subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ","))
 		}
 	}
+
 	return nil
 }
 
-// PortBinding represents a port which includes port bindings
-type PortBinding struct {
-	ports.Port
-	portsbinding.PortsBindingExt
-}
-
 // ListPorts generates metrics about ports inside the OpenStack cloud
-func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListPorts(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type PortBinding struct {
+		ports.Port
+		portsbinding.PortsBindingExt
+	}
+
 	var allPorts []PortBinding
 
-	allPagesPorts, err := ports.List(exporter.Client, ports.ListOpts{}).AllPages()
+	allPagesPorts, err := ports.List(exporter.ClientV2, ports.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -290,6 +293,7 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 		if port.DeviceOwner == "neutron:LOADBALANCERV2" && port.Status != "ACTIVE" {
 			lbaasPortsInactive++
 		}
+
 		if !exporter.MetricIsDisabled("port") {
 			var fixedIPs = ""
 
@@ -297,11 +301,15 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 			if portFixedIPsLen == 1 {
 				fixedIPs = port.FixedIPs[0].IPAddress
 			} else if portFixedIPsLen > 1 {
-				for _, fip := range port.FixedIPs {
+				for idx, fip := range port.FixedIPs {
 					// Joining IPs into a string with ',' separator
-					fixedIPs += fip.IPAddress + ","
+					if idx != 0 {
+						fixedIPs += ","
+					}
+					fixedIPs += fip.IPAddress
 				}
 			}
+
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
 				prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
 				port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs)
@@ -325,10 +333,10 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 }
 
 // ListNetworkIPAvailabilities : count total number of used IPs per Network
-func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListNetworkIPAvailabilities(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
 
-	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
+	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.ClientV2, networkipavailabilities.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -349,6 +357,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			if err != nil {
 				return err
 			}
+
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
 				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
 				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
@@ -358,6 +367,7 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			if err != nil {
 				return err
 			}
+
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
 				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
 				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
@@ -369,12 +379,12 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 }
 
 // ListRouters : count total number of instantiated Routers and those that are not in ACTIVE state
-func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListRouters(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRouters []routers.Router
 	// We need to know if neutron has ovn backend
 	var ovnBackendEnabled = false
 
-	allPagesRouters, err := routers.List(exporter.Client, routers.ListOpts{}).AllPages()
+	allPagesRouters, err := routers.List(exporter.ClientV2, routers.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -385,14 +395,16 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 
 	// Requesting Neutron network-agents with binary='ovn-controller'
-	ovnAgentsPages, err := agents.List(exporter.Client, agents.ListOpts{Binary: "ovn-controller"}).AllPages()
+	ovnAgentsPages, err := agents.List(exporter.ClientV2, agents.ListOpts{Binary: "ovn-controller"}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	ovnAgents, err := agents.ExtractAgents(ovnAgentsPages)
 	if err != nil {
 		return err
 	}
+
 	// If we have received data, then OVN is neutron network backend.
 	if len(ovnAgents) > 0 {
 		ovnBackendEnabled = true
@@ -401,29 +413,33 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	failedRouters := 0
 	for _, router := range allRouters {
 		if router.Status != "ACTIVE" {
-			failedRouters = failedRouters + 1
+			failedRouters++
 		}
+
 		if !exporter.MetricIsDisabled("router") {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
 				prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
 				strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
 		}
+
 		if ovnBackendEnabled {
 			continue
 			// Because ovn-backend doesn't have router l3-agent entity
 		}
+
 		if !exporter.MetricIsDisabled("l3_agent_of_router") {
-			allPagesL3Agents, err := routers.ListL3Agents(exporter.Client, router.ID).AllPages()
+			allPagesL3Agents, err := routers.ListL3Agents(exporter.ClientV2, router.ID).AllPages(ctx)
 			if err != nil {
 				return err
 			}
+
 			l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
 			if err != nil {
 				return err
 			}
-			for _, agent := range l3Agents {
-				var state int
 
+			for _, agent := range l3Agents {
+				state := 0
 				if agent.Alive {
 					state = 1
 				}
@@ -452,11 +468,13 @@ type subnetpoolWithSubnets struct {
 // IPPrefixes : returns a subnetpoolWithSubnets's prefixes converted to netip.Prefix structs.
 func (s *subnetpoolWithSubnets) IPPrefixes() ([]netip.Prefix, error) {
 	result := make([]netip.Prefix, len(s.Prefixes))
+
 	for i, prefix := range s.Prefixes {
 		ipPrefix, err := netip.ParsePrefix(prefix)
 		if err != nil {
 			return nil, err
 		}
+
 		result[i] = ipPrefix
 	}
 
@@ -466,12 +484,14 @@ func (s *subnetpoolWithSubnets) IPPrefixes() ([]netip.Prefix, error) {
 // subnetpoolsWithSubnets : builds a slice of subnetpoolWithSubnets from subnetpools.SubnetPool and subnets.Subnet structs
 func subnetpoolsWithSubnets(pools []subnetpools.SubnetPool, subnets []subnets.Subnet) ([]subnetpoolWithSubnets, error) {
 	subnetPrefixes := make(map[string][]netip.Prefix)
+
 	for _, subnet := range subnets {
 		if subnet.SubnetPoolID != "" {
 			subnetPrefix, err := netip.ParsePrefix(subnet.CIDR)
 			if err != nil {
 				return nil, err
 			}
+
 			subnetPrefixes[subnet.SubnetPoolID] = append(subnetPrefixes[subnet.SubnetPoolID], subnetPrefix)
 		}
 	}
@@ -480,6 +500,7 @@ func subnetpoolsWithSubnets(pools []subnetpools.SubnetPool, subnets []subnets.Su
 	for i, pool := range pools {
 		result[i] = subnetpoolWithSubnets{pool, subnetPrefixes[pool.ID]}
 	}
+
 	return result, nil
 }
 
@@ -496,13 +517,16 @@ func calculateFreeSubnets(poolPrefix *netip.Prefix, subnetsInPool []netip.Prefix
 	if err != nil {
 		return 0, err
 	}
+
 	count := 0.0
 	for _, prefix := range ipset.Prefixes() {
 		if int(prefix.Bits()) > prefixLength {
 			continue
 		}
+
 		count += math.Pow(2, float64(prefixLength-int(prefix.Bits())))
 	}
+
 	return count, nil
 }
 
@@ -510,6 +534,7 @@ func calculateFreeSubnets(poolPrefix *netip.Prefix, subnetsInPool []netip.Prefix
 // Finally, return the count that matches prefixLength.
 func calculateUsedSubnets(subnets []netip.Prefix, ipPrefix netip.Prefix, prefixLength int) float64 {
 	result := make(map[int]int)
+
 	for _, subnet := range subnets {
 		if !ipPrefix.Overlaps(subnet) {
 			continue
@@ -517,12 +542,13 @@ func calculateUsedSubnets(subnets []netip.Prefix, ipPrefix netip.Prefix, prefixL
 
 		result[int(subnet.Bits())]++
 	}
+
 	return float64(result[prefixLength])
 }
 
 // ListSubnetsPerPool : Count used/free/total number of subnets per subnet pool
-func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesSubnets, err := subnets.List(exporter.Client, subnets.ListOpts{}).AllPages()
+func ListSubnetsPerPool(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesSubnets, err := subnets.List(exporter.ClientV2, subnets.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -532,7 +558,7 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		return err
 	}
 
-	allPagesSubnetPools, err := subnetpools.List(exporter.Client, subnetpools.ListOpts{}).AllPages()
+	allPagesSubnetPools, err := subnetpools.List(exporter.ClientV2, subnetpools.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -552,6 +578,7 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		if err != nil {
 			return err
 		}
+
 		for _, ipPrefix := range ipPrefixes {
 			for prefixLength := subnetPool.MinPrefixLen; prefixLength <= subnetPool.MaxPrefixLen; prefixLength++ {
 				if prefixLength < int(ipPrefix.Bits()) {
@@ -572,6 +599,7 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 				if err != nil {
 					return err
 				}
+
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_free"].Metric,
 					prometheus.GaugeValue, freeSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
 					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
@@ -582,27 +610,15 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 	return nil
 }
 
-func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListNetworkQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
 
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["network"]; ok {
-		eo = v
-	} else {
-		return errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	cli, err := newIdentityV3ClientV2FromExporter(exporter, "network")
 	if err != nil {
 		return err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -614,7 +630,7 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	for _, p := range allProjects {
 		// quota are obtained from the neutron API, so now we can just use this exporter's client
-		quota, err := quotas.GetDetail(exporter.Client, p.ID).Extract()
+		quota, err := quotas.GetDetail(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}
@@ -674,5 +690,6 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
 			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
 	}
+
 	return nil
 }

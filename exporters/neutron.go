@@ -211,8 +211,8 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 		for _, net := range allNetworks {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
 				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
-				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkProviderExt.NetworkType,
-				net.NetworkProviderExt.PhysicalNetwork, net.NetworkProviderExt.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","), strconv.Itoa(net.MTU))
+				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
+				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","), strconv.Itoa(net.MTU))
 		}
 	}
 	return nil

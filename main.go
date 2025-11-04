@@ -11,15 +11,16 @@ import (
 	"time"
 	"gopkg.in/yaml.v3"
 
+	"log/slog"
+
 	kingpin "github.com/alecthomas/kingpin/v2"
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
 	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/prometheus/common/promlog"
-	"github.com/prometheus/common/promlog/flag"
+	"github.com/prometheus/common/promslog"
+	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
@@ -47,6 +48,7 @@ var (
 	cacheEnable              = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
+	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
 )
 
 func main() {
@@ -60,28 +62,27 @@ func main() {
 	}
 	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9180")
 
-	promlogConfig := &promlog.Config{}
+	promlogConfig := &promslog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
-	logger := promlog.New(promlogConfig)
+	logger := promslog.New(promlogConfig)
+	logger.Info("Build Version", "version_info", version.Info(), "build_context", version.BuildContext())
 
 	if *cloud == "" && !*multiCloud {
-		level.Error(logger).Log("msg", "openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
+		logger.Error("openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
 	}
 
-	level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
-
 	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-		level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
+		logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
 
 	SetPasswordIfVaultIsUsed(logger)
 
 	if _, err := os.Stat(*osClientConfig); err != nil {
-		level.Error(logger).Log("err", "Could not read config file", "error", err)
+		logger.Error("Could not read config file", "error", err)
 		os.Exit(1)
 	}
 
@@ -104,10 +105,10 @@ func main() {
 
 	select {
 	case err := <-errChan:
-		level.Error(logger).Log("err", "Shutting down due to error", "err", err)
+		logger.Error("Shutting down due to error", "err", err)
 		cancel()
 	case <-sigChan:
-		level.Info(logger).Log("msg", "Termination signal received. Shutting down...")
+		logger.Info("Termination signal received. Shutting down...")
 		cancel()
 	}
 
@@ -116,16 +117,16 @@ func main() {
 // cacheBackgroundService runs a background service to collect the metrics and stores in the cache.
 // It collects data every cache-ttl/2 time and flush every cache-ttl time.
 // The cache data will be read by the Prometheus HandleFunc.
-func cacheBackgroundService(ctx context.Context, services map[string]*bool, errChan chan<- error, logger log.Logger) {
-	level.Info(logger).Log("msg", "Start cache background service")
+func cacheBackgroundService(ctx context.Context, services map[string]*bool, errChan chan<- error, logger *slog.Logger) {
+	logger.Info("Start cache background service")
 	collectTicker := time.NewTicker(*cacheTTL / 2)
 	defer collectTicker.Stop()
 	ttlTicker := time.NewTicker(*cacheTTL)
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID , nil, logger); err != nil {
-		level.Error(logger).Log("err", err)
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
+		logger.Error("Failed to collect from cache", "err", err)
 		errChan <- err
 		return
 	}
@@ -133,27 +134,27 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
 				errChan <- err
 				return
 			}
 		case <-ttlTicker.C:
 			cache.FlushExpiredCloudCaches(*cacheTTL)
-			level.Info(logger).Log("msg", "Cache TTL flush")
+			logger.Info("Cache TTL flush")
 		case <-ctx.Done():
-			level.Info(logger).Log("msg", "Backend service is stopping")
+			logger.Info("Backend service is stopping")
 			return
 		}
 	}
 }
 
-func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, errChan chan<- error, logger log.Logger) {
+func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, errChan chan<- error, logger *slog.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
 		http.HandleFunc("/probe", probeHandler(services, logger))
 		http.Handle(*metrics, promhttp.Handler())
-		level.Info(logger).Log("msg", "openstack exporter started in multi cloud mode (/probe?cloud=)")
+		logger.Info("openstack exporter started in multi cloud mode (/probe?cloud=)")
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
 			Text:    "Metrics",
@@ -162,7 +163,7 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 			Text:    "Probes",
 		})
 	} else {
-		level.Info(logger).Log("msg", "openstack exporter started in legacy mode")
+		logger.Info("openstack exporter started in legacy mode")
 		http.HandleFunc(*metrics, metricHandler(services, logger))
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
@@ -180,35 +181,35 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 
 		landingPage, err := web.NewLandingPage(landingConfig)
 		if err != nil {
-			level.Error(logger).Log("err", err)
+			logger.Error("Failed to create landing page", "error", err)
 			os.Exit(1)
 		}
 		http.Handle("/", landingPage)
 	}
 
 	if *domainID != "" {
-		level.Info(logger).Log("msg", "Gathering metrics for configured domain ID", "domain_id", *domainID)
+		logger.Info("Gathering metrics for configured domain ID", "domain_id", *domainID)
 	}
 
 	if *tenantID != "" {
-		level.Info(logger).Log("msg", "Gathering metrics for configured tenant ID", "tenant_id", *tenantID)
+		logger.Info("Gathering metrics for configured tenant ID", "tenant_id", *tenantID)
 	}
 
 	srv := &http.Server{}
 	go func() {
 		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-			level.Error(logger).Log("err", err)
+			logger.Error("Failed to start webserver", "error", err)
 			os.Exit(1)
 		}
 	}()
 
 	<-ctx.Done()
 	if err := srv.Shutdown(context.Background()); err != nil {
-		level.Error(logger).Log("HTTP server shutdown error", err)
+		logger.Error("HTTP server shutdown error", "error", err)
 	}
 }
 
-func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
+func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
@@ -235,25 +236,25 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 
 		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
 		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
-		level.Info(logger).Log("msg", "Enabled services", "enabled_services", enabledServices)
+		logger.Info("Enabled services", "enabled_services", enabledServices)
 
 		// Get data from cache
 		if *cacheEnable {
 			if err := cache.WriteCacheToResponse(w, r, cloud, enabledServices, logger); err != nil {
-				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
+				logger.Error("Write cache to response failed", "error", err)
 			}
 			return
 		}
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
 			if err != nil {
-				level.Error(logger).Log("err", "Enabling exporter for service failed", "service", service, "error", err)
+				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
 			}
 			registry.MustRegister(*exp)
-			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
+			logger.Info("Enabled exporter for service", "service", service)
 		}
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
@@ -261,13 +262,13 @@ func probeHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc
 	}
 }
 
-func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFunc {
+func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		level.Info(logger).Log("msg", "Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
-		level.Info(logger).Log("msg", "Build context", "build_context", version.BuildContext())
+		logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
+		logger.Info("Build context", "build_context", version.BuildContext())
 
 		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			level.Debug(logger).Log("msg", "Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
+			logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 		}
 
@@ -281,7 +282,7 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 		// Get data from cache
 		if *cacheEnable {
 			if err := cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger); err != nil {
-				level.Error(logger).Log("err", "Write cache to response failed", "error", err)
+				logger.Error("Write cache to response failed", "error", err)
 			}
 			return
 		}
@@ -289,19 +290,19 @@ func metricHandler(services map[string]*bool, logger log.Logger) http.HandlerFun
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID,nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
-				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
+				logger.Error("enabling exporter for service failed", "service", service, "error", err)
 				continue
 			}
 			registry.MustRegister(*exp)
-			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
+			logger.Info("Enabled exporter for service", "service", service)
 			enabledExporters++
 		}
 
 		if enabledExporters == 0 {
-			level.Error(logger).Log("err", "No exporter has been enabled, exiting")
+			logger.Error("No exporter has been enabled, exiting")
 			os.Exit(-1)
 		}
 

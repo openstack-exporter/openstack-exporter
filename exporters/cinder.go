@@ -5,7 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
@@ -69,7 +70,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
-func NewCinderExporter(config *ExporterConfig, logger log.Logger) (*CinderExporter, error) {
+func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
 			Name:           "cinder",
@@ -117,7 +118,7 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	// Volume status metrics
 	for _, volume := range allVolumes {
-		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+		if len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
 				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
 				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
@@ -155,7 +156,7 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	// Volume_gb metrics
 	for _, volume := range allVolumes {
-		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+		if len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
 				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
@@ -238,14 +239,14 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	}
 
 	for _, service := range allServices {
-		var state int = 0
+		var state = 0
 		var id string
 
 		if service.State == "up" {
 			state = 1
 		}
-		if !exporter.ExporterConfig.DisableCinderAgentUUID {
-			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+		if !exporter.DisableCinderAgentUUID {
+			if id, err = exporter.UUIDGenFunc(); err != nil {
 				return err
 			}
 		}
@@ -293,7 +294,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	} else if v, ok := endpointOpts["volume"]; ok {
 		eo = v
 	} else {
-		return errors.New("No EndpointOpts available to create Identity client")
+		return errors.New("no EndpointOpts available to create Identity client")
 	}
 
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)

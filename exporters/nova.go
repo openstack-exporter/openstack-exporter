@@ -3,11 +3,14 @@ package exporters
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
+	"reflect"
 	"sort"
 	"strconv"
 
-	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/quotasets"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/compute/apiversions"
@@ -72,6 +75,9 @@ type NovaExporter struct {
 	BaseOpenStackExporter
 }
 
+var defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
+	"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
 	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
@@ -88,8 +94,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
-	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}},
+	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
@@ -97,9 +102,23 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
+	{Name: "quota_cores", Labels: []string{"type", "tenant"}, Fn: ListQuotas},
+	{Name: "quota_instances", Labels: []string{"type", "tenant"}},
+	{Name: "quota_key_pairs", Labels: []string{"type", "tenant"}},
+	{Name: "quota_metadata_items", Labels: []string{"type", "tenant"}},
+	{Name: "quota_ram", Labels: []string{"type", "tenant"}},
+	{Name: "quota_server_groups", Labels: []string{"type", "tenant"}},
+	{Name: "quota_server_group_members", Labels: []string{"type", "tenant"}},
+	{Name: "quota_fixed_ips", Labels: []string{"type", "tenant"}},
+	{Name: "quota_floating_ips", Labels: []string{"type", "tenant"}},
+	{Name: "quota_security_group_rules", Labels: []string{"type", "tenant"}},
+	{Name: "quota_security_groups", Labels: []string{"type", "tenant"}},
+	{Name: "quota_injected_file_content_bytes", Labels: []string{"type", "tenant"}},
+	{Name: "quota_injected_file_path_bytes", Labels: []string{"type", "tenant"}},
+	{Name: "quota_injected_files", Labels: []string{"type", "tenant"}},
 }
 
-func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, error) {
+func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",
@@ -108,6 +127,9 @@ func NewNovaExporter(config *ExporterConfig, logger log.Logger) (*NovaExporter, 
 		},
 	}
 	for _, metric := range defaultNovaMetrics {
+		if metric.Name == "server_status" {
+			metric.Labels = append(defaultNovaServerStatusLabels, config.NovaMetadataMapping.Labels...)
+		}
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
 		}
@@ -203,8 +225,14 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
+		var vcpus int
+		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
+			vcpus = hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+		} else {
+			vcpus = hypervisor.VCPUs
+		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
@@ -249,6 +277,130 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 			prometheus.GaugeValue, 1, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
 	}
 
+	return nil
+}
+
+func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["compute"]; ok {
+		eo = v
+	} else {
+		return errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range allProjects {
+		quotaSet, err := quotasets.GetDetail(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Cores.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Cores.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Cores.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Instances.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Instances.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.Instances.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.RAM.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.RAM.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.RAM.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.InUse), "in_use", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Limit), "limit", p.Name)
+	}
 	return nil
 }
 
@@ -337,17 +489,24 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
-			if len(allFlavors) == 0 {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
+			labelValues := func() []string {
+				if len(allFlavors) == 0 {
+					return []string{
+						server.ID, server.Status, server.Name, server.TenantID,
+						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName,
+					}
+				}
+				return []string{
+					server.ID, server.Status, server.Name, server.TenantID,
 					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName)
-			} else {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName)
-			}
+					server.AvailabilityZone, searchFlavorIDbyName(server.Flavor["original_name"], allFlavors), server.InstanceName,
+				}
+			}()
+			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
 		}
 	}
 	return nil
@@ -365,7 +524,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	} else if v, ok := endpointOpts["compute"]; ok {
 		eo = v
 	} else {
-		return errors.New("No EndpointOpts available to create Identity client")
+		return errors.New("no EndpointOpts available to create Identity client")
 	}
 
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)

@@ -65,6 +65,9 @@ type NovaExporter struct {
 	BaseOpenStackExporter
 }
 
+var defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
+	"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
 	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
@@ -81,8 +84,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "local_storage_used_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
 	{Name: "free_disk_bytes", Labels: []string{"hostname", "availability_zone", "aggregates"}},
-	{Name: "server_status", Labels: []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}},
+	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
 	{Name: "limits_vcpus_max", Labels: []string{"tenant", "tenant_id"}, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_memory_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
@@ -122,6 +124,9 @@ func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter
 		},
 	}
 	for _, metric := range defaultNovaMetrics {
+		if metric.Name == "server_status" {
+			metric.Labels = append(defaultNovaServerStatusLabels, config.NovaMetadataMapping.Labels...)
+		}
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
 		}
@@ -453,17 +458,22 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			var flavorID string
 			if flavorIDMapper == nil {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName)
+				flavorID = fmt.Sprintf("%v", server.Flavor["id"])
 			} else {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-					prometheus.GaugeValue, float64(mapServerStatus(server.Status)), server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName)
+				flavorID = flavorIDMapper.Search(server.Flavor["original_name"])
 			}
+
+			labelValues := []string{
+				server.ID, server.Status, server.Name, server.TenantID,
+				server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+				server.AvailabilityZone, flavorID, server.InstanceName,
+			}
+			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
 		}
 	}
 	return nil

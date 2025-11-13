@@ -1,55 +1,15 @@
 {
     "quota_set": {
-        "backup_gigabytes": {
-            "in_use": 0,
-            "limit": 1000,
-            "reserved": 0
-        },
-        "backups": {
-            "in_use": 0,
-            "limit": 10,
-            "reserved": 0
-        },
-        "gigabytes": {
-            "in_use": 0,
-            "limit": 1000,
-            "reserved": 0
-        },
-        "gigabytes___DEFAULT__": {
-            "in_use": 0,
-            "limit": -1,
-            "reserved": 0
-        },
-        "groups": {
-            "in_use": 0,
-            "limit": 10,
-            "reserved": 0
-        },
+        "backup_gigabytes": 1000,
+        "backups": 10,
+        "gigabytes": 1000,
+        "gigabytes_lvmdriver-1": 1000,
+        "groups": 10,
         "id": "0c4e939acacf4376bdcd1129f1a054ad",
-        "per_volume_gigabytes": {
-            "in_use": 0,
-            "limit": -1,
-            "reserved": 0
-        },
-        "snapshots": {
-            "in_use": 0,
-            "limit": 10,
-            "reserved": 0
-        },
-        "snapshots___DEFAULT__": {
-            "in_use": 0,
-            "limit": -1,
-            "reserved": 0
-        },
-        "volumes": {
-            "in_use": 0,
-            "limit": 10,
-            "reserved": 0
-        },
-        "volumes___DEFAULT__": {
-            "in_use": 0,
-            "limit": -1,
-            "reserved": 0
-        }
+        "per_volume_gigabytes": -1,
+        "snapshots": 10,
+        "snapshots___DEFAULT__": -1,
+        "volumes": 10,
+        "volumes___DEFAULT__": -1
     }
 }

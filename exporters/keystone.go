@@ -160,8 +160,7 @@ func MapProjectsName(exporter *BaseOpenStackExporter) (map[string]string, error)
 	var allProjects []projects.Project
 	var eo gophercloud.EndpointOpts
 
-	var projectsMap map[string]string
-	projectsMap = make(map[string]string)
+	projectsMap := make(map[string]string)
 
 	// We create a map of project ID to name to to add it to the data
 	if v, ok := endpointOpts["identity"]; ok {
@@ -169,7 +168,7 @@ func MapProjectsName(exporter *BaseOpenStackExporter) (map[string]string, error)
 	} else if v, ok := endpointOpts["volume"]; ok {
 		eo = v
 	} else {
-		return nil, errors.New("No EndpointOpts available to create Identity client")
+		return nil, errors.New("no EndpointOpts available to create Identity client")
 	}
 
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)

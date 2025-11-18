@@ -215,7 +215,8 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 
 		var vcpus int
 		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
-			vcpus = hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+			vcpus = max( hypervisor.CPUInfo.Topology.Cells,1) * hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+		}
 		} else {
 			vcpus = hypervisor.VCPUs
 		}

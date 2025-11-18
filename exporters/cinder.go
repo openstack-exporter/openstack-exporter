@@ -280,7 +280,7 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 		}
 
 		// Quotas are obtained from the cinder API
-		quotas_p, err := quotasets.Get(exporter.Client, p.ID).Extract()
+		quotas_p, err := quotasets.Get(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}

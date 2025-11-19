@@ -128,6 +128,7 @@ var fixtures map[string]string = map[string]string{
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",
 	"/orchestration/stacks":         "heat_stacks",
+	"/placement/":                   "placement_api_discovery",
 	"/placement/resource_providers": "resource_providers",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/inventories": "resource_provider_1_inventory",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",

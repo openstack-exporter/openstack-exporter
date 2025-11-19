@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud/openstack/objectstorage/v1/containers"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/gophercloud/v2/openstack/objectstorage/v1/containers"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -39,8 +39,8 @@ func NewObjectStoreExporter(config *ExporterConfig, logger *slog.Logger) (*Objec
 	return &exporter, nil
 }
 
-func ListContainers(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	err := containers.List(exporter.Client, containers.ListOpts{Full: true}).EachPage(func(page pagination.Page) (bool, error) {
+func ListContainers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	err := containers.List(exporter.ClientV2, containers.ListOpts{}).EachPage(ctx, func(_ context.Context, page pagination.Page) (bool, error) {
 		containerList, err := containers.ExtractInfo(page)
 		if err != nil {
 			return false, err

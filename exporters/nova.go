@@ -111,7 +111,7 @@ var defaultNovaMetrics = []Metric{
 func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
 	ctx := context.TODO()
 
-	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_COMPUTE_API_VERSION", novaLatestSupportedMicroversion)
+	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_COMPUTE_API_VERSION", novaLatestSupportedMicroversion, logger)
 	if err != nil {
 		return nil, err
 	}

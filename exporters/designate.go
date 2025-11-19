@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
+	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/recordsets"
+	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/zones"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -76,8 +76,8 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 	return &exporter, nil
 }
 
-func ListZonesAndRecordsets(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesZones, err := zones.List(exporter.Client, zones.ListOpts{}).AllPages()
+func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesZones, err := zones.List(exporter.ClientV2, zones.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -93,7 +93,7 @@ func ListZonesAndRecordsets(_ context.Context, exporter *BaseOpenStackExporter, 
 	// Collect recordsets for zone and write metrics for zones and recordsets
 	for _, zone := range allZones {
 
-		allPagesRecordsets, err := recordsets.ListByZone(exporter.Client, zone.ID, recordsets.ListOpts{}).AllPages()
+		allPagesRecordsets, err := recordsets.ListByZone(exporter.ClientV2, zone.ID, recordsets.ListOpts{}).AllPages(ctx)
 		if err != nil {
 			return err
 		}

@@ -9,46 +9,45 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var stack_status = []string{
-	"INIT_IN_PROGRESS",
-	"INIT_FAILED",
-	"INIT_COMPLETE",
-	"CREATE_IN_PROGRESS",
-	"CREATE_FAILED",
-	"CREATE_COMPLETE",
-	"DELETE_IN_PROGRESS",
-	"DELETE_FAILED",
-	"DELETE_COMPLETE",
-	"UPDATE_IN_PROGRESS",
-	"UPDATE_FAILED",
-	"UPDATE_COMPLETE",
-	"ROLLBACK_IN_PROGRESS",
-	"ROLLBACK_FAILED",
-	"ROLLBACK_COMPLETE",
-	"SUSPEND_IN_PROGRESS",
-	"SUSPEND_FAILED",
-	"SUSPEND_COMPLETE",
-	"RESUME_IN_PROGRESS",
-	"RESUME_FAILED",
-	"RESUME_COMPLETE",
-	"ADOPT_IN_PROGRESS",
-	"ADOPT_FAILED",
-	"ADOPT_COMPLETE",
-	"SNAPSHOT_IN_PROGRESS",
-	"SNAPSHOT_FAILED",
-	"SNAPSHOT_COMPLETE",
-	"CHECK_IN_PROGRESS",
-	"CHECK_FAILED",
-	"CHECK_COMPLETE",
+var knownStackStatuses = map[string]int{
+	"INIT_IN_PROGRESS":     0,
+	"INIT_FAILED":          1,
+	"INIT_COMPLETE":        2,
+	"CREATE_IN_PROGRESS":   3,
+	"CREATE_FAILED":        4,
+	"CREATE_COMPLETE":      5,
+	"DELETE_IN_PROGRESS":   6,
+	"DELETE_FAILED":        7,
+	"DELETE_COMPLETE":      8,
+	"UPDATE_IN_PROGRESS":   9,
+	"UPDATE_FAILED":        10,
+	"UPDATE_COMPLETE":      11,
+	"ROLLBACK_IN_PROGRESS": 12,
+	"ROLLBACK_FAILED":      13,
+	"ROLLBACK_COMPLETE":    14,
+	"SUSPEND_IN_PROGRESS":  15,
+	"SUSPEND_FAILED":       16,
+	"SUSPEND_COMPLETE":     17,
+	"RESUME_IN_PROGRESS":   18,
+	"RESUME_FAILED":        19,
+	"RESUME_COMPLETE":      20,
+	"ADOPT_IN_PROGRESS":    21,
+	"ADOPT_FAILED":         22,
+	"ADOPT_COMPLETE":       23,
+	"SNAPSHOT_IN_PROGRESS": 24,
+	"SNAPSHOT_FAILED":      25,
+	"SNAPSHOT_COMPLETE":    26,
+	"CHECK_IN_PROGRESS":    27,
+	"CHECK_FAILED":         28,
+	"CHECK_COMPLETE":       29,
 }
 
 func mapHeatStatus(current string) int {
-	for idx, status := range stack_status {
-		if current == status {
-			return idx
-		}
+	v, ok := knownStackStatuses[current]
+	if !ok {
+		return -1
 	}
-	return -1
+	return v
 }
 
 type listedStack struct {
@@ -106,13 +105,13 @@ func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<-
 		return err
 	}
 
-	var stack_status_counter = make(map[string]int, len(knownServerStatuses))
-	for k := range knownServerStatuses {
-		stack_status_counter[k] = 0
+	var stackStatusCounter = make(map[string]int, len(knownStackStatuses))
+	for k := range knownStackStatuses {
+		stackStatusCounter[k] = 0
 	}
 
 	for _, stack := range allStacks {
-		stack_status_counter[stack.Status]++
+		stackStatusCounter[stack.Status]++
 
 		// Stack status metrics
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stack_status"].Metric,
@@ -120,7 +119,7 @@ func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	}
 
 	// Stack status counter metrics
-	for status, count := range stack_status_counter {
+	for status, count := range stackStatusCounter {
 		ch <- prometheus.MustNewConstMetric(
 			exporter.Metrics["stack_status_counter"].Metric, prometheus.GaugeValue, float64(count), status)
 	}

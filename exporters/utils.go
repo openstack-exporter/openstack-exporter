@@ -21,7 +21,7 @@ import (
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
 
-func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
+func AuthenticatedClient(opts *clientconfig.ClientOpts, transport http.RoundTripper) (*gophercloud.ProviderClient, error) {
 	options, err := clientconfig.AuthOptions(opts)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,10 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 	}
 
 	if transport != nil {
-		transport.Proxy = http.ProxyFromEnvironment
+		if tr, ok := transport.(*http.Transport); ok {
+			tr.Proxy = http.ProxyFromEnvironment
+		}
+
 		client.HTTPClient.Transport = transport
 	}
 
@@ -47,7 +50,7 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 	return client, nil
 }
 
-func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport *http.Transport) (*gophercloudv2.ProviderClient, error) {
+func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper) (*gophercloudv2.ProviderClient, error) {
 	options, err := clientconfigv2.AuthOptions(opts)
 	if err != nil {
 		return nil, err
@@ -62,7 +65,10 @@ func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport *http.Tran
 	}
 
 	if transport != nil {
-		transport.Proxy = http.ProxyFromEnvironment
+		if tr, ok := transport.(*http.Transport); ok {
+			tr.Proxy = http.ProxyFromEnvironment
+		}
+
 		client.HTTPClient.Transport = transport
 	}
 
@@ -74,7 +80,7 @@ func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport *http.Tran
 }
 
 // NewServiceClient is a convenience function to get a new service client.
-func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *http.Transport, endpointType string) (*gophercloud.ServiceClient, error) {
+func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloud.ServiceClient, error) {
 	cloud := new(clientconfig.Cloud)
 
 	// If no opts were passed in, create an empty ClientOpts.
@@ -213,7 +219,7 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	return nil, fmt.Errorf("unable to create a service client for %s", service)
 }
 
-func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport *http.Transport, endpointType string) (*gophercloudv2.ServiceClient, error) {
+func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ServiceClient, error) {
 	cloud := new(clientconfigv2.Cloud)
 
 	// If no opts were passed in, create an empty ClientOpts.

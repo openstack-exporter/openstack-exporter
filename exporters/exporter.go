@@ -14,6 +14,7 @@ import (
 	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/utils/openstack/clientconfig"
+	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/go-homedir"
@@ -237,7 +238,7 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
-	var transport *http.Transport
+	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
 	opts := clientconfig.ClientOpts{Cloud: cloud}
@@ -282,6 +283,17 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 	if configureTransport {
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
+	}
+
+	if _, ok := os.LookupEnv("OS_DEBUG"); ok {
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+
+		transport = &clientutilsv2.RoundTripper{
+			Rt:     transport,
+			Logger: &clientutilsv2.DefaultLogger{},
+		}
 	}
 
 	client, err := NewServiceClient(name, &opts, transport, endpointType)

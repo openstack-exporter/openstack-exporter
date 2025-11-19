@@ -28,7 +28,7 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
 	// For whatever reason, it adds a v1 field to the URL,
 	// so it sends requests to /v1/v1 if left unfixed.
-	config.ClientV2.ResourceBase = config.ClientV2.Endpoint
+	//config.ClientV2.ResourceBase = config.ClientV2.Endpoint
 
 	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_BAREMETAL_API_VERSION", ironicLatestSupportedMicroversion, logger)
 	if err != nil {

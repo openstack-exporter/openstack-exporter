@@ -4,7 +4,7 @@
       "id": "v2.8",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -14,7 +14,7 @@
       "id": "v2.7",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -24,7 +24,7 @@
       "id": "v2.6",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -34,7 +34,7 @@
       "id": "v2.5",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -44,7 +44,7 @@
       "id": "v2.4",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -54,7 +54,7 @@
       "id": "v2.3",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -64,7 +64,7 @@
       "id": "v2.2",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -74,7 +74,7 @@
       "id": "v2.1",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],
@@ -84,7 +84,7 @@
       "id": "v2.0",
       "links": [
         {
-          "href": "http://glance.openstack.example.org/v2/",
+          "href": "http://test.cloud/glance/v2/",
           "rel": "self"
         }
       ],

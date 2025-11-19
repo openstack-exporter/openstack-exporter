@@ -4,8 +4,8 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
-	"github.com/gophercloud/gophercloud/pagination"
+	"github.com/gophercloud/gophercloud/v2/openstack/orchestration/v1/stacks"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -94,9 +94,9 @@ func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter
 	return &exporter, nil
 }
 
-func ListAllStacks(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllStacks(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allStacks []listedStack
-	allPagesStacks, err := stacks.List(exporter.Client, stacks.ListOpts{}).AllPages()
+	allPagesStacks, err := stacks.List(exporter.ClientV2, stacks.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}

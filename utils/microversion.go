@@ -60,7 +60,6 @@ func SetupClientMicroversionV2(ctx context.Context, client *gophercloud.ServiceC
 	}
 
 	lg.Debug("Set API microversion", "microversion", microversion)
-	lg.Info("Set API microversion", "microversion", microversion, "endpoint", client.Endpoint)
 	client.Microversion = microversion
 	return nil
 }

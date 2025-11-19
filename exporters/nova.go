@@ -439,8 +439,17 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		return err
 	}
 
+	// check if flavor.id present, if not - we probably got response like for 2.46+
+	var mapperRequired bool
+	for _, server := range allServers {
+		if _, ok := server.Flavor["id"]; !ok {
+			mapperRequired = true
+			break
+		}
+	}
+
 	apiMv, _ := strconv.ParseFloat(exporter.ClientV2.Microversion, 64)
-	if apiMv >= 2.46 {
+	if apiMv >= 2.46 || mapperRequired {
 		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
 		// ***
 		// If micro-version is greater than 2.46,
@@ -544,7 +553,6 @@ func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_local_gb"].Metric,
 				prometheus.GaugeValue, float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
 		}
-
 	}
 
 	return nil

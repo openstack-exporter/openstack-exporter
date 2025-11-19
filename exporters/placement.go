@@ -4,7 +4,7 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
+	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -38,10 +38,10 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	return &exporter, nil
 }
 
-func ListPlacementResourceProviders(_ context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
 
-	allPagesResourceProviders, err := resourceproviders.List(exporter.Client, resourceproviders.ListOpts{}).AllPages()
+	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -55,7 +55,7 @@ func ListPlacementResourceProviders(_ context.Context, exporter *BaseOpenStackEx
 	for _, resourceprovider := range allResourceProviders {
 		uuidToNameMap[resourceprovider.UUID] = resourceprovider.Name
 
-		inventoryResult, err := resourceproviders.GetInventories(exporter.Client, resourceprovider.UUID).Extract()
+		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func ListPlacementResourceProviders(_ context.Context, exporter *BaseOpenStackEx
 				prometheus.GaugeValue, float64(v.Reserved), resourceprovider.Name, k)
 		}
 
-		usagesResult, err := resourceproviders.GetUsages(exporter.Client, resourceprovider.UUID).Extract()
+		usagesResult, err := resourceproviders.GetUsages(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
 		}

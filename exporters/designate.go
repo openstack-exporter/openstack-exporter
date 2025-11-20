@@ -61,8 +61,9 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 			logger:         logger,
 		},
 	}
+
 	// This header needed for colletiong zone of all projects
-	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+	exporter.ClientV2.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 
 	for _, metric := range defaultDesignateMetrics {
 		if exporter.isDeprecatedMetric(&metric) {

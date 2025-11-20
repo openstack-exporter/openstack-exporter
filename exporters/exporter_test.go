@@ -52,6 +52,7 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 }
 
 var fixtures map[string]string = map[string]string{
+	"/container-infra/":              "container_infra_api_discovery",
 	"/container-infra/clusters":      "container_infra_clusters",
 	"/compute/":                      "nova_api_discovery",
 	"/compute/v2.1/":                 "nova_api_v2.1",

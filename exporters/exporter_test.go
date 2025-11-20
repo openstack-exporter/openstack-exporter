@@ -74,7 +74,7 @@ var fixtures map[string]string = map[string]string{
 	"/compute/os-simple-tenant-usage?detailed=1":                 "nova_os_simple_tenant_usage",
 	"/glance/":          "glance_api_discovery",
 	"/glance/v2/images": "glance_images",
-	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_metric",
+	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_empty",
 	"/gnocchi/v1/metric":                         "gnocchi_metric",
 	"/gnocchi/v1/status":                         "gnocchi_status",
 	"/gnocchi/v1/status?details=true":            "gnocchi_status",
@@ -96,20 +96,20 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/agents?binary=ovn-controller": "neutron_ovn_controller_agents",
 	"/neutron/v2.0/routers/f8a44de0-fc8e-45df-93c7-f79bf3b01c95/l3-agents": "neutron_routers_l3_agents",
 	"/neutron/v2.0/routers/9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f/l3-agents": "neutron_routers_l3_agents",
-	"/loadbalancer/":                                                       "loadbalancer_api_discovery",
-	"/loadbalancer/v2.0/lbaas/loadbalancers":                               "loadbalancer_loadbalancers",
-	"/loadbalancer/v2.0/octavia/amphorae":                                  "loadbalancer_amphorae",
-	"/loadbalancer/v2.0/lbaas/pools":                                       "loadbalancer_pools",
-	"/ironic/":                                                             "ironic_api_discovery",
-	"/ironic/v1":                                                           "ironic_v1",
-	"/ironic/nodes":                                                        "ironic_nodes",
-	"/ironic/nodes/detail":                                                 "ironic_nodes",
-	"/volumes":                                                             "cinder_api_discovery",
-	"/volumes/":                                                            "cinder_api_discovery",
-	"/volumes/volumes/detail?all_tenants=true":                             "cinder_volumes",
-	"/volumes/snapshots":                                                   "cinder_snapshots",
-	"/volumes/os-services":                                                 "cinder_os_services",
-	"/volumes/scheduler-stats/get_pools?detail=true":                       "cinder_scheduler_stats_pools",
+	"/loadbalancer/":                                 "loadbalancer_api_discovery",
+	"/loadbalancer/v2.0/lbaas/loadbalancers":         "loadbalancer_loadbalancers",
+	"/loadbalancer/v2.0/octavia/amphorae":            "loadbalancer_amphorae",
+	"/loadbalancer/v2.0/lbaas/pools":                 "loadbalancer_pools",
+	"/ironic/":                                       "ironic_api_discovery",
+	"/ironic/v1":                                     "ironic_v1",
+	"/ironic/v1/nodes":                                  "ironic_nodes",
+	"/ironic/v1/nodes/detail":                           "ironic_nodes",
+	"/volumes":                                       "cinder_api_discovery",
+	"/volumes/":                                      "cinder_api_discovery",
+	"/volumes/volumes/detail?all_tenants=true":       "cinder_volumes",
+	"/volumes/snapshots":                             "cinder_snapshots",
+	"/volumes/os-services":                           "cinder_os_services",
+	"/volumes/scheduler-stats/get_pools?detail=true": "cinder_scheduler_stats_pools",
 	"/volumes/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad?usage=true": "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3?usage=true": "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/2db68fed84324f29bb73130c6c2094fb?usage=true": "cinder_os_quota_sets_usage",
@@ -118,17 +118,17 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f?usage=true": "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d?usage=true": "cinder_os_quota_sets_usage",
 	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e?usage=true": "cinder_os_quota_sets_usage",
-	"/volumes/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/2db68fed84324f29bb73130c6c2094fb": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/3d594eb0f04741069dbbb521635b21c7": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/43ebde53fc314b1c9ea2b8c5dc744927": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d": "cinder_os_quota_sets",
-	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e": "cinder_os_quota_sets",
-	"/designate/":                                                          "designate_api_discovery",
-	"/designate/v2/zones":                                                  "designate_zones",
-	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets":  "designate_recordsets",
+	"/volumes/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/2db68fed84324f29bb73130c6c2094fb":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/3d594eb0f04741069dbbb521635b21c7":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/43ebde53fc314b1c9ea2b8c5dc744927":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d":            "cinder_os_quota_sets",
+	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e":            "cinder_os_quota_sets",
+	"/designate/":         "designate_api_discovery",
+	"/designate/v2/zones": "designate_zones",
+	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
 	"/database/": "trove_api_discovery",
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",
@@ -147,15 +147,17 @@ var fixtures map[string]string = map[string]string{
 	"/compute/os-quota-sets/5961c443439d4fcebe42643723755e9d/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/4b1eb781a47440acb8af9850103e537f/detail":                 "nova_quotas_1_usage",
-	"/neutron/v2.0/quotas/0c4e939acacf4376bdcd1129f1a054ad/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/0cbd49cbf76d405d9c86562e1d579bd3/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/2db68fed84324f29bb73130c6c2094fb/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/3d594eb0f04741069dbbb521635b21c7/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/43ebde53fc314b1c9ea2b8c5dc744927/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/5961c443439d4fcebe42643723755e9d/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":                 "neutron_quotas_1_usage",
-	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":                 "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/0c4e939acacf4376bdcd1129f1a054ad/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/0cbd49cbf76d405d9c86562e1d579bd3/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/2db68fed84324f29bb73130c6c2094fb/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/3d594eb0f04741069dbbb521635b21c7/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/43ebde53fc314b1c9ea2b8c5dc744927/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/5961c443439d4fcebe42643723755e9d/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":             "neutron_quotas_1_usage",
+	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":             "neutron_quotas_1_usage",
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
+	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
+	"/object-store/?marker=centos9-epel-next": "swift_empty",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -176,7 +178,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	}, logger)
 
 	if err != nil {
-		panic(err)
+		suite.Require().NoError(err)
 	}
 	suite.Exporter = &exporter
 }
@@ -228,4 +230,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &HeatTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "orchestration"}})
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
+	suite.Run(t, &ObjectStoreTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "object-store"}})
 }

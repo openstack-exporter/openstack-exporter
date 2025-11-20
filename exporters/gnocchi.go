@@ -43,6 +43,7 @@ func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiEx
 
 func ListAllMetrics(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allMetrics []metrics.Metric
+
 	allPagesMetrics, err := metrics.List(exporter.ClientV2, metrics.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err

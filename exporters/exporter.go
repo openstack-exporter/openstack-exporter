@@ -11,9 +11,7 @@ import (
 
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/utils/openstack/clientconfig"
 	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
@@ -63,7 +61,6 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client                   *gophercloud.ServiceClient
 	ClientV2                 *gophercloudv2.ServiceClient
 	Prefix                   string
 	DisabledMetrics          []string
@@ -86,10 +83,6 @@ type BaseOpenStackExporter struct {
 
 type ListFunc func(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var (
-	endpointOpts   = make(map[string]gophercloud.EndpointOpts)
-	endpointOptsMu sync.Mutex
-)
 var (
 	endpointOptsV2   map[string]gophercloudv2.EndpointOpts
 	endpointOptsV2Mu sync.Mutex
@@ -128,6 +121,7 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 	if exporter.CollectTime {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
+
 	return nil
 }
 
@@ -154,7 +148,6 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
 	}
-
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
@@ -166,7 +159,6 @@ func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
-
 	if exporter.MetricIsDisabled(name) {
 		exporter.logger.Warn("metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
@@ -241,10 +233,9 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
-	opts := clientconfig.ClientOpts{Cloud: cloud}
 	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
 
-	config, err := clientconfig.GetCloudFromYAML(&opts)
+	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
 	if err != nil {
 		return nil, err
 	}
@@ -296,11 +287,6 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		}
 	}
 
-	client, err := NewServiceClient(name, &opts, transport, endpointType)
-	if err != nil {
-		return nil, err
-	}
-
 	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
 	if err != nil {
 		return nil, err
@@ -311,7 +297,6 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:                   client,
 		ClientV2:                 clientV2,
 		Prefix:                   prefix,
 		DisabledMetrics:          disabledMetrics,

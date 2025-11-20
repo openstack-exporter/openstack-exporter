@@ -23,7 +23,6 @@ var defaultManilaMetrics = []Metric{
 func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExporter, error) {
 	exporter := ManilaExporter{
 		BaseOpenStackExporter{
-
 			Name:           "sharev2",
 			ExporterConfig: *config,
 			logger:         logger,

@@ -126,6 +126,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":   "neutron_quotas_1_usage",
 
 	// Octavia
+	"/loadbalancer/":                         "loadbalancer_api_discovery",
 	"/loadbalancer/v2.0/lbaas/loadbalancers": "loadbalancer_loadbalancers",
 	"/loadbalancer/v2.0/octavia/amphorae":    "loadbalancer_amphorae",
 	"/loadbalancer/v2.0/lbaas/pools":         "loadbalancer_pools",

@@ -89,7 +89,7 @@ var fixtures map[string]string = map[string]string{
 	"/glance/v2/images": "glance_images",
 
 	// Gnocchi
-	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_metric",
+	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_empty",
 	"/gnocchi/v1/metric":              "gnocchi_metric",
 	"/gnocchi/v1/status":              "gnocchi_status",
 	"/gnocchi/v1/status?details=true": "gnocchi_status",

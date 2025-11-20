@@ -420,3 +420,12 @@ func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool,
 	}
 	return trustedCAs, nil
 }
+
+func mapStatus(mapping map[string]int, current string) int {
+	v, ok := mapping[current]
+	if !ok {
+		return -1
+	}
+
+	return v
+}

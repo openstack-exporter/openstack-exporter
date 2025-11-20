@@ -27,7 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var knownNetworkStatus = map[string]int{
+var knownNetworkStatuses = map[string]int{
 	"ACTIVE": 0,
 	"BUILD":  1,
 	"DOWN":   2,
@@ -35,11 +35,7 @@ var knownNetworkStatus = map[string]int{
 }
 
 func mapNetworkStatus(current string) int {
-	v, ok := knownNetworkStatus[current]
-	if !ok {
-		return -1
-	}
-	return v
+	return mapStatus(knownNetworkStatuses, current)
 }
 
 // NeutronExporter : extends BaseOpenStackExporter

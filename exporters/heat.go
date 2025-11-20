@@ -43,11 +43,7 @@ var knownStackStatuses = map[string]int{
 }
 
 func mapHeatStatus(current string) int {
-	v, ok := knownStackStatuses[current]
-	if !ok {
-		return -1
-	}
-	return v
+	return mapStatus(knownStackStatuses, current)
 }
 
 type listedStack struct {

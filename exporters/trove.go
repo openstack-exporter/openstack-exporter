@@ -28,11 +28,7 @@ var knownDBInstanceStatuses = map[string]int{
 }
 
 func mapDBInstanceStatus(current string) int {
-	v, ok := knownDBInstanceStatuses[current]
-	if !ok {
-		return -1
-	}
-	return v
+	return mapStatus(knownDBInstanceStatuses, current)
 }
 
 type TroveExporter struct {

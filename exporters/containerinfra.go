@@ -31,11 +31,7 @@ var knownClusterStatuses = map[string]int{
 }
 
 func mapClusterStatus(current string) int {
-	v, ok := knownClusterStatuses[current]
-	if !ok {
-		return -1
-	}
-	return v
+	return mapStatus(knownClusterStatuses, current)
 }
 
 type ContainerInfraExporter struct {

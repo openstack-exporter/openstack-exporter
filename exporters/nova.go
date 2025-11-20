@@ -54,11 +54,7 @@ var knownServerStatuses = map[string]int{
 }
 
 func mapServerStatus(current string) int {
-	v, ok := knownServerStatuses[current]
-	if !ok {
-		return -1
-	}
-	return v
+	return mapStatus(knownServerStatuses, current)
 }
 
 type NovaExporter struct {

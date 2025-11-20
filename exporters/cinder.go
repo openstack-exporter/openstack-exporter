@@ -2,10 +2,9 @@ package exporters
 
 import (
 	"context"
+	"log/slog"
 	"strconv"
 	"strings"
-
-	"log/slog"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/quotasets"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/schedulerstats"
@@ -44,12 +43,7 @@ var knownVolumeStatuses = map[string]int{
 }
 
 func mapVolumeStatus(volStatus string) int {
-	v, ok := knownVolumeStatuses[strings.ToLower(volStatus)]
-	if !ok {
-		return -1
-	}
-
-	return v
+	return mapStatus(knownVolumeStatuses, volStatus)
 }
 
 var defaultCinderMetrics = []Metric{

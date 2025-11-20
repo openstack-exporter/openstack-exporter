@@ -95,6 +95,7 @@ var fixtures map[string]string = map[string]string{
 	"/gnocchi/v1/status?details=true": "gnocchi_status",
 
 	// Keystone
+	"/identity/":            "identity_api_discovery",
 	"/identity/v3/projects": "identity_projects",
 	"/identity/v3/domains":  "identity_domains",
 	"/identity/v3/users":    "identity_users",

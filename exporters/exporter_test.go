@@ -153,7 +153,8 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/quotas/5961c443439d4fcebe42643723755e9d/details.json":             "neutron_quotas_1_usage",
 	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":             "neutron_quotas_1_usage",
 	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":             "neutron_quotas_1_usage",
-	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
+	"/shares/": "manila_api_discovery",
+	"/shares/v2/shares/detail?all_tenants=true": "manila_shares",
 	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
 	"/object-store/?marker=centos9-epel-next": "swift_empty",
 }

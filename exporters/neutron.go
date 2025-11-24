@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"go4.org/netipx"
-	"fmt"
 
 	"log/slog"
 	"net/netip"

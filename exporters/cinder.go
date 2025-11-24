@@ -68,6 +68,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "volume_type_quota_gigabytes", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
 }
 
 func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExporter, error) {
@@ -319,6 +320,24 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 			return err
 		}
 
+		// Quotas are obtained from the cinder API
+		quotas_p, err := quotasets.Get(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+		quotas := *quotas_p
+
+		// Loop through all Extra quotas to automatically detect volume types
+		for key, value := range quotas.Extra {
+			if strings.HasPrefix(key, "gigabytes_") {
+				volumeType := strings.TrimPrefix(key, "gigabytes_")
+				if quotaValue, ok := value.(float64); ok {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_quota_gigabytes"].Metric,
+						prometheus.GaugeValue, quotaValue, p.Name, p.ID, volumeType)
+				}
+			}
+		}
+
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
 
@@ -330,7 +349,6 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
-
 	}
 
 	return nil

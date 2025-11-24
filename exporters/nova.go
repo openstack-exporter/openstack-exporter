@@ -100,20 +100,20 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_used", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "limits_instances_max", Labels: []string{"tenant", "tenant_id"}, Slow: true},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
-	{Name: "quota_cores", Labels: []string{"type", "tenant"}, Fn: ListQuotas},
-	{Name: "quota_instances", Labels: []string{"type", "tenant"}},
-	{Name: "quota_key_pairs", Labels: []string{"type", "tenant"}},
-	{Name: "quota_metadata_items", Labels: []string{"type", "tenant"}},
-	{Name: "quota_ram", Labels: []string{"type", "tenant"}},
-	{Name: "quota_server_groups", Labels: []string{"type", "tenant"}},
-	{Name: "quota_server_group_members", Labels: []string{"type", "tenant"}},
-	{Name: "quota_fixed_ips", Labels: []string{"type", "tenant"}},
-	{Name: "quota_floating_ips", Labels: []string{"type", "tenant"}},
-	{Name: "quota_security_group_rules", Labels: []string{"type", "tenant"}},
-	{Name: "quota_security_groups", Labels: []string{"type", "tenant"}},
-	{Name: "quota_injected_file_content_bytes", Labels: []string{"type", "tenant"}},
-	{Name: "quota_injected_file_path_bytes", Labels: []string{"type", "tenant"}},
-	{Name: "quota_injected_files", Labels: []string{"type", "tenant"}},
+	{Name: "quota_cores", Labels: []string{"type", "tenant", "tenant_id"}, Fn: ListQuotas, Slow: true},
+	{Name: "quota_instances", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_key_pairs", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_metadata_items", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_ram", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_server_groups", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_server_group_members", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_fixed_ips", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_floating_ips", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_security_group_rules", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_security_groups", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_injected_file_content_bytes", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_injected_file_path_bytes", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
+	{Name: "quota_injected_files", Labels: []string{"type", "tenant", "tenant_id"}, Slow: true},
 }
 
 func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
@@ -312,89 +312,89 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.InUse), "in_use", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Limit), "limit", p.Name, p.ID)
 	}
 	return nil
 }

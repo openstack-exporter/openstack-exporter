@@ -74,15 +74,15 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
-	{Name: "quota_network", Labels: []string{"type","tenant"}, Fn: ListNetworkQuotas, Slow: true},
-	{Name: "quota_subnet", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_subnetpool", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_port", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_router", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_floatingip", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group_rule", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_rbac_policy", Labels: []string{"type","tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_network", Labels: []string{"type", "tenant", "tenant_id"}, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: []string{"type", "tenant", "tenant_id"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -620,59 +620,59 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name, p.ID)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name, p.ID)
 	}
 	return nil
 }

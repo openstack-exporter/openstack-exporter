@@ -2,6 +2,7 @@ env: []
 before:
   hooks:
     - go mod download
+    - cmd: bash -c 'echo {{ .Version }} > VERSION'
 builds:
   - binary: openstack-exporter
     main: ./main.go

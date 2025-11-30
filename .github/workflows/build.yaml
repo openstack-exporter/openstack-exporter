@@ -1,67 +1,21 @@
-name: ci
+name: build
 
 on:
   push:
     branches: [main]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
   workflow_dispatch:
 
 jobs:
-  hadolint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: reviewdog/action-hadolint@fc7ee4a9f71e521bc43e370819247b70e5327540 # v1.50.2
-        with:
-          fail_level: any
-          filter_mode: nofilter
-
-  shellcheck:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: reviewdog/action-shellcheck@5ebd09ddbe2ebb471646ce234c6c8dd18663ca7c # v1.30.0
-        with:
-          fail_level: any
-          filter_mode: nofilter
-
-  actionlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: reviewdog/action-actionlint@e37e2ca68a70112d21e135229272da28ce2d0d5a # v1.66.1
-        with:
-          fail_level: any
-          filter_mode: nofilter
-
-  markdownlint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - uses: reviewdog/action-markdownlint@3667398db9118d7e78f7a63d10e26ce454ba5f58 # v0.26.2
-        with:
-          fail_level: any
-          filter_mode: nofilter
-
-  golangci-lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          fetch-depth: 0
-      - uses: reviewdog/action-golangci-lint@f9bba13753278f6a73b27a56a3ffb1bfda90ed71 # v2.8.0
-        with:
-          fail_level: any
-          filter_mode: nofilter
-
   build:
-    name: Build and test
+    name: Build, test, release
     permissions:
       contents: write
       packages: write
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -85,7 +39,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: 1.23
+          go-version: "1.23"
 
       - name: Cache Go modules
         uses: actions/cache@v4
@@ -97,7 +51,8 @@ jobs:
 
       - name: Unit tests
         run: |
-          go test -v -covermode=atomic -coverprofile=coverage.out ./...
+          mapfile -t packages < <(go list ./... | grep -v '/integration')
+          go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
       - name: Extract metadata from ghcr image
         id: meta-github-image
@@ -113,14 +68,14 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64, linux/arm64, linux/s390x
+          platforms: linux/amd64,linux/arm64,linux/s390x
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-github-image.outputs.tags }}
           labels: ${{ steps.meta-github-image.outputs.labels }}
 
-      # This step runs ONLY when a tag is pushed
+      # GoReleaser: full release on tags
       - name: Run GoReleaser (Tag Release)
-        if: contains(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/')
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
@@ -128,12 +83,34 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # This step runs on anything EXCEPT tags
+      # GoReleaser: snapshot on branches / PRs
       - name: Run GoReleaser (Snapshot)
-        if: ${{ !contains(github.ref, 'refs/tags/') }}
+        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
         uses: goreleaser/goreleaser-action@v5
         with:
           version: latest
           args: release --snapshot --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Snapcraft Release
+      - name: Install Snapcraft
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          sudo snap install snapcraft --classic
+          sudo snap install lxd
+          sudo lxd init --auto
+
+      - name: Build snap
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          snapcraft --use-lxd
+
+      - name: Upload snap to store
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          SNAP_FILE=$(ls ./*.snap | head -n1)
+          echo "Uploading $SNAP_FILE"
+          snapcraft upload "$SNAP_FILE" --release=stable

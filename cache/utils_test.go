@@ -14,6 +14,7 @@ import (
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -156,7 +157,7 @@ func TestBufferFromCache(t *testing.T) {
 		t.Error(err)
 	}
 
-	parser := expfmt.TextParser{}
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	metricFamilies, err := parser.TextToMetricFamilies(bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Error(err)
@@ -212,7 +213,7 @@ func TestWriteCacheToResponse(t *testing.T) {
 		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
 	}
 
-	parser := expfmt.TextParser{}
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	metricFamilies, err := parser.TextToMetricFamilies(rr.Body)
 	if err != nil {
 		t.Error(err)

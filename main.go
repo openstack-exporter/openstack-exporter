@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"gopkg.in/yaml.v3"
 
 	"log/slog"
 
@@ -23,6 +24,8 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
+	"github.com/hashicorp/vault-client-go"
+	"github.com/hashicorp/vault-client-go/schema"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
@@ -75,6 +78,8 @@ func main() {
 		logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
 		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 	}
+
+	SetPasswordIfVaultIsUsed(logger)
 
 	if _, err := os.Stat(*osClientConfig); err != nil {
 		logger.Error("Could not read config file", "error", err)
@@ -304,4 +309,66 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)
 	}
+}
+
+func SetPasswordIfVaultIsUsed(logger log.Logger) {
+	configFileData, err := os.ReadFile(*osClientConfig)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to read config file", "err", err)
+		os.Exit(1)
+	}
+
+	type VaultConfig struct {
+		UseVault                    bool   `yaml:"use_vault"`
+		VaultAddress                string `yaml:"vault_address"`
+		VaultRoleID                 string `yaml:"vault_role_id"`
+		VaultSecretID               string `yaml:"vault_secret_id"`
+		VaultSecretPath             string `yaml:"vault_secret_path"`
+		VaultSecretMountPath        string `yaml:"vault_secret_mount_path"`
+		CredentialNameInVaultSecret string `yaml:"credential_name_in_vault_secret"`
+	}
+
+	var vaultConfig VaultConfig
+
+	err = yaml.Unmarshal(configFileData, &vaultConfig)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to parse config data", "err", err)
+		os.Exit(1)
+	}
+
+	if !vaultConfig.UseVault {
+		return
+	}
+	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress),)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to create Vault client", "err", err)
+		os.Exit(1)
+	}
+	ctx := context.Background()
+	resp, err := client.Auth.AppRoleLogin(
+		ctx,
+		schema.AppRoleLoginRequest{
+			RoleId:   vaultConfig.VaultRoleID,
+			SecretId: vaultConfig.VaultSecretID,
+		},
+	)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to login to Vault", "err", err)
+		os.Exit(1)
+	}
+	if err := client.SetToken(resp.Auth.ClientToken); err != nil {
+		level.Error(logger).Log("msg", "failed to set Vault token", "err", err)
+		os.Exit(1)
+	}
+	secret, err := client.Secrets.KvV2Read(
+		ctx,
+		vaultConfig.VaultSecretPath,
+		vault.WithMountPath(vaultConfig.VaultSecretMountPath),
+	)
+	if err != nil {
+		level.Error(logger).Log("msg", "failed to get secret from Vault", "err", err)
+		os.Exit(1)
+	}
+
+	os.Setenv("OS_PASSWORD", secret.Data.Data[vaultConfig.CredentialNameInVaultSecret].(string))
 }

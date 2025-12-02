@@ -7,13 +7,13 @@ toolchain go1.24.10
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/gophercloud/gophercloud/v2 v2.9.0
-	github.com/gophercloud/utils/v2 v2.0.0-20251103115625-7dba497d90f8
+	github.com/gophercloud/utils/v2 v2.0.0-20251121145439-0a38d66a3d88
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/jarcoal/httpmock v1.4.1
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.23.2
 	github.com/prometheus/client_model v0.6.2
-	github.com/prometheus/common v0.67.3
+	github.com/prometheus/common v0.67.4
 	github.com/prometheus/exporter-toolkit v0.15.0
 	github.com/stretchr/testify v1.11.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba

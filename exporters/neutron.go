@@ -43,6 +43,12 @@ type NeutronExporter struct {
 	BaseOpenStackExporter
 }
 
+var (
+	defaultNeutronNetIPsLabels  = []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}
+	defaultNeutronSubnetsLabels = []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}
+	defaultNeutronQuotaLabels   = []string{"type", "tenant", "tenant_id"}
+)
+
 var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips", Fn: ListFloatingIps},
 	{Name: "floating_ips_associated_not_active"},
@@ -62,20 +68,20 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "routers_not_active"},
 	{Name: "l3_agent_of_router", Labels: []string{"router_id", "l3_agent_id", "ha_state", "agent_alive", "agent_admin_up", "agent_host"}},
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "availability_zone"}, Fn: ListAgentStates},
-	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
-	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
-	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
-	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
-	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
-	{Name: "quota_network", Labels: []string{"type", "tenant"}, Fn: ListNetworkQuotas, Slow: true},
-	{Name: "quota_subnet", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_subnetpool", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_port", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_router", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_floatingip", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_security_group_rule", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
-	{Name: "quota_rbac_policy", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "network_ip_availabilities_total", Labels: defaultNeutronNetIPsLabels, Fn: ListNetworkIPAvailabilities},
+	{Name: "network_ip_availabilities_used", Labels: defaultNeutronNetIPsLabels},
+	{Name: "subnets_total", Labels: defaultNeutronSubnetsLabels, Fn: ListSubnetsPerPool},
+	{Name: "subnets_used", Labels: defaultNeutronSubnetsLabels},
+	{Name: "subnets_free", Labels: defaultNeutronSubnetsLabels},
+	{Name: "quota_network", Labels: defaultNeutronQuotaLabels, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: defaultNeutronQuotaLabels, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
@@ -606,6 +612,12 @@ func ListSubnetsPerPool(ctx context.Context, exporter *BaseOpenStackExporter, ch
 	return nil
 }
 
+func collectNeutronQuotaDetail(ch chan<- prometheus.Metric, metric *prometheus.Desc, q quotas.QuotaDetail, projectName, projectID string) {
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(q.Used), "used", projectName, projectID)
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(q.Reserved), "reserved", projectName, projectID)
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(q.Limit), "limit", projectName, projectID)
+}
+
 func ListNetworkQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
@@ -631,60 +643,16 @@ func ListNetworkQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 			return err
 		}
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_network"].Metric, quota.Network, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_subnet"].Metric, quota.Subnet, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_subnetpool"].Metric, quota.SubnetPool, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_port"].Metric, quota.Port, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_router"].Metric, quota.Router, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_floatingip"].Metric, quota.FloatingIP, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_security_group"].Metric, quota.SecurityGroup, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_security_group_rule"].Metric, quota.SecurityGroupRule, p.Name, p.ID)
+		collectNeutronQuotaDetail(ch, exporter.Metrics["quota_rbac_policy"].Metric, quota.RBACPolicy, p.Name, p.ID)
+
 	}
 
 	return nil

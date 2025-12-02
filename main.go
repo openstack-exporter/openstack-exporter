@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,13 +13,12 @@ import (
 	"syscall"
 	"time"
 
-	"log/slog"
-
 	kingpin "github.com/alecthomas/kingpin/v2"
 	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	pver "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promslog"
 	"github.com/prometheus/common/promslog/flag"
@@ -25,9 +27,12 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
+const (
+	progName                 = "openstack-exporter"
+	DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
+)
 
-var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
+var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
 var (
 	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
@@ -61,7 +66,7 @@ func main() {
 
 	promlogConfig := &promslog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
-	kingpin.Version(version.Print("openstack-exporter"))
+	kingpin.Version(version.Print(progName))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promslog.New(promlogConfig)
@@ -81,38 +86,33 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx1, cancel1 := context.WithCancelCause(context.Background())
+	defer cancel1(nil)
 
-	errChan := make(chan error, 1)
+	ctx2, cancel2 := signal.NotifyContext(ctx1, syscall.SIGINT, syscall.SIGTERM)
+	defer cancel2()
 
 	// Start the backend service.
 	if *cacheEnable {
-		go cacheBackgroundService(ctx, services, errChan, logger)
+		go cacheBackgroundService(ctx2, services, cancel1, logger)
 	}
 
 	// Start the HTTP server.
-	go startHTTPServer(ctx, services, toolkitFlags, errChan, logger)
+	go startHTTPServer(ctx2, services, toolkitFlags, cancel1, logger)
 
-	// Wait for an error from any service or a termination signal.
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-	select {
-	case err := <-errChan:
-		logger.Error("Shutting down due to error", "err", err)
-		cancel()
-	case <-sigChan:
+	<-ctx2.Done()
+	if err := context.Cause(ctx2); err != nil && !errors.Is(err, context.Canceled) {
+		logger.Error("Shutting down due to error", "error", err)
+		os.Exit(1)
+	} else {
 		logger.Info("Termination signal received. Shutting down...")
-		cancel()
 	}
-
 }
 
 // cacheBackgroundService runs a background service to collect the metrics and stores in the cache.
 // It collects data every cache-ttl/2 time and flush every cache-ttl time.
 // The cache data will be read by the Prometheus HandleFunc.
-func cacheBackgroundService(ctx context.Context, services map[string]*bool, errChan chan<- error, logger *slog.Logger) {
+func cacheBackgroundService(ctx context.Context, services map[string]*bool, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	logger.Info("Start cache background service")
 	collectTicker := time.NewTicker(*cacheTTL / 2)
 	defer collectTicker.Stop()
@@ -122,7 +122,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	// Collect cache data in the beginning.
 	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
-		errChan <- err
+		cancel(err)
 		return
 	}
 
@@ -130,7 +130,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 		select {
 		case <-collectTicker.C:
 			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
-				errChan <- err
+				cancel(err)
 				return
 			}
 		case <-ttlTicker.C:
@@ -143,7 +143,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	}
 }
 
-func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, errChan chan<- error, logger *slog.Logger) {
+func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
@@ -177,7 +177,8 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 		landingPage, err := web.NewLandingPage(landingConfig)
 		if err != nil {
 			logger.Error("Failed to create landing page", "error", err)
-			os.Exit(1)
+			cancel(err)
+			return
 		}
 		http.Handle("/", landingPage)
 	}
@@ -190,11 +191,15 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 		logger.Info("Gathering metrics for configured tenant ID", "tenant_id", *tenantID)
 	}
 
-	srv := &http.Server{}
+	srv := &http.Server{
+		BaseContext: func(net.Listener) context.Context {
+			return ctx
+		},
+	}
 	go func() {
 		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
 			logger.Error("Failed to start webserver", "error", err)
-			os.Exit(1)
+			cancel(err)
 		}
 	}()
 
@@ -300,6 +305,9 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 			logger.Error("No exporter has been enabled, exiting")
 			os.Exit(-1)
 		}
+
+		// expose program version
+		registry.MustRegister(pver.NewCollector(progName))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

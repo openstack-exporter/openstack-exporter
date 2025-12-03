@@ -165,7 +165,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, func() (string, error) {
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)
 

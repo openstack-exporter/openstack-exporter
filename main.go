@@ -27,10 +27,7 @@ import (
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
-const (
-	progName                 = "openstack-exporter"
-	DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
-)
+const DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
@@ -66,7 +63,7 @@ func main() {
 
 	promlogConfig := &promslog.Config{}
 	flag.AddFlags(kingpin.CommandLine, promlogConfig)
-	kingpin.Version(version.Print(progName))
+	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
 	logger := promslog.New(promlogConfig)
@@ -307,7 +304,7 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		}
 
 		// expose program version
-		registry.MustRegister(pver.NewCollector(progName))
+		registry.MustRegister(pver.NewCollector("openstack_exporter"))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)

@@ -5,10 +5,12 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/apiversions"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
+
+const ironicLatestSupportedMicroversion = "1.90"
 
 // IronicExporter : extends BaseOpenStackExporter
 type IronicExporter struct {
@@ -21,6 +23,18 @@ var defaultIronicMetrics = []Metric{
 
 // NewIronicExporter : returns a pointer to IronicExporter
 func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExporter, error) {
+	ctx := context.TODO()
+
+	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
+	// For whatever reason, it adds a v1 field to the URL,
+	// so it sends requests to /v1/v1 if left unfixed.
+	//config.ClientV2.ResourceBase = config.ClientV2.Endpoint
+
+	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_BAREMETAL_API_VERSION", ironicLatestSupportedMicroversion, logger)
+	if err != nil {
+		return nil, err
+	}
+
 	exporter := IronicExporter{
 		BaseOpenStackExporter{
 			Name:           "ironic",
@@ -38,24 +52,12 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 		}
 	}
 
-	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
-	// For whatever reason, it adds a v1 field to the URL,
-	// so it sends requests to /v1/v1 if left unfixed.
-	config.ClientV2.ResourceBase = config.ClientV2.Endpoint
-
-	// Set Microversion workaround
-	microversion, err := apiversions.Get(context.TODO(), config.ClientV2, "v1").Extract()
-	if err == nil {
-		config.ClientV2.Microversion = microversion.Version
-		config.Client.Microversion = microversion.Version
-	}
-
 	return &exporter, nil
 }
 
 // ListNodes : list nodes
-func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(context.TODO())
+func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -66,19 +68,8 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	}
 
 	for _, node := range allNodes {
-		var deployKernel, deployRamdisk string
-
-		if value, found := node.DriverInfo["deploy_kernel"]; found {
-			if kernelValue, ok := value.(string); ok {
-				deployKernel = kernelValue
-			}
-		}
-
-		if value, found := node.DriverInfo["deploy_ramdisk"]; found {
-			if ramdiskValue, ok := value.(string); ok {
-				deployRamdisk = ramdiskValue
-			}
-		}
+		deployKernel := getDriverInfoString(node.DriverInfo, "deploy_kernel")
+		deployRamdisk := getDriverInfoString(node.DriverInfo, "deploy_ramdisk")
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
@@ -87,4 +78,18 @@ func ListNodes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	}
 
 	return nil
+}
+
+func getDriverInfoString(driverInfo map[string]any, key string) string {
+	v, ok := driverInfo[key]
+	if !ok {
+		return ""
+	}
+
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
 }

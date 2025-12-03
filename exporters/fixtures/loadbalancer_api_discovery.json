@@ -1,0 +1,48 @@
+{
+  "versions": [
+    {
+      "id": "v1",
+      "links": [
+        {
+          "href": "http://test.cloud/loadbalancer/v1",
+          "rel": "self"
+        }
+      ],
+      "status": "DEPRECATED",
+      "updated": "2014-12-11T00:00:00Z"
+    },
+    {
+      "id": "v2.0",
+      "links": [
+        {
+          "href": "http://test.cloud/loadbalancer/v2",
+          "rel": "self"
+        }
+      ],
+      "status": "SUPPORTED",
+      "updated": "2016-12-11T00:00:00Z"
+    },
+    {
+      "id": "v2.1",
+      "links": [
+        {
+          "href": "http://test.cloud/loadbalancer/v2",
+          "rel": "self"
+        }
+      ],
+      "status": "SUPPORTED",
+      "updated": "2018-04-20T00:00:00Z"
+    },
+    {
+      "id": "v2.2",
+      "links": [
+        {
+          "href": "http://test.cloud/loadbalancer/v2",
+          "rel": "self"
+        }
+      ],
+      "status": "CURRENT",
+      "updated": "2018-07-31T00:00:00Z"
+    }
+  ]
+}

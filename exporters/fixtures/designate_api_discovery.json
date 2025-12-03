@@ -1,0 +1,49 @@
+{
+  "versions": [
+    {
+      "id": "v2",
+      "links": [
+        {
+          "href": "http://test.cloud/designate/v2",
+          "rel": "self"
+        },
+        {
+          "href": "https://docs.openstack.org/api-ref/dns",
+          "rel": "help"
+        }
+      ],
+      "status": "SUPPORTED",
+      "updated": "2022-06-29T00:00:00Z"
+    },
+    {
+      "id": "v2.0",
+      "links": [
+        {
+          "href": "http://test.cloud/designate/v2",
+          "rel": "self"
+        },
+        {
+          "href": "https://docs.openstack.org/api-ref/dns",
+          "rel": "help"
+        }
+      ],
+      "status": "SUPPORTED",
+      "updated": "2022-06-29T00:00:00Z"
+    },
+    {
+      "id": "v2.1",
+      "links": [
+        {
+          "href": "http://test.cloud/designate/v2",
+          "rel": "self"
+        },
+        {
+          "href": "https://docs.openstack.org/api-ref/dns",
+          "rel": "help"
+        }
+      ],
+      "status": "CURRENT",
+      "updated": "2023-01-25T00:00:00Z"
+    }
+  ]
+}

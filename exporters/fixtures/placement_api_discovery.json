@@ -1,0 +1,16 @@
+{
+  "versions": [
+    {
+      "id": "v1.0",
+      "max_version": "1.39",
+      "min_version": "1.0",
+      "status": "CURRENT",
+      "links": [
+        {
+          "rel": "self",
+          "href": ""
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,100 @@
+{
+  "id": "v1",
+  "media_types": [
+    {
+      "base": "application/json",
+      "type": "application/vnd.openstack.magnum.v1+json"
+    }
+  ],
+  "links": [
+    {
+      "href": "http://test.cloud/container-infra/v1/",
+      "rel": "self"
+    },
+    {
+      "href": "http://docs.openstack.org/developer/magnum/dev/api-spec-v1.html",
+      "rel": "describedby",
+      "type": "text/html"
+    }
+  ],
+  "clustertemplates": [
+    {
+      "href": "http://test.cloud/container-infra/v1/clustertemplates/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/clustertemplates/",
+      "rel": "bookmark"
+    }
+  ],
+  "clusters": [
+    {
+      "href": "http://test.cloud/container-infra/v1/clusters/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/clusters/",
+      "rel": "bookmark"
+    }
+  ],
+  "quotas": [
+    {
+      "href": "http://test.cloud/container-infra/v1/quotas/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/quotas/",
+      "rel": "bookmark"
+    }
+  ],
+  "certificates": [
+    {
+      "href": "http://test.cloud/container-infra/v1/certificates/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/certificates/",
+      "rel": "bookmark"
+    }
+  ],
+  "mservices": [
+    {
+      "href": "http://test.cloud/container-infra/v1/mservices/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/mservices/",
+      "rel": "bookmark"
+    }
+  ],
+  "stats": [
+    {
+      "href": "http://test.cloud/container-infra/v1/stats/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/stats/",
+      "rel": "bookmark"
+    }
+  ],
+  "federations": [
+    {
+      "href": "http://test.cloud/container-infra/v1/federations/",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/federations/",
+      "rel": "bookmark"
+    }
+  ],
+  "nodegroups": [
+    {
+      "href": "http://test.cloud/container-infra/v1/clusters/{cluster_id}/nodegroups",
+      "rel": "self"
+    },
+    {
+      "href": "http://test.cloud/container-infra/clusters/{cluster_id}/nodegroups",
+      "rel": "bookmark"
+    }
+  ]
+}

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"slices"
 	"testing"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -67,6 +67,8 @@ func (m *mockOpenStackExporter) MetricIsDisabled(name string) bool {
 }
 
 func TestCollectCache(t *testing.T) {
+	assert := assert.New(t)
+
 	cache := GetCache()
 	defer newSingleCache()
 
@@ -89,7 +91,7 @@ func TestCollectCache(t *testing.T) {
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	if err := CollectCache(
+	err := CollectCache(
 		mockEnableExporter,
 		multiCloud,
 		services,
@@ -106,29 +108,24 @@ func TestCollectCache(t *testing.T) {
 		novaMetadataMapping,
 		nil,
 		logger,
-	); err != nil {
-		t.Errorf("Collect cache failed")
-	}
+	)
+	assert.NoError(err, "Collect cache failed")
 
 	cloudCache, exists := cache.GetCloudCache(cloud)
-	if !exists {
-		t.Errorf("Cloud cache was not set or retrieved properly")
-	}
+	assert.True(exists, "Cloud cache was not set or retrieved properly")
 
 	includeServices := []string{}
 	for _, mf := range cloudCache.MetricFamilyCaches {
 		includeServices = append(includeServices, mf.Service)
 	}
-	if !slices.Contains(includeServices, "service-a") {
-		t.Errorf("service-a should be included in the cache data")
-	}
 
-	if slices.Contains(includeServices, "service-b") {
-		t.Errorf("service-b should not be included in the cache data")
-	}
+	assert.Contains(includeServices, "service-a", "service-a should be included in the cache data")
+	assert.NotContains(includeServices, "service-b", "service-b should not be included in the cache data")
 }
 
 func TestBufferFromCache(t *testing.T) {
+	assert := assert.New(t)
+
 	cache := GetCache()
 	defer newSingleCache()
 	cloudName := "testCloud"
@@ -152,25 +149,24 @@ func TestBufferFromCache(t *testing.T) {
 	cache.SetCloudCache(cloudName, cloudCache)
 
 	buf, err := BufferFromCache(cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})))
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
 
-	parser := expfmt.TextParser{}
+	parser := expfmt.NewTextParser(model.LegacyValidation)
 	metricFamilies, err := parser.TextToMetricFamilies(bytes.NewReader(buf.Bytes()))
-	if err != nil {
-		t.Error(err)
-	}
-	for _, mf := range mfs {
-		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
-		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
-		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
-		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
-	}
+	assert.NoError(err)
 
+	for _, mf := range mfs {
+		mf2 := metricFamilies[*mf.Name]
+		assert.Equal(mf.Name, mf2.Name, "The MetricName should be the same")
+		assert.Equal(mf.Type, mf2.Type, "The MetricType should be the same")
+		assert.Equal(mf.Help, mf2.Help, "The MetricHelp should be the same")
+		assert.Equal(mf.Unit, mf2.Unit, "The MetricUnit should be the same")
+	}
 }
 
 func TestWriteCacheToResponse(t *testing.T) {
+	assert := assert.New(t)
+
 	cache := GetCache()
 	defer newSingleCache()
 	cloudName := "testCloud"
@@ -199,34 +195,31 @@ func TestWriteCacheToResponse(t *testing.T) {
 
 	rr := httptest.NewRecorder()
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
-		if err := WriteCacheToResponse(
-			w, r, cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})),
-		); err != nil {
-			t.Errorf("WriteCacheToResponse failed")
-		}
+		err := WriteCacheToResponse(w, r, cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})))
+		assert.NoError(err, "WriteCacheToResponse failed")
 	}
 	handler := http.HandlerFunc(handlerFunc)
 	handler.ServeHTTP(rr, req)
 
-	if status := rr.Code; status != http.StatusOK {
-		t.Errorf("handler returned wrong status code: got %v want %v", status, http.StatusOK)
-	}
+	assert.Equal(rr.Code, http.StatusOK, "handler returned wrong status code")
 
-	parser := expfmt.TextParser{}
+	parser := expfmt.NewTextParser(model.LegacyValidation)
 	metricFamilies, err := parser.TextToMetricFamilies(rr.Body)
-	if err != nil {
-		t.Error(err)
-	}
+	assert.NoError(err)
+
 	for _, mf := range mfs {
-		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
-		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
-		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
-		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
+		mf2 := metricFamilies[*mf.Name]
+		assert.Equal(mf.Name, mf2.Name, "The MetricName should be the same")
+		assert.Equal(mf.Type, mf2.Type, "The MetricType should be the same")
+		assert.Equal(mf.Help, mf2.Help, "The MetricHelp should be the same")
+		assert.Equal(mf.Unit, mf2.Unit, "The MetricUnit should be the same")
 	}
 }
 
 // TestFlushExpiredCloudCaches tests flushing of expired cloud caches.
 func TestFlushExpiredCloudCaches(t *testing.T) {
+	assert := assert.New(t)
+
 	cache := GetCache()
 	defer newSingleCache()
 	cloudCache := NewCloudCache()
@@ -236,7 +229,6 @@ func TestFlushExpiredCloudCaches(t *testing.T) {
 	time.Sleep(1 * time.Nanosecond)
 	FlushExpiredCloudCaches(1 * time.Nanosecond)
 
-	if _, exists := cache.GetCloudCache(cloudName); exists {
-		t.Errorf("Expired cloud cache was not flushed")
-	}
+	_, exists := cache.GetCloudCache(cloudName)
+	assert.False(exists, "Expired cloud cache was not flushed")
 }

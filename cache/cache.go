@@ -75,6 +75,7 @@ func GetCache() CacheBackend {
 			}
 		},
 	)
+
 	return singleCache
 }
 
@@ -89,6 +90,7 @@ func (c *InMemoryCache) init(cloud *string) {
 	if c.CloudCaches == nil {
 		c.CloudCaches = make(map[string]*CloudCache)
 	}
+
 	if cloud != nil {
 		if _, ok := c.CloudCaches[*cloud]; !ok {
 			cloudCache := NewCloudCache()
@@ -101,9 +103,11 @@ func (c *InMemoryCache) init(cloud *string) {
 func (c *InMemoryCache) GetCloudCache(cloud string) (CloudCache, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	if cacheData, exists := c.CloudCaches[cloud]; exists {
 		return *cacheData, exists
 	}
+
 	return CloudCache{}, false
 }
 
@@ -112,6 +116,7 @@ func (c *InMemoryCache) GetCloudCache(cloud string) (CloudCache, bool) {
 func (c *InMemoryCache) SetCloudCache(cloud string, data CloudCache) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
 	c.init(&cloud)
 	data.Time = time.Now()
 	c.CloudCaches[cloud] = &data
@@ -137,6 +142,7 @@ func NewCloudCache() CloudCache {
 		Time:               time.Now(),
 		MetricFamilyCaches: make(map[string]*MetricFamilyCache),
 	}
+
 	return cloud
 }
 

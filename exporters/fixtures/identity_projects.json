@@ -108,6 +108,19 @@
             "name": "alt_demo",
             "parent_id": null,
             "tags": []
+        },
+        {
+            "is_domain": false,
+            "description": null,
+            "domain_id": "default",
+            "enabled": true,
+            "id": "bab7d5c60cd041a0a36f7c4b6e1dd978",
+            "links": {
+                "self": "http://example.com/identity/v3/projects/bab7d5c60cd041a0a36f7c4b6e1dd978"
+            },
+            "name": "demo_with_attachment",
+            "parent_id": null,
+            "tags": []
         }
     ]
 }

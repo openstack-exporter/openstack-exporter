@@ -46,7 +46,7 @@ var (
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
-	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "concurrent count for dns metric").Default("10").Int()
+	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
 )
 
 func main() {

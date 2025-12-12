@@ -91,7 +91,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
-	g, ctxt := errgroup.WithContext(context.Background())
+	g, _ := errgroup.WithContext(context.Background())
 	g.SetLimit(exporter.GetDnsConcurrencyCount())
 
 	// Collect recordsets for zone and write metrics for zones and recordsets

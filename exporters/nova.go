@@ -180,10 +180,14 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
 
+	// Explicitely set client to a version not supporting paging since paging is kinda broken
+	mv := exporter.Client.Microversion
+	exporter.Client.Microversion = "2.32"
 	allPagesHypervisors, err := hypervisors.List(exporter.Client, nil).AllPages()
 	if err != nil {
 		return err
 	}
+	exporter.Client.Microversion = mv
 
 	if allHypervisors, err = hypervisors.ExtractHypervisors(allPagesHypervisors); err != nil {
 		return err

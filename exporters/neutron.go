@@ -62,7 +62,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
 	{Name: "subnet", Labels: []string{"id", "tenant_id", "name", "network_id", "cidr", "gateway_ip", "enable_dhcp", "dns_nameservers", "tags"}},
-	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "status", "binding_vif_type", "admin_state_up", "fixed_ips"}, Fn: ListPorts},
+	{Name: "port", Labels: []string{"uuid", "network_id", "mac_address", "device_owner", "device_id", "status", "binding_vif_type", "admin_state_up", "fixed_ips"}, Fn: ListPorts},
 	{Name: "ports"},
 	{Name: "ports_no_ips"},
 	{Name: "ports_lb_not_active"},
@@ -316,7 +316,7 @@ func ListPorts(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 			}
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
-				prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
+				prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner, port.DeviceID,
 				port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs)
 		}
 	}

@@ -167,8 +167,18 @@ func ListNovaAgentState(ctx context.Context, exporter *BaseOpenStackExporter, ch
 func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
+	var listOpts *hypervisors.ListOpts
 
-	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, nil).AllPages(ctx)
+	// See also: https://github.com/openstack-exporter/openstack-exporter/pull/520
+	apiMv, _ := strconv.ParseFloat(exporter.ClientV2.Microversion, 64)
+	if apiMv >= 2.33 {
+		limit := 1000 // NOTE: default paging limit is 1k
+		listOpts = &hypervisors.ListOpts{Limit: &limit}
+	} else {
+		listOpts = &hypervisors.ListOpts{}
+	}
+
+	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, listOpts).AllPages(ctx)
 	if err != nil {
 		return err
 	}

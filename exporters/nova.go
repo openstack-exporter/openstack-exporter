@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"reflect"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/gophercloud/gophercloud/v2"
@@ -167,8 +166,17 @@ func ListNovaAgentState(ctx context.Context, exporter *BaseOpenStackExporter, ch
 func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allHypervisors []hypervisors.Hypervisor
 	var allAggregates []aggregates.Aggregate
+	var listOpts *hypervisors.ListOpts
 
-	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, nil).AllPages(ctx)
+	// Hypervisors API supports paging with limit from microversion 2.33.
+	// Keep explicit limit to avoid missing metrics on large clouds.
+	if ok, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "2.33"); ok {
+		listOpts = &hypervisors.ListOpts{Limit: new(1000)}
+	} else {
+		listOpts = &hypervisors.ListOpts{}
+	}
+
+	allPagesHypervisors, err := hypervisors.List(exporter.ClientV2, listOpts).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -388,8 +396,8 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 
-	apiMv, _ := strconv.ParseFloat(exporter.ClientV2.Microversion, 64)
-	if apiMv >= 2.46 || mapperRequired {
+	mvAtLeast246, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "2.46")
+	if mvAtLeast246 || mapperRequired {
 		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
 		// ***
 		// If micro-version is greater than 2.46,

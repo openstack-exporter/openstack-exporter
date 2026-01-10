@@ -1,6 +1,8 @@
 package exporters
 
 import (
+	"sync"
+
 	"github.com/go-kit/log"
 	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
@@ -36,6 +38,13 @@ func NewPlacementExporter(config *ExporterConfig, logger log.Logger) (*Placement
 	return &exporter, nil
 }
 
+// resourceProviderData holds the inventory and usage data for a single resource provider
+type resourceProviderData struct {
+	name       string
+	inventries *resourceproviders.ResourceProviderInventories
+	usages     *resourceproviders.ResourceProviderUsage
+}
+
 func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
 
@@ -48,40 +57,105 @@ func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- p
 		return err
 	}
 
-	uuidToNameMap := map[string]string{}
+	// Limit concurrency to avoid overwhelming the API
+	// Using a semaphore pattern with buffered channel
+	const maxConcurrency = 10
+	sem := make(chan struct{}, maxConcurrency)
 
-	for _, resourceprovider := range allResourceProviders {
-		uuidToNameMap[resourceprovider.UUID] = resourceprovider.Name
+	// Collect results with mutex protection
+	var mu sync.Mutex
+	results := make([]resourceProviderData, 0, len(allResourceProviders))
 
-		inventoryResult, err := resourceproviders.GetInventories(exporter.Client, resourceprovider.UUID).Extract()
+	// Error channel to collect errors from goroutines
+	errCh := make(chan error, len(allResourceProviders))
+	var wg sync.WaitGroup
+
+	for _, rp := range allResourceProviders {
+		wg.Add(1)
+		// Capture loop variable
+		resourceProvider := rp
+
+		go func() {
+			defer wg.Done()
+
+			// Acquire semaphore
+			sem <- struct{}{}
+			defer func() { <-sem }()
+
+			// Fetch inventories and usages concurrently for this provider
+			var inventory *resourceproviders.ResourceProviderInventories
+			var usage *resourceproviders.ResourceProviderUsage
+			var inventoryErr, usageErr error
+
+			var innerWg sync.WaitGroup
+			innerWg.Add(2)
+
+			// Fetch inventories
+			go func() {
+				defer innerWg.Done()
+				inventory, inventoryErr = resourceproviders.GetInventories(exporter.Client, resourceProvider.UUID).Extract()
+			}()
+
+			// Fetch usages
+			go func() {
+				defer innerWg.Done()
+				usage, usageErr = resourceproviders.GetUsages(exporter.Client, resourceProvider.UUID).Extract()
+			}()
+
+			innerWg.Wait()
+
+			// Check for errors
+			if inventoryErr != nil {
+				errCh <- inventoryErr
+				return
+			}
+			if usageErr != nil {
+				errCh <- usageErr
+				return
+			}
+
+			// Store results with mutex protection
+			mu.Lock()
+			results = append(results, resourceProviderData{
+				name:       resourceProvider.Name,
+				inventries: inventory,
+				usages:     usage,
+			})
+			mu.Unlock()
+		}()
+	}
+
+	// Wait for all goroutines to complete
+	wg.Wait()
+	close(errCh)
+
+	// Check if any errors occurred
+	for err := range errCh {
 		if err != nil {
 			return err
 		}
+	}
 
-		for k, v := range inventoryResult.Inventories {
-
+	// Emit metrics from collected results
+	for _, data := range results {
+		// Emit inventory metrics
+		for resourceType, inv := range data.inventries.Inventories {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(v.Total), resourceprovider.Name, k)
+				prometheus.GaugeValue, float64(inv.Total), data.name, resourceType)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(v.AllocationRatio), resourceprovider.Name, k)
+				prometheus.GaugeValue, float64(inv.AllocationRatio), data.name, resourceType)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(v.Reserved), resourceprovider.Name, k)
+				prometheus.GaugeValue, float64(inv.Reserved), data.name, resourceType)
 		}
 
-		usagesResult, err := resourceproviders.GetUsages(exporter.Client, resourceprovider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-
-		for k, v := range usagesResult.Usages {
+		// Emit usage metrics
+		for resourceType, usageValue := range data.usages.Usages {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(v), resourceprovider.Name, k)
+				prometheus.GaugeValue, float64(usageValue), data.name, resourceType)
 		}
-
 	}
 
 	return nil
-
 }

@@ -140,7 +140,7 @@ func main() {
 	}
 
 	// Start the HTTP server.
-	go startHTTPServer(ctx, services, commonRegistry, registryMap, commonExporter, toolkitFlags, logger)
+	go startHTTPServer(ctx, services, commonRegistry, registryMap, commonExporter, toolkitFlags, errChan, logger)
 
 	// Wait for an error from any service or a termination signal.
 	sigChan := make(chan os.Signal, 1)
@@ -197,6 +197,7 @@ func startHTTPServer(
 	registryMap map[string]*prometheus.Registry,
 	commonExporter *exporters.CommonMetricsExporter,
 	toolkitFlags *web.FlagConfig,
+	errChan chan<- error,
 	logger *slog.Logger,
 ) {
 	links := []web.LandingLinks{}
@@ -248,11 +249,12 @@ func startHTTPServer(
 	srv := &http.Server{}
 	go func() {
 		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
-			logger.Error("Failed to start webserver", "err", err)
-			os.Exit(1)
+			if ctx.Err() != nil {
+				return
+			}
+			errChan <- err
 		}
 	}()
-
 	<-ctx.Done()
 	if err := srv.Shutdown(context.Background()); err != nil {
 		logger.Error("HTTP server shutdown error", "err", err)
@@ -366,7 +368,7 @@ func buildAndValidateExporters(
 				collectTime, disableSlowMetrics,
 				disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID, novaMetadataMapping,
-				func() (string, error) { return cloud, nil },
+				nil,
 				logger,
 			)
 			if err != nil {
@@ -401,7 +403,7 @@ func getEnabledServices(services map[string]*bool) []string {
 func withPanicRecovery(w http.ResponseWriter, exporter *exporters.CommonMetricsExporter, logger *slog.Logger) {
 	if rec := recover(); rec != nil {
 		exporter.ScrapeErrors().Inc()
-		logger.Error("msg", "Recovered from panic", "recover", rec)
+		logger.Error("Recovered from panic", "recover", rec)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 	}
 }

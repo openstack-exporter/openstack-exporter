@@ -1,15 +1,22 @@
 package exporters
 
 import (
+	"encoding/json"
+	"errors"
+	"fmt"
 	"math"
+	"math/big"
 	"strconv"
 	"strings"
 
 	"go4.org/netipx"
 
+	"log/slog"
 	"net/netip"
 
-	"github.com/go-kit/log"
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
@@ -17,6 +24,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/quotas"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
@@ -70,10 +78,19 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "subnets_total", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
 	{Name: "subnets_free", Labels: []string{"ip_version", "prefix", "prefix_length", "project_id", "subnet_pool_id", "subnet_pool_name"}},
+	{Name: "quota_network", Labels: []string{"type", "tenant"}, Fn: ListNetworkQuotas, Slow: true},
+	{Name: "quota_subnet", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_subnetpool", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_port", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_router", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_floatingip", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_security_group_rule", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
+	{Name: "quota_rbac_policy", Labels: []string{"type", "tenant"}, Fn: nil, Slow: true},
 }
 
 // NewNeutronExporter : returns a pointer to NeutronExporter
-func NewNeutronExporter(config *ExporterConfig, logger log.Logger) (*NeutronExporter, error) {
+func NewNeutronExporter(config *ExporterConfig, logger *slog.Logger) (*NeutronExporter, error) {
 	exporter := NeutronExporter{
 		BaseOpenStackExporter{
 			Name:           "neutron",
@@ -313,42 +330,81 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 
 // ListNetworkIPAvailabilities : count total number of used IPs per Network
 func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allNetworkIPAvailabilities []networkipavailabilities.NetworkIPAvailability
 
-	allPagesNetworkIPAvailabilities, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
+	type CustomSubnetIPAvailability struct {
+		SubnetName string      `json:"subnet_name"`
+		CIDR       string      `json:"cidr"`
+		IPVersion  int         `json:"ip_version"`
+		TotalIPs   json.Number `json:"total_ips"`
+		UsedIPs    json.Number `json:"used_ips"`
+	}
+
+	type CustomNetworkIPAvailability struct {
+		NetworkID              string                       `json:"network_id"`
+		NetworkName            string                       `json:"network_name"`
+		ProjectID              string                       `json:"project_id"`
+		TenantID               string                       `json:"tenant_id"`
+		SubnetIPAvailabilities []CustomSubnetIPAvailability `json:"subnet_ip_availability"`
+	}
+
+	type availabilityWrapper struct {
+		NetworkIPAvailabilities []CustomNetworkIPAvailability `json:"network_ip_availabilities"`
+	}
+
+	// Getting raw response
+	allPages, err := networkipavailabilities.List(exporter.Client, networkipavailabilities.ListOpts{}).AllPages()
 	if err != nil {
 		return err
 	}
 
-	allNetworkIPAvailabilities, err = networkipavailabilities.ExtractNetworkIPAvailabilities(allPagesNetworkIPAvailabilities)
-	if err != nil {
-		return err
+	// Decode raw JSON manually to avoid gophercloud unmarshaling big.Int error
+	body := allPages.GetBody()
+	bodyMap, ok := body.(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("unexpected type for body: %T", body)
 	}
 
-	for _, NetworkIPAvailabilities := range allNetworkIPAvailabilities {
-		projectID := NetworkIPAvailabilities.ProjectID
-		if projectID == "" && NetworkIPAvailabilities.TenantID != "" {
-			projectID = NetworkIPAvailabilities.TenantID
+	bodyBytes, err := json.Marshal(bodyMap)
+	if err != nil {
+		return fmt.Errorf("failed to marshal body back to JSON: %w", err)
+	}
+
+	var wrapper availabilityWrapper
+	if err := json.Unmarshal(bodyBytes, &wrapper); err != nil {
+		return fmt.Errorf("failed to unmarshal network_ip_availabilities JSON: %w", err)
+	}
+
+	for _, network := range wrapper.NetworkIPAvailabilities {
+		projectID := network.ProjectID
+		if projectID == "" && network.TenantID != "" {
+			projectID = network.TenantID
 		}
 
-		for _, SubnetIPAvailability := range NetworkIPAvailabilities.SubnetIPAvailabilities {
-			totalIPs, err := strconv.ParseFloat(SubnetIPAvailability.TotalIPs, 64)
-			if err != nil {
-				return err
+		for _, subnet := range network.SubnetIPAvailabilities {
+			// Use big.Float to parse TotalIPs
+			totalBig := new(big.Float)
+			_, ok := totalBig.SetString(subnet.TotalIPs.String())
+			if !ok {
+				return fmt.Errorf("failed to parse total IPs: %s", subnet.TotalIPs.String())
 			}
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
-				prometheus.GaugeValue, totalIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, projectID)
+			totalFloat64, _ := totalBig.Float64()
 
-			usedIPs, err := strconv.ParseFloat(SubnetIPAvailability.UsedIPs, 64)
-			if err != nil {
-				return err
+			usedBig := new(big.Float)
+			_, ok = usedBig.SetString(subnet.UsedIPs.String())
+			if !ok {
+				return fmt.Errorf("failed to parse used IPs: %s", subnet.UsedIPs.String())
 			}
+			usedFloat64, _ := usedBig.Float64()
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
+				prometheus.GaugeValue, totalFloat64, network.NetworkID,
+				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+				subnet.SubnetName, projectID)
+
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
-				prometheus.GaugeValue, usedIPs, NetworkIPAvailabilities.NetworkID,
-				NetworkIPAvailabilities.NetworkName, strconv.Itoa(SubnetIPAvailability.IPVersion), SubnetIPAvailability.CIDR,
-				SubnetIPAvailability.SubnetName, projectID)
+				prometheus.GaugeValue, usedFloat64, network.NetworkID,
+				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+				subnet.SubnetName, projectID)
 		}
 	}
 
@@ -566,5 +622,100 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		}
 	}
 
+	return nil
+}
+
+func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["network"]; ok {
+		eo = v
+	} else {
+		return errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return err
+	}
+
+	for _, p := range allProjects {
+		// quota are obtained from the neutron API, so now we can just use this exporter's client
+		quota, err := quotas.GetDetail(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
+			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
+			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
+			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
+			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
+			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
+			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
+	}
 	return nil
 }

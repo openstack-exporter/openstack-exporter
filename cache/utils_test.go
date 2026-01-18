@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -9,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-kit/log"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"github.com/stretchr/testify/assert"
@@ -28,8 +29,9 @@ func mockEnableExporter(
 	disableCinderAgentUUID bool,
 	domainID string,
 	tenantID string,
+	novaMetadataMapping *utils.LabelMappingFlag,
 	uuidGenFunc func() (string, error),
-	logger log.Logger,
+	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
@@ -84,7 +86,8 @@ func TestCollectCache(t *testing.T) {
 	disableCinderAgentUUID := false
 	domainID := ""
 	tenantID := ""
-	logger := log.NewLogfmtLogger(os.Stdout)
+	novaMetadataMapping := new(utils.LabelMappingFlag)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	if err := CollectCache(
 		mockEnableExporter,
@@ -100,6 +103,7 @@ func TestCollectCache(t *testing.T) {
 		disableCinderAgentUUID,
 		domainID,
 		tenantID,
+		novaMetadataMapping,
 		nil,
 		logger,
 	); err != nil {
@@ -147,7 +151,7 @@ func TestBufferFromCache(t *testing.T) {
 	}
 	cache.SetCloudCache(cloudName, cloudCache)
 
-	buf, err := BufferFromCache(cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout))
+	buf, err := BufferFromCache(cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})))
 	if err != nil {
 		t.Error(err)
 	}
@@ -158,7 +162,10 @@ func TestBufferFromCache(t *testing.T) {
 		t.Error(err)
 	}
 	for _, mf := range mfs {
-		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
+		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
+		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
+		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
 	}
 
 }
@@ -193,7 +200,7 @@ func TestWriteCacheToResponse(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handlerFunc := func(w http.ResponseWriter, r *http.Request) {
 		if err := WriteCacheToResponse(
-			w, r, cloudName, []string{serviceName}, log.NewLogfmtLogger(os.Stdout),
+			w, r, cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})),
 		); err != nil {
 			t.Errorf("WriteCacheToResponse failed")
 		}
@@ -211,7 +218,10 @@ func TestWriteCacheToResponse(t *testing.T) {
 		t.Error(err)
 	}
 	for _, mf := range mfs {
-		assert.Equal(t, mf.String(), metricFamilies[*mf.Name].String(), "The MetricFamily should be the same")
+		assert.Equal(t, mf.Name, metricFamilies[*mf.Name].Name, "The MetricName should be the same")
+		assert.Equal(t, mf.Type, metricFamilies[*mf.Name].Type, "The MetricType should be the same")
+		assert.Equal(t, mf.Help, metricFamilies[*mf.Name].Help, "The MetricHelp should be the same")
+		assert.Equal(t, mf.Unit, metricFamilies[*mf.Name].Unit, "The MetricUnit should be the same")
 	}
 }
 

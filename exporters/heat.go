@@ -1,7 +1,8 @@
 package exporters
 
 import (
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud/openstack/orchestration/v1/stacks"
 	"github.com/gophercloud/gophercloud/pagination"
 	"github.com/prometheus/client_golang/prometheus"
@@ -75,7 +76,7 @@ var defaultHeatMetrics = []Metric{
 	{Name: "stack_status_counter", Labels: []string{"status"}, Fn: nil},
 }
 
-func NewHeatExporter(config *ExporterConfig, logger log.Logger) (*HeatExporter, error) {
+func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter, error) {
 	exporter := HeatExporter{
 		BaseOpenStackExporter{
 			Name:           "heat",

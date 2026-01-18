@@ -3,7 +3,8 @@ package exporters
 import (
 	"strconv"
 
-	"github.com/go-kit/log"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -18,7 +19,7 @@ var defaultGlanceMetrics = []Metric{
 	{Name: "image_created_at", Labels: []string{"id", "name", "tenant_id", "visibility", "hidden", "status"}, Slow: true},
 }
 
-func NewGlanceExporter(config *ExporterConfig, logger log.Logger) (*GlanceExporter, error) {
+func NewGlanceExporter(config *ExporterConfig, logger *slog.Logger) (*GlanceExporter, error) {
 	exporter := GlanceExporter{
 		BaseOpenStackExporter{
 			Name:           "glance",

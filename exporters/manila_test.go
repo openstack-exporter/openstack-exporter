@@ -14,10 +14,10 @@ type ManilaTestSuite struct {
 var manilaExpectedUp = `
 # HELP openstack_sharev2_share_gb share_gb
 # TYPE openstack_sharev2_share_gb gauge
-openstack_sharev2_share_gb{availability_zone="az1",id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",share_proto="NFS",share_type="az1",share_type_name="",status="available"} 1
+openstack_sharev2_share_gb{availability_zone="az1",id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",project_id="ffff8fa0ca1a468db8ad00970c1effff",share_proto="NFS",share_type="az1",share_type_name="",status="available"} 1
 # HELP openstack_sharev2_share_status share_status
 # TYPE openstack_sharev2_share_status gauge
-openstack_sharev2_share_status{id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",share_proto="NFS",share_type="az1",share_type_name="",size="1",status="available"} 1
+openstack_sharev2_share_status{id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",project_id="ffff8fa0ca1a468db8ad00970c1effff",share_proto="NFS",share_type="az1",share_type_name="",size="1",status="available"} 1
 # HELP openstack_sharev2_share_status_counter share_status_counter
 # TYPE openstack_sharev2_share_status_counter gauge
 openstack_sharev2_share_status_counter{status="available"} 1

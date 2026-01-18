@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
+	"golang.org/x/sync/errgroup"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
@@ -338,41 +340,37 @@ func buildAndValidateExporters(
 
 	var (
 		mu      sync.Mutex
-		wg      sync.WaitGroup
-		enabled int
+		enabled int32
+		g       errgroup.Group
 	)
 
 	for _, enabledService := range enabledServices {
-		service := enabledService
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		svc := enabledService
+		g.Go(func() error {
 			exp, err := exporters.EnableExporter(
-				service, prefix, cloud,
+				svc, prefix, cloud,
 				disabledMetrics, endpointType,
 				collectTime, disableSlowMetrics,
 				disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID, nil, logger,
 			)
-
 			if err != nil {
-				level.Error(logger).Log("err", "enabling exporter for service failed", "service", service, "error", err)
-				return
+				level.Error(logger).Log("msg", "enabling exporter for service failed", "cloud", cloud, "service", svc, "err", err)
+				return nil
 			}
 
 			mu.Lock()
-			defer mu.Unlock()
-			// Using prometheus.Registry as global variable is not thread safe,
-			// using mutex to be extra safe when registering the exporters.
 			registry.MustRegister(*exp)
-			enabled++
-			level.Info(logger).Log("msg", "Enabled exporter for service", "service", service)
-		}()
+			mu.Unlock()
+
+			atomic.AddInt32(&enabled, 1)
+			level.Info(logger).Log("msg", "Enabled exporter for service", "cloud", cloud, "service", svc)
+			return nil
+		})
 	}
 
-	wg.Wait()
-	return registry, enabled
+	_ = g.Wait()
+	return registry, int(enabled)
 }
 
 func getEnabledServices(services map[string]*bool) []string {
@@ -463,16 +461,14 @@ func initMultiCloudRegistries(
 	}
 
 	registryMap := make(map[string]*prometheus.Registry)
-
-	var wg sync.WaitGroup
 	var mu sync.Mutex
+	var g errgroup.Group
 
 	for name := range allClouds {
-		wg.Add(1)
-		go func(cloudName string) {
-			defer wg.Done()
-
+		cloudName := name
+		g.Go(func() error {
 			enabledServices := getEnabledServices(services)
+
 			reg, enabled := buildAndValidateExporters(
 				enabledServices,
 				prefix, cloudName,
@@ -485,21 +481,22 @@ func initMultiCloudRegistries(
 
 			if enabled == 0 {
 				level.Warn(logger).Log("msg", "no exporters enabled for cloud", "cloud", cloudName)
-				return
+				return nil
 			}
 
 			mu.Lock()
 			registryMap[cloudName] = reg
 			mu.Unlock()
+
 			level.Info(logger).Log("msg", "initialized exporters for cloud", "cloud", cloudName)
-		}(name)
+			return nil
+		})
 	}
 
-	wg.Wait()
+	_ = g.Wait()
 
 	if len(registryMap) == 0 {
 		return nil, fmt.Errorf("no exporters initialized for any cloud")
 	}
-
 	return registryMap, nil
 }

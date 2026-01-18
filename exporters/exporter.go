@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/go-kit/log"
@@ -15,7 +16,7 @@ import (
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/common/version"
+	"golang.org/x/sync/errgroup"
 )
 
 type Metric struct {
@@ -125,40 +126,48 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 }
 
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
-	metricsDown := 0
-	metricsCount := len(exporter.Metrics)
+	metricsCount := 0
+	var failures int32
 
-	var wg sync.WaitGroup
-	errCh := make(chan error, len(exporter.Metrics))
+	var g errgroup.Group
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
 			level.Debug(exporter.logger).Log("msg", "No function handler set for metric", "metric", name)
-			metricsCount--
 			continue
 		}
 
-		wg.Add(1)
-		go func(name string, metric *PrometheusMetric) {
-			defer wg.Done()
+		metricsCount++
+
+		name := name
+		metric := metric
+
+		g.Go(func() error {
 			if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
-				level.Error(exporter.logger).Log("err", "Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
-				errCh <- err
+				level.Error(exporter.logger).Log(
+					"msg", "Failed to collect metric for exporter",
+					"exporter", exporter.Name,
+					"metric", name,
+					"err", err,
+				)
+				atomic.AddInt32(&failures, 1)
 			}
-		}(name, metric)
+			return nil
+		})
 	}
 
-	wg.Wait()
-	close(errCh)
-	metricsDown = len(errCh)
+	_ = g.Wait()
 
-	//If all metrics collections fails for a given service, we'll flag it as down.
-	if metricsDown >= metricsCount {
+	if metricsCount == 0 {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
+		return
+	}
+
+	if int(atomic.LoadInt32(&failures)) >= metricsCount {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
 	}
-
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
@@ -307,81 +316,4 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	return exporter, nil
-}
-
-type CommonMetricsExporter struct {
-	totalScrapes   prometheus.Counter
-	scrapeDuration prometheus.Histogram
-	scrapeErrors   prometheus.Counter
-	buildInfo      prometheus.Metric
-}
-
-func NewCommonMetricsExporter(prefix string) *CommonMetricsExporter {
-	totalScrapes := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: fmt.Sprintf("%s_exporter_scrapes_total", prefix),
-		Help: "Total number of scrapes",
-	})
-
-	scrapeDuration := prometheus.NewHistogram(prometheus.HistogramOpts{
-		Name:    fmt.Sprintf("%s_exporter_scrape_duration_miliseconds", prefix),
-		Help:    "Duration of scrapes",
-		Buckets: []float64{500, 750, 1000, 5000, 10000, 30000},
-	})
-
-	scrapeErrors := prometheus.NewCounter(prometheus.CounterOpts{
-		Name: fmt.Sprintf("%s_exporter_scrape_errors_total", prefix),
-		Help: "Total number of scrape errors",
-	})
-
-	buildInfo := prometheus.MustNewConstMetric(
-		prometheus.NewDesc(
-			fmt.Sprintf("%s_exporter_build_info", prefix),
-			"A metric with a constant '1' value labeled by version, revision, branch, and goversion.",
-			nil,
-			prometheus.Labels{
-				"version":   version.Version,
-				"revision":  version.Revision,
-				"branch":    version.Branch,
-				"goversion": version.GoVersion,
-			},
-		),
-		prometheus.GaugeValue, 1,
-	)
-
-	return &CommonMetricsExporter{
-		totalScrapes:   totalScrapes,
-		scrapeDuration: scrapeDuration,
-		scrapeErrors:   scrapeErrors,
-		buildInfo:      buildInfo,
-	}
-}
-
-func (e *CommonMetricsExporter) Describe(ch chan<- *prometheus.Desc) {
-	ch <- e.totalScrapes.Desc()
-	ch <- e.scrapeDuration.Desc()
-	ch <- e.scrapeErrors.Desc()
-	ch <- e.buildInfo.Desc()
-}
-
-func (e *CommonMetricsExporter) Collect(ch chan<- prometheus.Metric) {
-	ch <- e.totalScrapes
-	ch <- e.scrapeDuration
-	ch <- e.scrapeErrors
-	ch <- e.buildInfo
-}
-
-func (e *CommonMetricsExporter) MetricIsDisabled(name string) bool {
-	return false
-}
-
-func (e *CommonMetricsExporter) TotalScrapes() prometheus.Counter {
-	return e.totalScrapes
-}
-
-func (e *CommonMetricsExporter) ScrapeDuration() prometheus.Histogram {
-	return e.scrapeDuration
-}
-
-func (e *CommonMetricsExporter) ScrapeErrors() prometheus.Counter {
-	return e.scrapeErrors
 }

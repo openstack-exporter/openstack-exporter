@@ -24,6 +24,9 @@ openstack_gnocchi_status_metric_having_measures_to_process 0
 # HELP openstack_gnocchi_status_metricd_processors status_metricd_processors
 # TYPE openstack_gnocchi_status_metricd_processors gauge
 openstack_gnocchi_status_metricd_processors 0
+# HELP openstack_gnocchi_total_metrics total_metrics
+# TYPE openstack_gnocchi_total_metrics gauge
+openstack_gnocchi_total_metrics 2
 # HELP openstack_gnocchi_up up
 # TYPE openstack_gnocchi_up gauge
 openstack_gnocchi_up 1

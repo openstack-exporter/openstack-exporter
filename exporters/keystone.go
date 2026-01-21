@@ -1,15 +1,19 @@
 package exporters
 
 import (
+	"context"
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/domains"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/groups"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/regions"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -48,10 +52,10 @@ func NewKeystoneExporter(config *ExporterConfig, logger *slog.Logger) (*Keystone
 	return &exporter, nil
 }
 
-func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListDomains(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allDomains []domains.Domain
 
-	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
+	allPagesDomain, err := domains.List(exporter.ClientV2, domains.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -60,8 +64,10 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
+
 	if !exporter.MetricIsDisabled("domain_info") {
 		for _, d := range allDomains {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
@@ -69,13 +75,14 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 				d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
 		}
 	}
+
 	return nil
 }
 
-func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListProjects(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allProjects []projects.Project
 
-	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesProject, err := projects.List(exporter.ClientV2, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -87,6 +94,7 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
+
 	if !exporter.MetricIsDisabled("project_info") {
 		for _, p := range allProjects {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
@@ -95,13 +103,14 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 				p.ParentID, strings.Join(p.Tags, ","))
 		}
 	}
+
 	return nil
 }
 
-func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListRegions(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRegions []regions.Region
 
-	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
+	allPagesRegion, err := regions.List(exporter.ClientV2, regions.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -110,16 +119,17 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
 		prometheus.GaugeValue, float64(len(allRegions)))
 
 	return nil
 }
 
-func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListUsers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allUsers []users.User
 
-	allPagesUser, err := users.List(exporter.Client, users.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesUser, err := users.List(exporter.ClientV2, users.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -128,16 +138,17 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
 
 	return nil
 }
 
-func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allGroups []groups.Group
 
-	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesGroup, err := groups.List(exporter.ClientV2, groups.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -151,4 +162,26 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		prometheus.GaugeValue, float64(len(allGroups)))
 
 	return nil
+}
+
+func newIdentityV3ClientV2FromExporter(exporter *BaseOpenStackExporter, fallbackServiceName string) (*gophercloud.ServiceClient, error) {
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOptsV2["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOptsV2[fallbackServiceName]; ok {
+		eo = v
+	} else {
+		return nil, errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	cli, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
+	if err != nil {
+		return nil, err
+	}
+
+	return cli, nil
 }

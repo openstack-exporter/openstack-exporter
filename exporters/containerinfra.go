@@ -1,41 +1,37 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"strconv"
 
-	"github.com/gophercloud/gophercloud/openstack/containerinfra/v1/clusters"
+	"github.com/gophercloud/gophercloud/v2/openstack/containerinfra/v1/clusters"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var cluster_status = []string{
-	"CREATE_COMPLETE",
-	"CREATE_FAILED",
-	"CREATE_IN_PROGRESS",
-	"UPDATE_IN_PROGRESS",
-	"UPDATE_FAILED",
-	"UPDATE_COMPLETE",
-	"DELETE_IN_PROGRESS",
-	"DELETE_FAILED",
-	"DELETE_COMPLETE",
-	"RESUME_COMPLETE",
-	"RESUME_FAILED",
-	"RESTORE_COMPLETE",
-	"ROLLBACK_IN_PROGRESS",
-	"ROLLBACK_FAILED",
-	"ROLLBACK_COMPLETE",
-	"SNAPSHOT_COMPLETE",
-	"CHECK_COMPLETE",
-	"ADOPT_COMPLETE",
+var knownClusterStatuses = map[string]int{
+	"CREATE_COMPLETE":      0,
+	"CREATE_FAILED":        1,
+	"CREATE_IN_PROGRESS":   2,
+	"UPDATE_IN_PROGRESS":   3,
+	"UPDATE_FAILED":        4,
+	"UPDATE_COMPLETE":      5,
+	"DELETE_IN_PROGRESS":   6,
+	"DELETE_FAILED":        7,
+	"DELETE_COMPLETE":      8,
+	"RESUME_COMPLETE":      9,
+	"RESUME_FAILED":        10,
+	"RESTORE_COMPLETE":     11,
+	"ROLLBACK_IN_PROGRESS": 12,
+	"ROLLBACK_FAILED":      13,
+	"ROLLBACK_COMPLETE":    14,
+	"SNAPSHOT_COMPLETE":    15,
+	"CHECK_COMPLETE":       16,
+	"ADOPT_COMPLETE":       17,
 }
 
 func mapClusterStatus(current string) int {
-	for idx, status := range cluster_status {
-		if current == status {
-			return idx
-		}
-	}
-	return -1
+	return mapStatus(knownClusterStatuses, current)
 }
 
 type ContainerInfraExporter struct {
@@ -57,6 +53,7 @@ func NewContainerInfraExporter(config *ExporterConfig, logger *slog.Logger) (*Co
 			logger:         logger,
 		},
 	}
+
 	for _, metric := range defaultContainerInfraMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -65,21 +62,25 @@ func NewContainerInfraExporter(config *ExporterConfig, logger *slog.Logger) (*Co
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
 	return &exporter, nil
 }
 
-func ListAllClusters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllClusters(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allClusters []clusters.Cluster
-	allPagesClusters, err := clusters.List(exporter.Client, clusters.ListOpts{}).AllPages()
+	allPagesClusters, err := clusters.List(exporter.ClientV2, clusters.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	allClusters, err = clusters.ExtractClusters(allPagesClusters)
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_clusters"].Metric,
 		prometheus.GaugeValue, float64(len(allClusters)))
+
 	// Cluster status metrics
 	for _, cluster := range allClusters {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_masters"].Metric,
@@ -92,5 +93,6 @@ func ListAllClusters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), cluster.UUID, cluster.Name,
 			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
 	}
+
 	return nil
 }

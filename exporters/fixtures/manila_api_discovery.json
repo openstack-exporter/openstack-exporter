@@ -1,0 +1,52 @@
+{
+  "versions": [
+    {
+      "id": "v1.0",
+      "status": "DEPRECATED",
+      "version": "",
+      "min_version": "",
+      "updated": "2015-08-27T11:33:21Z",
+      "links": [
+        {
+          "rel": "describedby",
+          "type": "text/html",
+          "href": "http://docs.openstack.org/"
+        },
+        {
+          "rel": "self",
+          "href": "http://test.cloud/shares/v1/"
+        }
+      ],
+      "media-types": [
+        {
+          "base": "application/json",
+          "type": "application/vnd.openstack.share+json;version=1"
+        }
+      ]
+    },
+    {
+      "id": "v2.0",
+      "status": "CURRENT",
+      "version": "2.89",
+      "min_version": "2.0",
+      "updated": "2015-08-27T11:33:21Z",
+      "links": [
+        {
+          "rel": "describedby",
+          "type": "text/html",
+          "href": "http://docs.openstack.org/"
+        },
+        {
+          "rel": "self",
+          "href": "http://test.cloud/shares/v2/"
+        }
+      ],
+      "media-types": [
+        {
+          "base": "application/json",
+          "type": "application/vnd.openstack.share+json;version=1"
+        }
+      ]
+    }
+  ]
+}

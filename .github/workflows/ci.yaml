@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-      - uses: reviewdog/action-hadolint@fc7ee4a9f71e521bc43e370819247b70e5327540 # v1.50.2
+      - uses: reviewdog/action-hadolint@921946a7ebaaf08ac72607bad67209f4e52b5407 # v1.50.5
         with:
           fail_level: any
           filter_mode: nofilter
@@ -88,7 +88,7 @@ jobs:
           go-version: 1.23
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}

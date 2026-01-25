@@ -97,7 +97,8 @@ jobs:
 
       - name: Unit tests
         run: |
-          go test -v -covermode=atomic -coverprofile=coverage.out ./...
+          mapfile -t packages < <(go list ./... | grep -v '/integration')
+          go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
       - name: Extract metadata from ghcr image
         id: meta-github-image

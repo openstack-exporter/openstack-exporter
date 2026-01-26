@@ -59,7 +59,7 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
-	{Name: "volume_gb", Labels: []string{"id", "name", "status", "availability_zone", "bootable", "tenant_id", "user_id", "volume_type", "server_id"}, Fn: nil},
+	{Name: "volume_gb", Labels: []string{"id", "name", "status", "availability_zone", "bootable", "tenant", "tenant_id", "user_id", "volume_type", "server_id"}, Fn: nil},
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
 	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
@@ -140,6 +140,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	var allVolumes []VolumeWithExt
 
+	projectsMap, err := MapProjectsName(exporter)
+	if err != nil {
+		return err
+	}
+
 	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
 		AllTenants: true,
 	}).AllPages()
@@ -160,11 +165,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		if len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
+				volume.Status, volume.AvailabilityZone, volume.Bootable, projectsMap[volume.TenantID], volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
 		} else {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, "")
+				volume.Status, volume.AvailabilityZone, volume.Bootable, projectsMap[volume.TenantID], volume.TenantID, volume.UserID, volume.VolumeType, "")
 		}
 	}
 

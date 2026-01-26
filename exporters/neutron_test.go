@@ -37,8 +37,8 @@ openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",ag
 openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",agent_host="dev-os-ctrl-02",ha_state="",l3_agent_id="ddbf087c-e38f-4a73-bcb3-c38f2a719a03",router_id="f8a44de0-fc8e-45df-93c7-f79bf3b01c95"} 1
 # HELP openstack_neutron_network network
 # TYPE openstack_neutron_network gauge
-openstack_neutron_network{id="d32019d3-bc6e-4319-9c1d-6722fc136a22",is_external="false",is_shared="false",name="net1",provider_network_type="vlan",provider_physical_network="public",provider_segmentation_id="3",status="ACTIVE",subnets="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869"} 0
-openstack_neutron_network{id="db193ab3-96e3-4cb3-8fc5-05f4296d0324",is_external="false",is_shared="false",name="net2",provider_network_type="local",provider_physical_network="",provider_segmentation_id="",status="ACTIVE",subnets="08eae331-0402-425a-923c-34f7cfe39c1b",tags="tag1,tag2",tenant_id="26a7980765d0414dbc1fc1f88cdb7e6e"} 0
+openstack_neutron_network{id="d32019d3-bc6e-4319-9c1d-6722fc136a22",is_external="false",is_shared="false",mtu="1500",name="net1",provider_network_type="vlan",provider_physical_network="public",provider_segmentation_id="3",status="ACTIVE",subnets="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869"} 0
+openstack_neutron_network{id="db193ab3-96e3-4cb3-8fc5-05f4296d0324",is_external="false",is_shared="false",mtu="1450",name="net2",provider_network_type="local",provider_physical_network="",provider_segmentation_id="",status="ACTIVE",subnets="08eae331-0402-425a-923c-34f7cfe39c1b",tags="tag1,tag2",tenant_id="26a7980765d0414dbc1fc1f88cdb7e6e"} 0
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
 openstack_neutron_network_ip_availabilities_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253

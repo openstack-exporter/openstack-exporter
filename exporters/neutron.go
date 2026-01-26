@@ -21,6 +21,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/mtu"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/networkipavailabilities"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/portsbinding"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/provider"
@@ -60,7 +61,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address"}},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "network", Labels: []string{"id", "tenant_id", "status", "name", "is_shared", "is_external", "provider_network_type",
-		"provider_physical_network", "provider_segmentation_id", "subnets", "tags"}},
+		"provider_physical_network", "provider_segmentation_id", "subnets", "tags", "mtu"}},
 	{Name: "security_groups", Fn: ListSecGroups},
 	{Name: "subnets", Fn: ListSubnets},
 	{Name: "subnet", Labels: []string{"id", "tenant_id", "name", "network_id", "cidr", "gateway_ip", "enable_dhcp", "dns_nameservers", "tags"}},
@@ -194,6 +195,7 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 		networks.Network
 		external.NetworkExternalExt
 		provider.NetworkProviderExt
+		mtu.NetworkMTUExt
 	}
 	var allNetworks []NetworkWithExt
 
@@ -213,7 +215,7 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
 				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
 				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
-				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","), strconv.Itoa(net.MTU))
 		}
 	}
 	return nil

@@ -1,0 +1,22 @@
+{
+  "versions": [
+    {
+      "id": "v1.0",
+      "status": "CURRENT",
+      "min_version": "1.0",
+      "max_version": "1.39",
+      "updated": "2016-11-16T00:00:00Z",
+      "links": [
+        {
+          "href": "http://docs.openstack.org/",
+          "rel": "describedby",
+          "type": "text/html"
+        },
+        {
+          "href": "http://test.cloud/placement/",
+          "rel": "self"
+        }
+      ]
+    }
+  ]
+}

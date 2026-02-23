@@ -121,7 +121,7 @@ jobs:
       # This step runs ONLY when a tag is pushed
       - name: Run GoReleaser (Tag Release)
         if: contains(github.ref, 'refs/tags/')
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --clean
@@ -131,7 +131,7 @@ jobs:
       # This step runs on anything EXCEPT tags
       - name: Run GoReleaser (Snapshot)
         if: ${{ !contains(github.ref, 'refs/tags/') }}
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --snapshot --clean

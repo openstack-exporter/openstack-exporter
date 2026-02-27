@@ -73,11 +73,7 @@ func TestCollectCache(t *testing.T) {
 	defer newSingleCache()
 
 	multiCloud := false
-	services := make(map[string]*bool)
-	serviceADisable := false
-	serviceBDisable := true
-	services["service-a"] = &serviceADisable
-	services["service-b"] = &serviceBDisable
+	services := []string{"service-a"}
 	prefix := "testPrefix"
 	cloud := "testCloud"
 	disabledMetrics := []string{}
@@ -202,6 +198,7 @@ func TestWriteCacheToResponse(t *testing.T) {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(rr.Code, http.StatusOK, "handler returned wrong status code")
+	assert.NotEmpty(rr.Header().Get("Content-Type"), "missing Content-Type header")
 
 	parser := expfmt.NewTextParser(model.LegacyValidation)
 	metricFamilies, err := parser.TextToMetricFamilies(rr.Body)

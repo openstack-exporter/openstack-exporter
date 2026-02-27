@@ -23,7 +23,7 @@ func CollectCache(
 		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, func() (string, error), *slog.Logger,
 	) (*exporters.OpenStackExporter, error),
 	multiCloud bool,
-	services map[string]*bool, prefix,
+	services []string, prefix,
 	cloud string,
 	disabledMetrics []string,
 	endpointType string,
@@ -56,13 +56,6 @@ func CollectCache(
 		clouds = append(clouds, cloud)
 	}
 
-	enabledServices := []string{}
-	for service, disabled := range services {
-		if !*disabled {
-			enabledServices = append(enabledServices, service)
-		}
-	}
-
 	for _, cloud := range clouds {
 		lg := logger.With("cloud", cloud)
 		lg.Info("Start update cache data")
@@ -70,7 +63,7 @@ func CollectCache(
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
-		for _, service := range enabledServices {
+		for _, service := range services {
 			lg2 := lg.With("service", service)
 			lg2.Info("Start collect cache data")
 

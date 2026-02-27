@@ -14,6 +14,7 @@ import (
 	"time"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
+	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/openstack-exporter/openstack-exporter/utils"
@@ -29,7 +30,13 @@ import (
 
 const DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
-var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
+type serviceState int
+
+const (
+	serviceAuto serviceState = iota
+	serviceEnabled
+	serviceDisabled
+)
 
 var (
 	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
@@ -47,17 +54,28 @@ var (
 	cacheEnable              = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
+	disableServiceAutodetect = kingpin.Flag("disable-service-autodetect", "Disable single-cloud service autodetection and use only explicit service flags").Default("false").Bool()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
 )
 
 func main() {
 
-	services := make(map[string]*bool)
+	serviceStates := make(map[string]serviceState, len(exporters.SupportedExporters))
 
-	for _, service := range defaultEnabledServices {
-		flagName := fmt.Sprintf("disable-service.%s", service)
-		flagHelp := fmt.Sprintf("Disable the %s service exporter", service)
-		services[service] = kingpin.Flag(flagName, flagHelp).Default().Bool()
+	for _, service := range exporters.SupportedExporters {
+		serviceStates[service] = serviceAuto
+		disableFlagName := fmt.Sprintf("disable-service.%s", service)
+		disableFlagHelp := fmt.Sprintf("Disable the %s service exporter in strict mode", service)
+		serviceName := service
+		disableValue := false
+		kingpin.Flag(disableFlagName, disableFlagHelp).Default("false").Action(func(*kingpin.ParseContext) error {
+			if disableValue {
+				serviceStates[serviceName] = serviceDisabled
+			} else {
+				serviceStates[serviceName] = serviceEnabled
+			}
+			return nil
+		}).BoolVar(&disableValue)
 	}
 	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9180")
 
@@ -80,6 +98,12 @@ func main() {
 
 	if _, err := os.Stat(*osClientConfig); err != nil {
 		logger.Error("Could not read config file", "error", err)
+		os.Exit(1)
+	}
+
+	services, err := resolveServiceConfig(*multiCloud, *cloud, *disableServiceAutodetect, serviceStates, logger)
+	if err != nil {
+		logger.Error("Failed to resolve service configuration", "error", err)
 		os.Exit(1)
 	}
 
@@ -106,10 +130,82 @@ func main() {
 	}
 }
 
+func resolveServiceConfig(
+	isMultiCloud bool,
+	cloud string,
+	disableAutodetect bool,
+	serviceStates map[string]serviceState,
+	logger *slog.Logger,
+) ([]string, error) {
+	if isMultiCloud || disableAutodetect {
+		setAutoServicesState(serviceStates, serviceEnabled)
+		if disableAutodetect && !isMultiCloud {
+			logger.Info("Service autodetection is disabled for single-cloud mode")
+		}
+		enabledServices := getEnabledServicesFromStates(serviceStates)
+		if len(enabledServices) == 0 {
+			return nil, errors.New("no services enabled by explicit flags")
+		}
+		return enabledServices, nil
+	}
+
+	logger.Info("Autodetecting available services")
+	detectedServices, err := autodetectServices(cloud, logger)
+	if err != nil {
+		return nil, err
+	}
+	logger.Info("Autodetected services", "detected_services", detectedServices)
+
+	applyAutodetection(serviceStates, detectedServices)
+	enabledServices := getEnabledServicesFromStates(serviceStates)
+	logger.Info("Final enabled services", "enabled_services", enabledServices)
+	if len(enabledServices) == 0 {
+		return nil, errors.New("no services enabled after autodetection and flag filtering")
+	}
+
+	return enabledServices, nil
+}
+
+func setAutoServicesState(serviceStates map[string]serviceState, state serviceState) {
+	for _, service := range exporters.SupportedExporters {
+		if serviceStates[service] == serviceAuto {
+			serviceStates[service] = state
+		}
+	}
+}
+
+func applyAutodetection(serviceStates map[string]serviceState, detectedServices []string) {
+	for _, service := range detectedServices {
+		if serviceStates[service] == serviceAuto {
+			serviceStates[service] = serviceEnabled
+		}
+	}
+	setAutoServicesState(serviceStates, serviceDisabled)
+}
+
+func getEnabledServicesFromStates(serviceStates map[string]serviceState) []string {
+	enabledServices := []string{}
+	for _, service := range exporters.SupportedExporters {
+		if serviceStates[service] == serviceEnabled {
+			enabledServices = append(enabledServices, service)
+		}
+	}
+	return enabledServices
+}
+
+func autodetectServices(cloud string, logger *slog.Logger) ([]string, error) {
+	opts := &clientconfigv2.ClientOpts{Cloud: cloud}
+	services, err := exporters.AutodetectServicesFromCatalog(opts, nil, *endpointType)
+	if err != nil {
+		return nil, err
+	}
+	return services, nil
+}
+
 // cacheBackgroundService runs a background service to collect the metrics and stores in the cache.
 // It collects data every cache-ttl/2 time and flush every cache-ttl time.
 // The cache data will be read by the Prometheus HandleFunc.
-func cacheBackgroundService(ctx context.Context, services map[string]*bool, cancel context.CancelCauseFunc, logger *slog.Logger) {
+func cacheBackgroundService(ctx context.Context, services []string, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	logger.Info("Start cache background service")
 	collectTicker := time.NewTicker(*cacheTTL / 2)
 	defer collectTicker.Stop()
@@ -140,7 +236,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, canc
 	}
 }
 
-func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlags *web.FlagConfig, cancel context.CancelCauseFunc, logger *slog.Logger) {
+func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.FlagConfig, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
@@ -206,7 +302,7 @@ func startHTTPServer(ctx context.Context, services map[string]*bool, toolkitFlag
 	}
 }
 
-func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFunc {
+func probeHandler(configuredServices []string, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
@@ -218,21 +314,11 @@ func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFu
 			return
 		}
 
-		enabledServices := []string{}
-
-		for service, disabled := range services {
-			if !*disabled {
-				enabledServices = append(enabledServices, service)
-			}
+		enabledServices, err := selectServicesForRequest(configuredServices, r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
 		}
-
-		includeServices := r.URL.Query().Get("include_services")
-		if includeServices != "" {
-			enabledServices = strings.Split(includeServices, ",")
-		}
-
-		excludeServices := strings.Split(r.URL.Query().Get("exclude_services"), ",")
-		enabledServices = exporters.RemoveElements(enabledServices, excludeServices)
 		logger.Info("Enabled services", "enabled_services", enabledServices)
 
 		// Get data from cache
@@ -259,7 +345,7 @@ func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFu
 	}
 }
 
-func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFunc {
+func metricHandler(configuredServices []string, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
 		logger.Info("Build context", "build_context", version.BuildContext())
@@ -269,12 +355,7 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
 		}
 
-		enabledServices := []string{}
-		for service, disabled := range services {
-			if !*disabled {
-				enabledServices = append(enabledServices, service)
-			}
-		}
+		enabledServices := configuredServices
 
 		// Get data from cache
 		if *cacheEnable {
@@ -309,4 +390,52 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 		h.ServeHTTP(w, r)
 	}
+}
+
+func selectServicesForRequest(configuredServices []string, r *http.Request) ([]string, error) {
+	enabledServices := configuredServices
+
+	includeServices := r.URL.Query().Get("include_services")
+	if includeServices != "" {
+		includeList := parseServiceList(includeServices)
+		invalid := invalidExporterNames(includeList)
+		if len(invalid) > 0 {
+			return nil, fmt.Errorf("invalid include_services: %s", strings.Join(invalid, ","))
+		}
+		enabledServices = includeList
+	}
+
+	excludeList := parseServiceList(r.URL.Query().Get("exclude_services"))
+	invalid := invalidExporterNames(excludeList)
+	if len(invalid) > 0 {
+		return nil, fmt.Errorf("invalid exclude_services: %s", strings.Join(invalid, ","))
+	}
+	return utils.UniqueElements(utils.RemoveElements(enabledServices, excludeList)), nil
+}
+
+func invalidExporterNames(services []string) []string {
+	invalid := make([]string, 0, len(services))
+	for _, service := range services {
+		if !exporters.IsExporterNameValid(service) {
+			invalid = append(invalid, service)
+		}
+	}
+	return invalid
+}
+
+func parseServiceList(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+
+	services := []string{}
+	for _, service := range strings.Split(raw, ",") {
+		service = strings.TrimSpace(service)
+		if service == "" {
+			continue
+		}
+		services = append(services, service)
+	}
+
+	return services
 }

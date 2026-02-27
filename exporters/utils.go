@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"context"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
@@ -16,6 +16,24 @@ import (
 	gnocchiv2 "github.com/gophercloud/utils/v2/gnocchi"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
+
+var serviceCatalogTypesByExporterService = map[string][]string{
+	"network":         {"network"},
+	"compute":         {"compute"},
+	"image":           {"image"},
+	"volume":          {"block-storage", "volume", "volumev2", "volumev3"},
+	"identity":        {"identity"},
+	"object-store":    {"object-store"},
+	"load-balancer":   {"load-balancer"},
+	"container-infra": {"container-infrastructure-management", "container-infra"},
+	"dns":             {"dns"},
+	"baremetal":       {"baremetal"},
+	"gnocchi":         {"metric", "gnocchi"},
+	"database":        {"database"},
+	"orchestration":   {"orchestration"},
+	"placement":       {"placement"},
+	"sharev2":         {"shared-file-system", "sharev2"},
+}
 
 func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper) (*gophercloudv2.ProviderClient, error) {
 	options, err := clientconfigv2.AuthOptions(opts)
@@ -46,23 +64,18 @@ func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.Round
 	return client, nil
 }
 
-func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ServiceClient, error) {
+func newAuthenticatedProviderClient(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ProviderClient, *clientconfigv2.Cloud, gophercloudv2.EndpointOpts, error) {
 	cloud := new(clientconfigv2.Cloud)
 
-	// If no opts were passed in, create an empty ClientOpts.
 	if opts == nil {
 		opts = new(clientconfigv2.ClientOpts)
 	}
 
-	// Determine if a clouds.yaml entry should be retrieved.
-	// Start by figuring out the cloud name.
-	// First check if one was explicitly specified in opts.
 	var cloudName string
 	if opts.Cloud != "" {
 		cloudName = opts.Cloud
 	}
 
-	// Next see if a cloud name was specified as an environment variable.
 	envPrefix := "OS_"
 	if opts.EnvPrefix != "" {
 		envPrefix = opts.EnvPrefix
@@ -72,43 +85,46 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 		cloudName = v
 	}
 
-	// If a cloud name was determined, try to look it up in clouds.yaml.
 	if cloudName != "" {
-		// Get the requested cloud.
 		var err error
 		cloud, err = clientconfigv2.GetCloudFromYAML(opts)
 		if err != nil {
-			return nil, err
+			return nil, nil, gophercloudv2.EndpointOpts{}, err
 		}
 	}
 
-	// Get a Provider Client
 	pClient, err := AuthenticatedClientV2(opts, transport)
 	if err != nil {
-		return nil, err
+		return nil, nil, gophercloudv2.EndpointOpts{}, err
 	}
 
-	// Determine the region to use.
-	// First, check if the REGION_NAME environment variable is set.
 	var region string
 	if v := os.Getenv(envPrefix + "REGION_NAME"); v != "" {
 		region = v
 	}
 
-	// Next, check if the cloud entry sets a region.
 	if v := cloud.RegionName; v != "" {
 		region = v
 	}
 
-	// Finally, see if one was specified in the ClientOpts.
-	// If so, this takes precedence.
-	if v := opts.RegionName; v != "" {
-		region = v
+	if opts != nil {
+		if v := opts.RegionName; v != "" {
+			region = v
+		}
 	}
 
 	eo := gophercloudv2.EndpointOpts{
 		Region:       region,
 		Availability: GetEndpointTypeV2(endpointType),
+	}
+
+	return pClient, cloud, eo, nil
+}
+
+func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ServiceClient, error) {
+	pClient, cloud, eo, err := newAuthenticatedProviderClient(opts, transport, endpointType)
+	if err != nil {
+		return nil, err
 	}
 
 	// Keep a map of the EndpointOpts for each service
@@ -124,8 +140,9 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 		return openstackv2.NewBareMetalV1(pClient, eo)
 	case "compute":
 		return openstackv2.NewComputeV2(pClient, eo)
-	case "container":
-		return openstackv2.NewContainerV1(pClient, eo)
+	// NOTE: Intentionally disabled here: openstack-exporter has no "container" exporter.
+	// case "container":
+	// 	return openstackv2.NewContainerV1(pClient, eo)
 	case "container-infra":
 		return openstackv2.NewContainerInfraV1(pClient, eo)
 	case "database":
@@ -194,18 +211,6 @@ func GetEndpointTypeV2(endpointType string) gophercloudv2.Availability {
 	return gophercloudv2.AvailabilityPublic
 }
 
-// RemoveElements remove not needed elements
-func RemoveElements[S ~[]E, E comparable](slice S, drop S) S {
-	res := make(S, 0, len(slice)-len(drop))
-	for _, s := range slice {
-		if !slices.Contains(drop, s) {
-			res = append(res, s)
-		}
-	}
-
-	return res
-}
-
 func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
@@ -238,4 +243,48 @@ func mapStatus(mapping map[string]int, current string) int {
 	}
 
 	return v
+}
+
+func AutodetectServicesFromCatalog(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) ([]string, error) {
+	providerClient, _, endpointOpts, err := newAuthenticatedProviderClient(opts, transport, endpointType)
+	if err != nil {
+		return nil, err
+	}
+
+	enabledServices := make([]string, 0, len(SupportedExporters))
+	for _, service := range SupportedExporters {
+		if !isServiceAvailable(providerClient, endpointOpts, service) {
+			continue
+		}
+		enabledServices = append(enabledServices, service)
+	}
+
+	if len(enabledServices) == 0 {
+		return nil, errors.New("no services autodetected")
+	}
+
+	return enabledServices, nil
+}
+
+func isServiceAvailable(providerClient *gophercloudv2.ProviderClient, endpointOpts gophercloudv2.EndpointOpts, service string) bool {
+	serviceTypes, ok := serviceCatalogTypesByExporterService[service]
+	if !ok {
+		return false
+	}
+
+	for _, serviceType := range serviceTypes {
+		eo := endpointOpts
+		eo.ApplyDefaults(serviceType)
+		endpoint, err := providerClient.EndpointLocator(eo)
+		if err == nil && endpoint != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func IsExporterNameValid(service string) bool {
+	_, ok := serviceCatalogTypesByExporterService[service]
+	return ok
 }

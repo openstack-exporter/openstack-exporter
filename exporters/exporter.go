@@ -39,6 +39,8 @@ const (
 	TERABYTE
 )
 
+var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
+
 type OpenStackExporter interface {
 	prometheus.Collector
 

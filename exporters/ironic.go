@@ -19,6 +19,8 @@ type IronicExporter struct {
 
 var defaultIronicMetrics = []Metric{
 	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
+	{Name: "node_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
+	{Name: "node_provision_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 }
 
 // NewIronicExporter : returns a pointer to IronicExporter
@@ -75,6 +77,28 @@ func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
 			strconv.FormatBool(node.Maintenance), node.MaintenanceReason, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
 			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason)
+
+		if !node.UpdatedAt.IsZero() {
+			ch <- prometheus.MustNewConstMetric(
+				exporter.Metrics["node_updated_at"].Metric,
+				prometheus.GaugeValue,
+				float64(node.UpdatedAt.Unix()),
+				node.UUID,
+				node.Name,
+				node.ProvisionState,
+			)
+		}
+
+		if !node.ProvisionUpdatedAt.IsZero() {
+			ch <- prometheus.MustNewConstMetric(
+				exporter.Metrics["node_provision_updated_at"].Metric,
+				prometheus.GaugeValue,
+				float64(node.ProvisionUpdatedAt.Unix()),
+				node.UUID,
+				node.Name,
+				node.ProvisionState,
+			)
+		}
 	}
 
 	return nil

@@ -12,11 +12,14 @@ type PlacementExporter struct {
 	BaseOpenStackExporter
 }
 
+var placementResourceLabels = []string{"hostname", "resourcetype"}
+
 var defaultPlacementMetrics = []Metric{
-	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_allocation_ratio", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_reserved", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_usage", Labels: []string{"hostname", "resourcetype"}},
+	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
+	{Name: "resource_allocation_ratio", Labels: placementResourceLabels},
+	{Name: "resource_generation", Labels: placementResourceLabels},
+	{Name: "resource_reserved", Labels: placementResourceLabels},
+	{Name: "resource_usage", Labels: placementResourceLabels},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -50,26 +53,17 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		return err
 	}
 
-	uuidToNameMap := map[string]string{}
-
 	for _, resourceprovider := range allResourceProviders {
-		uuidToNameMap[resourceprovider.UUID] = resourceprovider.Name
-
 		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
 		}
 
 		for k, v := range inventoryResult.Inventories {
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(v.Total), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(v.AllocationRatio), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(v.Reserved), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_total", float64(v.Total), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_allocation_ratio", float64(v.AllocationRatio), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_generation", float64(inventoryResult.ResourceProviderGeneration), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_reserved", float64(v.Reserved), resourceprovider.Name, k)
 		}
 
 		usagesResult, err := resourceproviders.GetUsages(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
@@ -78,12 +72,28 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		}
 
 		for k, v := range usagesResult.Usages {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(v), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k)
 		}
 
 	}
 
 	return nil
 
+}
+
+func emitPlacementResourceMetric(
+	exporter *BaseOpenStackExporter,
+	ch chan<- prometheus.Metric,
+	metricName string,
+	value float64,
+	hostname string,
+	resourceType string,
+) {
+	ch <- prometheus.MustNewConstMetric(
+		exporter.Metrics[metricName].Metric,
+		prometheus.GaugeValue,
+		value,
+		hostname,
+		resourceType,
+	)
 }

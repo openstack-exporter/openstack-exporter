@@ -138,6 +138,7 @@ func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, 
 	buf, err := BufferFromCache(cloud, enabledServices, logger)
 	if err != nil {
 		http.Error(w, "Failed to encode metrics", http.StatusInternalServerError)
+		return err
 	}
 
 	opts := promhttp.HandlerOpts{}
@@ -149,10 +150,11 @@ func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, 
 	} else {
 		contentType = expfmt.Negotiate(r.Header)
 	}
-	w.Header().Set("Context-Type", string(contentType))
+	w.Header().Set("Content-Type", string(contentType))
 
 	if _, err = w.Write(buf.Bytes()); err != nil {
 		http.Error(w, "Failed to write cached metrics to response", http.StatusInternalServerError)
+		return err
 	}
 
 	return nil

@@ -7,7 +7,7 @@ toolchain go1.24.4
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/gophercloud/gophercloud v1.14.1
-	github.com/gophercloud/gophercloud/v2 v2.7.0
+	github.com/gophercloud/gophercloud/v2 v2.10.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
 	github.com/gophercloud/utils/v2 v2.0.0-20250711132455-9770683b100a
 	github.com/hashicorp/go-uuid v1.0.3

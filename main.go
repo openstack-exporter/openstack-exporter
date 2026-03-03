@@ -9,11 +9,14 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
 	"gopkg.in/yaml.v3"
 
 	"log/slog"
 
 	kingpin "github.com/alecthomas/kingpin/v2"
+	"github.com/hashicorp/vault-client-go"
+	"github.com/hashicorp/vault-client-go/schema"
 	"github.com/openstack-exporter/openstack-exporter/cache"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/openstack-exporter/openstack-exporter/utils"
@@ -24,8 +27,6 @@ import (
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
 	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
-	"github.com/hashicorp/vault-client-go"
-	"github.com/hashicorp/vault-client-go/schema"
 )
 
 var defaultEnabledServices = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
@@ -311,10 +312,10 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 	}
 }
 
-func SetPasswordIfVaultIsUsed(logger log.Logger) {
+func SetPasswordIfVaultIsUsed(logger *slog.Logger) {
 	configFileData, err := os.ReadFile(*osClientConfig)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to read config file", "err", err)
+		logger.Error("failed to read config file", "err", err)
 		os.Exit(1)
 	}
 
@@ -332,7 +333,7 @@ func SetPasswordIfVaultIsUsed(logger log.Logger) {
 
 	err = yaml.Unmarshal(configFileData, &vaultConfig)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to parse config data", "err", err)
+		logger.Error("failed to parse config data", "err", err)
 		os.Exit(1)
 	}
 
@@ -341,7 +342,7 @@ func SetPasswordIfVaultIsUsed(logger log.Logger) {
 	}
 	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress),)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to create Vault client", "err", err)
+		logger.Error("failed to create Vault client", "err", err)
 		os.Exit(1)
 	}
 	ctx := context.Background()
@@ -353,11 +354,11 @@ func SetPasswordIfVaultIsUsed(logger log.Logger) {
 		},
 	)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to login to Vault", "err", err)
+		logger.Error("failed to login to Vault", "err", err)
 		os.Exit(1)
 	}
 	if err := client.SetToken(resp.Auth.ClientToken); err != nil {
-		level.Error(logger).Log("msg", "failed to set Vault token", "err", err)
+		logger.Error("failed to set Vault token", "err", err)
 		os.Exit(1)
 	}
 	secret, err := client.Secrets.KvV2Read(
@@ -366,7 +367,7 @@ func SetPasswordIfVaultIsUsed(logger log.Logger) {
 		vault.WithMountPath(vaultConfig.VaultSecretMountPath),
 	)
 	if err != nil {
-		level.Error(logger).Log("msg", "failed to get secret from Vault", "err", err)
+		logger.Error("failed to get secret from Vault", "err", err)
 		os.Exit(1)
 	}
 

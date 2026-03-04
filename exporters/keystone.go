@@ -5,10 +5,12 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -77,7 +79,19 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 
 	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
-		return err
+		if _, ok := err.(gophercloud.ErrDefault403); !ok {
+			return err
+		}
+
+		user, err := tokens.Get(exporter.Client, exporter.Client.TokenID).ExtractUser()
+		if err != nil {
+			return err
+		}
+
+		allPagesProject, err = users.ListProjects(exporter.Client, user.ID).AllPages()
+		if err != nil {
+			return err
+		}
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)

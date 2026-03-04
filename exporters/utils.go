@@ -365,7 +365,7 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 		exporter.logger.Warn("Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
 		eo = v
 	} else {
-		return nil, errors.New("No EndpointOpts available to create Identity client")
+		return nil, errors.New("no EndpointOpts available to create Identity client")
 	}
 
 	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)

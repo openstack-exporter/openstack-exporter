@@ -1,0 +1,20 @@
+{
+  "versions": [
+    {
+      "id": "v2.0",
+      "status": "CURRENT",
+      "updated": "2016-12-11T00:00:00Z",
+      "links": [
+        {
+          "href": "http://docs.openstack.org/",
+          "rel": "describedby",
+          "type": "text/html"
+        },
+        {
+          "href": "http://test.cloud/loadbalancer/v2.0/",
+          "rel": "self"
+        }
+      ]
+    }
+  ]
+}

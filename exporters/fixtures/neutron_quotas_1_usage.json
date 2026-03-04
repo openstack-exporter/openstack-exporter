@@ -1,0 +1,50 @@
+{
+  "quota": {
+    "id": "fake_tenant",
+    "floatingip": {
+      "used": 0,
+      "limit": 50,
+      "reserved": 0
+    },
+    "network": {
+      "used": 0,
+      "limit": 100,
+      "reserved": 0
+    },
+    "port": {
+      "used": 0,
+      "limit": 100,
+      "reserved": 0
+    },
+    "rbac_policy": {
+      "used": 0,
+      "limit": 10,
+      "reserved": 0
+    },
+    "router": {
+      "used": 0,
+      "limit": 10,
+      "reserved": 0
+    },
+    "security_group_rule": {
+      "used": 0,
+      "limit": 100,
+      "reserved": 0
+    },
+    "security_group": {
+      "used": 0,
+      "limit": 10,
+      "reserved": 0
+    },
+    "subnetpool": {
+      "used": 0,
+      "limit": -1,
+      "reserved": 0
+    },
+    "subnet": {
+      "used": 0,
+      "limit": 100,
+      "reserved": 0
+    }
+  }
+}

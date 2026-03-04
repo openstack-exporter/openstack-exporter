@@ -4,8 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"log/slog"
+
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
@@ -64,9 +66,10 @@ var defaultCinderMetrics = []Metric{
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "volume_type_quota_gigabytes", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
 }
 
-func NewCinderExporter(config *ExporterConfig, logger log.Logger) (*CinderExporter, error) {
+func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
 			Name:           "cinder",
@@ -108,7 +111,7 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	// Volume status metrics
 	for _, volume := range allVolumes {
-		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+		if len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
 				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
 				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
@@ -145,7 +148,7 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	// Volume_gb metrics
 	for _, volume := range allVolumes {
-		if volume.Attachments != nil && len(volume.Attachments) > 0 {
+		if len(volume.Attachments) > 0 {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
 				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
 				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
@@ -229,14 +232,14 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	}
 
 	for _, service := range allServices {
-		var state int = 0
+		var state = 0
 		var id string
 
 		if service.State == "up" {
 			state = 1
 		}
-		if !exporter.ExporterConfig.DisableCinderAgentUUID {
-			if id, err = exporter.ExporterConfig.UUIDGenFunc(); err != nil {
+		if !exporter.DisableCinderAgentUUID {
+			if id, err = exporter.UUIDGenFunc(); err != nil {
 				return err
 			}
 		}
@@ -273,17 +276,59 @@ func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prome
 }
 
 func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allProjects, err := GetProjects(exporter)
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["volume"]; ok {
+		eo = v
+	} else {
+		return errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range allProjects {
-		level.Debug(exporter.logger).Log("msg", "Findings limits for project", "project", p.Name, "exporter", exporter.Name)
+		logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
 		if err != nil {
 			return err
+		}
+
+		// Quotas are obtained from the cinder API
+		quotas_p, err := quotasets.Get(exporter.Client, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+		quotas := *quotas_p
+
+		// Loop through all Extra quotas to automatically detect volume types
+		for key, value := range quotas.Extra {
+			if strings.HasPrefix(key, "gigabytes_") {
+				volumeType := strings.TrimPrefix(key, "gigabytes_")
+				if quotaValue, ok := value.(float64); ok {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_quota_gigabytes"].Metric,
+						prometheus.GaugeValue, quotaValue, p.Name, p.ID, volumeType)
+				}
+			}
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
@@ -297,7 +342,6 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
-
 	}
 
 	return nil

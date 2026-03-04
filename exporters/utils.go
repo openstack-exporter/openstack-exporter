@@ -10,8 +10,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/go-kit/log"
-	"github.com/go-kit/log/level"
+	"log/slog"
+
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -142,10 +142,12 @@ func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *
 	}
 
 	// Keep a map of the EndpointOpts for each service
+	endpointOptsMu.Lock()
 	if endpointOpts == nil {
 		endpointOpts = make(map[string]gophercloud.EndpointOpts)
 	}
 	endpointOpts[service] = eo
+	endpointOptsMu.Unlock()
 
 	switch service {
 	case "baremetal":
@@ -279,10 +281,12 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 	}
 
 	// Keep a map of the EndpointOpts for each service
+	endpointOptsV2Mu.Lock()
 	if endpointOptsV2 == nil {
 		endpointOptsV2 = make(map[string]gophercloudv2.EndpointOpts)
 	}
 	endpointOptsV2[service] = eo
+	endpointOptsV2Mu.Unlock()
 
 	switch service {
 	case "baremetal":
@@ -437,11 +441,11 @@ func RemoveElements(slice []string, drop []string) []string {
 	return res
 }
 
-func additionalTLSTrust(caCertFile string, logger log.Logger) (*x509.CertPool, error) {
+func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool, error) {
 	// Get the SystemCertPool, continue with an empty pool on error
 	trustedCAs, err := x509.SystemCertPool()
 	if trustedCAs == nil {
-		level.Info(logger).Log("msg", "Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
+		logger.Info("Creating a new empty SystemCertPool as we failed to load it from disk", "err", err)
 		trustedCAs = x509.NewCertPool()
 	}
 	// check if string is not a path, but PEM contents such as: -----BEGIN CERTIFICATE-----

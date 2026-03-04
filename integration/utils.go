@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -15,6 +16,46 @@ import (
 )
 
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
+
+const defaultMetricsURL = "http://localhost:9180/metrics"
+
+// httpGetRetry fetches url, retrying up to max times (with 1s sleep between
+// attempts), and returns the response and body on the first success.
+// The sleep between retries avoids a tight spin but still terminates quickly.
+func httpGetRetry(url string, max int, t interface {
+	Helper()
+	Logf(string, ...interface{})
+}) (*http.Response, []byte, error) {
+	var (
+		resp *http.Response
+		err  error
+	)
+	for i := 0; i < max; i++ {
+		resp, err = http.Get(url) //nolint:noctx
+		if err == nil && resp.StatusCode == http.StatusOK {
+			body, readErr := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if readErr == nil {
+				return resp, body, nil
+			}
+			t.Helper()
+			t.Logf("Attempt %d: failed to read response body: %v", i+1, readErr)
+		} else {
+			statusCode := 0
+			if resp != nil {
+				statusCode = resp.StatusCode
+				resp.Body.Close()
+			}
+			t.Helper()
+			t.Logf("Attempt %d: failed to get metrics, status=%d, err=%v", i+1, statusCode, err)
+		}
+		time.Sleep(1 * time.Second)
+	}
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get metrics after %d retries: %w", max, err)
+	}
+	return nil, nil, fmt.Errorf("failed to get metrics after %d retries", max)
+}
 
 // newEmptyNovaMetadataMapping returns a non-nil LabelMappingFlag equivalent
 // to having no extra metadata labels configured.

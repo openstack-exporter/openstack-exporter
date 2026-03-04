@@ -1,12 +1,8 @@
 package integration
 
 import (
-	"fmt"
-	"io"
-	"net/http"
 	"strings"
 	"testing"
-	"time"
 
 	th "github.com/gophercloud/gophercloud/v2/testhelper"
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
@@ -35,64 +31,13 @@ func TestBaremetalIntegration(t *testing.T) {
 	}
 	defer cleanup()
 
-	// Construct the metrics URL
-	metricsURL := "http://localhost:9180/metrics"
-
-	// Helper function to fetch metrics with retries
-	fetchMetrics := func(
-		url string,
-		maxTries int,
-	) (resp *http.Response, body []byte, err error) {
-		for i := 0; i < maxTries; i++ {
-			resp, err = http.Get(url)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				defer resp.Body.Close()
-				body, err = io.ReadAll(resp.Body)
-				if err == nil {
-					return resp, body, nil // Success!
-				}
-				t.Logf("Attempt %d: Failed to read response body: %v", i+1, err)
-			} else {
-				var statusCode int
-				if resp != nil {
-					statusCode = resp.StatusCode
-				}
-				t.Logf(
-					"Attempt %d: Failed to get metrics, status code: %d, error: %v",
-					i+1,
-					statusCode,
-					err,
-				)
-			}
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close() // Close the body on each retry
-			}
-			time.Sleep(1 * time.Second)
-		}
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to get metrics after %d retries: %w", maxTries, err)
-		}
-
-		return nil, nil, fmt.Errorf(
-			"failed to get metrics after %d retries, "+
-				"but the error is nil (this should not happen)",
-			maxTries,
-		)
-	}
-
-	time.Sleep(10 * time.Second)
-
-	// Fetch the metrics
 	const maxTriesFetch = 10
-	resp, body, err := fetchMetrics(metricsURL, maxTriesFetch)
+	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
 	if err != nil {
-		// We do not have a body to print here (fetch failed), so just fatal.
 		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
 	}
 
-	// Convert the response body to a string for easier handling
 	bodyString := string(body)
-	// t.Logf("Metrics response body:\n%s", bodyString)
 
 	// Helper to always dump the full body on failures in subtests
 	logOnFailure := func(t *testing.T) {
@@ -104,7 +49,7 @@ func TestBaremetalIntegration(t *testing.T) {
 		t.Logf(
 			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
 			statusCode,
-			metricsURL,
+			defaultMetricsURL,
 			bodyString,
 		)
 	}

@@ -2,13 +2,10 @@ package integration
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
@@ -44,12 +41,7 @@ func TestComputeIntegration(t *testing.T) {
 	}
 	defer cleanup()
 
-	metricsURL := "http://localhost:9180/metrics"
-
-	// Allow Nova + exporter time to settle
-	time.Sleep(10 * time.Second)
-
-	_, bodyBytes, err := httpGetRetry(metricsURL, 10, t)
+	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
 	if err != nil {
 		t.Fatalf("Failed to fetch metrics: %v", err)
 	}
@@ -139,20 +131,4 @@ func TestComputeIntegration(t *testing.T) {
 			)
 		}
 	})
-}
-
-// Helper: GET with retries
-func httpGetRetry(url string, max int, t *testing.T) (*http.Response, []byte, error) {
-	for i := 0; i < max; i++ {
-		resp, err := http.Get(url)
-		if err == nil && resp.StatusCode == http.StatusOK {
-			body, err := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if err == nil {
-				return resp, body, nil
-			}
-		}
-		time.Sleep(1 * time.Second)
-	}
-	return nil, nil, fmt.Errorf("failed after %d retries", max)
 }

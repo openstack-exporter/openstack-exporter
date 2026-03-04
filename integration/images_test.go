@@ -1,13 +1,9 @@
 package integration
 
 import (
-	"fmt"
-	"io"
-	"net/http"
 	"regexp"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 )
@@ -23,66 +19,13 @@ func TestImagesIntegration(t *testing.T) {
 	}
 	defer cleanup()
 
-	metricsURL := "http://localhost:9180/metrics"
-
-	fetchMetrics := func(
-		url string,
-		maxTries int,
-	) (resp *http.Response, body []byte, err error) {
-		for i := 0; i < maxTries; i++ {
-			resp, err = http.Get(url)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				defer resp.Body.Close()
-				body, err = io.ReadAll(resp.Body)
-				if err == nil {
-					return resp, body, nil
-				}
-				t.Logf(
-					"Attempt %d: Failed to read response body: %v",
-					i+1,
-					err,
-				)
-			} else {
-				var statusCode int
-				if resp != nil {
-					statusCode = resp.StatusCode
-				}
-				t.Logf(
-					"Attempt %d: Failed to get metrics, status code: %d, error: %v",
-					i+1,
-					statusCode,
-					err,
-				)
-			}
-			if resp != nil && resp.Body != nil {
-				resp.Body.Close()
-			}
-			time.Sleep(1 * time.Second)
-		}
-		if err != nil {
-			return nil, nil, fmt.Errorf(
-				"failed to get metrics after %d retries: %w",
-				maxTries,
-				err,
-			)
-		}
-		return nil, nil, fmt.Errorf(
-			"failed to get metrics after %d retries, but the error is nil (this should not happen)",
-			maxTries,
-		)
-	}
-
-	time.Sleep(10 * time.Second)
-
 	const maxTriesFetch = 10
-	resp, body, err := fetchMetrics(metricsURL, maxTriesFetch)
+	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
 	if err != nil {
-		// No body to print here (fetch failed before we had a body).
 		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
 	}
 
 	bodyString := string(body)
-	// t.Logf("Metrics response body:\n%s", bodyString)
 
 	// Helper to always dump status, endpoint, and full body on failure paths.
 	logOnFailure := func(t *testing.T) {
@@ -94,7 +37,7 @@ func TestImagesIntegration(t *testing.T) {
 		t.Logf(
 			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
 			statusCode,
-			metricsURL,
+			defaultMetricsURL,
 			bodyString,
 		)
 	}

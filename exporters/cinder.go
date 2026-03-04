@@ -4,10 +4,12 @@ import (
 	"strconv"
 	"strings"
 
+	"errors"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
@@ -306,7 +308,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 
 	for _, p := range allProjects {
-		logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
+		exporter.logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
 		if err != nil {

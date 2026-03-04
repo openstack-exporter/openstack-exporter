@@ -362,7 +362,7 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 	if v, ok := endpointOpts["identity"]; ok {
 		eo = v
 	} else if v, ok := endpointOpts[exporter.ServiceName]; ok {
-		level.Warn(exporter.logger).Log("msg", "Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
+		exporter.logger.Warn("Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
 		eo = v
 	} else {
 		return nil, errors.New("No EndpointOpts available to create Identity client")
@@ -376,7 +376,7 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 	var allProjects []projects.Project
 	if exporter.TenantID == "" {
 		// If no tenantID is configured we get all the tenants.
-		level.Debug(exporter.logger).Log("msg", "retrieving all projects based for given domainName", "domain", exporter.DomainID)
+		exporter.logger.Debug("retrieving all projects based for given domainName", "domain", exporter.DomainID)
 
 		allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 		if err != nil {
@@ -389,7 +389,7 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 		}
 	} else {
 		// Retrieve the specific project specified by tenantID.
-		level.Debug(exporter.logger).Log("msg", "retrieving single project based on configured tenantID", "project", exporter.TenantID)
+		exporter.logger.Debug("retrieving single project based on configured tenantID", "project", exporter.TenantID)
 
 		project, err := projects.Get(c, exporter.TenantID).Extract()
 		if err != nil {

@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -23,6 +24,7 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/extensions/usage"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -535,7 +537,7 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	for _, p := range allProjects {
-		logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
+		exporter.logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 
 		// If projectID == configured tenantID we don't provide getOpts, since specifying
 		// a tenantID requires `os_compute_api:limits:other_project` permissions, even

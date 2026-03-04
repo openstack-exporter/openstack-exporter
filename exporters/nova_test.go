@@ -45,6 +45,7 @@ openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host
 openstack_nova_limits_instances_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 10
 openstack_nova_limits_instances_max{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 10
 openstack_nova_limits_instances_max{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 10
+openstack_nova_limits_instances_max{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 10
 openstack_nova_limits_instances_max{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 10
 openstack_nova_limits_instances_max{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 10
 openstack_nova_limits_instances_max{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 10
@@ -55,6 +56,7 @@ openstack_nova_limits_instances_max{tenant="swifttenanttest4",tenant_id="4b1eb78
 openstack_nova_limits_instances_used{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
 openstack_nova_limits_instances_used{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
 openstack_nova_limits_instances_used{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_nova_limits_instances_used{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 0
 openstack_nova_limits_instances_used{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
 openstack_nova_limits_instances_used{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
 openstack_nova_limits_instances_used{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
@@ -65,6 +67,7 @@ openstack_nova_limits_instances_used{tenant="swifttenanttest4",tenant_id="4b1eb7
 openstack_nova_limits_memory_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 51200
 openstack_nova_limits_memory_max{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 51200
 openstack_nova_limits_memory_max{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 51200
+openstack_nova_limits_memory_max{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 51200
 openstack_nova_limits_memory_max{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 51200
 openstack_nova_limits_memory_max{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 51200
 openstack_nova_limits_memory_max{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 51200
@@ -75,6 +78,7 @@ openstack_nova_limits_memory_max{tenant="swifttenanttest4",tenant_id="4b1eb781a4
 openstack_nova_limits_memory_used{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
 openstack_nova_limits_memory_used{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
 openstack_nova_limits_memory_used{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_nova_limits_memory_used{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 0
 openstack_nova_limits_memory_used{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
 openstack_nova_limits_memory_used{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
 openstack_nova_limits_memory_used{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
@@ -85,6 +89,7 @@ openstack_nova_limits_memory_used{tenant="swifttenanttest4",tenant_id="4b1eb781a
 openstack_nova_limits_vcpus_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 20
 openstack_nova_limits_vcpus_max{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 20
 openstack_nova_limits_vcpus_max{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 20
+openstack_nova_limits_vcpus_max{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 20
 openstack_nova_limits_vcpus_max{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 20
 openstack_nova_limits_vcpus_max{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 20
 openstack_nova_limits_vcpus_max{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 20
@@ -95,6 +100,7 @@ openstack_nova_limits_vcpus_max{tenant="swifttenanttest4",tenant_id="4b1eb781a47
 openstack_nova_limits_vcpus_used{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
 openstack_nova_limits_vcpus_used{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
 openstack_nova_limits_vcpus_used{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_nova_limits_vcpus_used{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 0
 openstack_nova_limits_vcpus_used{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
 openstack_nova_limits_vcpus_used{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
 openstack_nova_limits_vcpus_used{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
@@ -123,6 +129,9 @@ openstack_nova_quota_cores{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_cores{tenant="demo",type="in_use"} 0
 openstack_nova_quota_cores{tenant="demo",type="limit"} 20
 openstack_nova_quota_cores{tenant="demo",type="reserved"} 0
+openstack_nova_quota_cores{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_cores{tenant="demo_with_attachment",type="limit"} 20
+openstack_nova_quota_cores{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_cores{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_cores{tenant="invisible_to_admin",type="limit"} 20
 openstack_nova_quota_cores{tenant="invisible_to_admin",type="reserved"} 0
@@ -149,6 +158,9 @@ openstack_nova_quota_fixed_ips{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_fixed_ips{tenant="demo",type="in_use"} 0
 openstack_nova_quota_fixed_ips{tenant="demo",type="limit"} -1
 openstack_nova_quota_fixed_ips{tenant="demo",type="reserved"} 0
+openstack_nova_quota_fixed_ips{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_fixed_ips{tenant="demo_with_attachment",type="limit"} -1
+openstack_nova_quota_fixed_ips{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_fixed_ips{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_fixed_ips{tenant="invisible_to_admin",type="limit"} -1
 openstack_nova_quota_fixed_ips{tenant="invisible_to_admin",type="reserved"} 0
@@ -175,6 +187,9 @@ openstack_nova_quota_floating_ips{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_floating_ips{tenant="demo",type="in_use"} 0
 openstack_nova_quota_floating_ips{tenant="demo",type="limit"} -1
 openstack_nova_quota_floating_ips{tenant="demo",type="reserved"} 0
+openstack_nova_quota_floating_ips{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_floating_ips{tenant="demo_with_attachment",type="limit"} -1
+openstack_nova_quota_floating_ips{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_floating_ips{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_floating_ips{tenant="invisible_to_admin",type="limit"} -1
 openstack_nova_quota_floating_ips{tenant="invisible_to_admin",type="reserved"} 0
@@ -201,6 +216,9 @@ openstack_nova_quota_injected_file_content_bytes{tenant="alt_demo",type="reserve
 openstack_nova_quota_injected_file_content_bytes{tenant="demo",type="in_use"} 0
 openstack_nova_quota_injected_file_content_bytes{tenant="demo",type="limit"} 10240
 openstack_nova_quota_injected_file_content_bytes{tenant="demo",type="reserved"} 0
+openstack_nova_quota_injected_file_content_bytes{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_injected_file_content_bytes{tenant="demo_with_attachment",type="limit"} 10240
+openstack_nova_quota_injected_file_content_bytes{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_injected_file_content_bytes{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_injected_file_content_bytes{tenant="invisible_to_admin",type="limit"} 10240
 openstack_nova_quota_injected_file_content_bytes{tenant="invisible_to_admin",type="reserved"} 0
@@ -227,6 +245,9 @@ openstack_nova_quota_injected_file_path_bytes{tenant="alt_demo",type="reserved"}
 openstack_nova_quota_injected_file_path_bytes{tenant="demo",type="in_use"} 0
 openstack_nova_quota_injected_file_path_bytes{tenant="demo",type="limit"} 255
 openstack_nova_quota_injected_file_path_bytes{tenant="demo",type="reserved"} 0
+openstack_nova_quota_injected_file_path_bytes{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_injected_file_path_bytes{tenant="demo_with_attachment",type="limit"} 255
+openstack_nova_quota_injected_file_path_bytes{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_injected_file_path_bytes{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_injected_file_path_bytes{tenant="invisible_to_admin",type="limit"} 255
 openstack_nova_quota_injected_file_path_bytes{tenant="invisible_to_admin",type="reserved"} 0
@@ -253,6 +274,9 @@ openstack_nova_quota_injected_files{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_injected_files{tenant="demo",type="in_use"} 0
 openstack_nova_quota_injected_files{tenant="demo",type="limit"} 5
 openstack_nova_quota_injected_files{tenant="demo",type="reserved"} 0
+openstack_nova_quota_injected_files{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_injected_files{tenant="demo_with_attachment",type="limit"} 5
+openstack_nova_quota_injected_files{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_injected_files{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_injected_files{tenant="invisible_to_admin",type="limit"} 5
 openstack_nova_quota_injected_files{tenant="invisible_to_admin",type="reserved"} 0
@@ -279,6 +303,9 @@ openstack_nova_quota_instances{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_instances{tenant="demo",type="in_use"} 0
 openstack_nova_quota_instances{tenant="demo",type="limit"} 10
 openstack_nova_quota_instances{tenant="demo",type="reserved"} 0
+openstack_nova_quota_instances{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_instances{tenant="demo_with_attachment",type="limit"} 10
+openstack_nova_quota_instances{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_instances{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_instances{tenant="invisible_to_admin",type="limit"} 10
 openstack_nova_quota_instances{tenant="invisible_to_admin",type="reserved"} 0
@@ -305,6 +332,9 @@ openstack_nova_quota_key_pairs{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_key_pairs{tenant="demo",type="in_use"} 0
 openstack_nova_quota_key_pairs{tenant="demo",type="limit"} 100
 openstack_nova_quota_key_pairs{tenant="demo",type="reserved"} 0
+openstack_nova_quota_key_pairs{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_key_pairs{tenant="demo_with_attachment",type="limit"} 100
+openstack_nova_quota_key_pairs{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_key_pairs{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_key_pairs{tenant="invisible_to_admin",type="limit"} 100
 openstack_nova_quota_key_pairs{tenant="invisible_to_admin",type="reserved"} 0
@@ -331,6 +361,9 @@ openstack_nova_quota_metadata_items{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_metadata_items{tenant="demo",type="in_use"} 0
 openstack_nova_quota_metadata_items{tenant="demo",type="limit"} 128
 openstack_nova_quota_metadata_items{tenant="demo",type="reserved"} 0
+openstack_nova_quota_metadata_items{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_metadata_items{tenant="demo_with_attachment",type="limit"} 128
+openstack_nova_quota_metadata_items{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_metadata_items{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_metadata_items{tenant="invisible_to_admin",type="limit"} 128
 openstack_nova_quota_metadata_items{tenant="invisible_to_admin",type="reserved"} 0
@@ -357,6 +390,9 @@ openstack_nova_quota_ram{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_ram{tenant="demo",type="in_use"} 0
 openstack_nova_quota_ram{tenant="demo",type="limit"} 51200
 openstack_nova_quota_ram{tenant="demo",type="reserved"} 0
+openstack_nova_quota_ram{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_ram{tenant="demo_with_attachment",type="limit"} 51200
+openstack_nova_quota_ram{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_ram{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_ram{tenant="invisible_to_admin",type="limit"} 51200
 openstack_nova_quota_ram{tenant="invisible_to_admin",type="reserved"} 0
@@ -383,6 +419,9 @@ openstack_nova_quota_security_group_rules{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_security_group_rules{tenant="demo",type="in_use"} 0
 openstack_nova_quota_security_group_rules{tenant="demo",type="limit"} -1
 openstack_nova_quota_security_group_rules{tenant="demo",type="reserved"} 0
+openstack_nova_quota_security_group_rules{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_security_group_rules{tenant="demo_with_attachment",type="limit"} -1
+openstack_nova_quota_security_group_rules{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_security_group_rules{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_security_group_rules{tenant="invisible_to_admin",type="limit"} -1
 openstack_nova_quota_security_group_rules{tenant="invisible_to_admin",type="reserved"} 0
@@ -409,6 +448,9 @@ openstack_nova_quota_security_groups{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_security_groups{tenant="demo",type="in_use"} 0
 openstack_nova_quota_security_groups{tenant="demo",type="limit"} 10
 openstack_nova_quota_security_groups{tenant="demo",type="reserved"} 0
+openstack_nova_quota_security_groups{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_security_groups{tenant="demo_with_attachment",type="limit"} 10
+openstack_nova_quota_security_groups{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_security_groups{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_security_groups{tenant="invisible_to_admin",type="limit"} 10
 openstack_nova_quota_security_groups{tenant="invisible_to_admin",type="reserved"} 0
@@ -435,6 +477,9 @@ openstack_nova_quota_server_group_members{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_server_group_members{tenant="demo",type="in_use"} 0
 openstack_nova_quota_server_group_members{tenant="demo",type="limit"} 10
 openstack_nova_quota_server_group_members{tenant="demo",type="reserved"} 0
+openstack_nova_quota_server_group_members{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_server_group_members{tenant="demo_with_attachment",type="limit"} 10
+openstack_nova_quota_server_group_members{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_server_group_members{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_server_group_members{tenant="invisible_to_admin",type="limit"} 10
 openstack_nova_quota_server_group_members{tenant="invisible_to_admin",type="reserved"} 0
@@ -461,6 +506,9 @@ openstack_nova_quota_server_groups{tenant="alt_demo",type="reserved"} 0
 openstack_nova_quota_server_groups{tenant="demo",type="in_use"} 0
 openstack_nova_quota_server_groups{tenant="demo",type="limit"} 10
 openstack_nova_quota_server_groups{tenant="demo",type="reserved"} 0
+openstack_nova_quota_server_groups{tenant="demo_with_attachment",type="in_use"} 0
+openstack_nova_quota_server_groups{tenant="demo_with_attachment",type="limit"} 10
+openstack_nova_quota_server_groups{tenant="demo_with_attachment",type="reserved"} 0
 openstack_nova_quota_server_groups{tenant="invisible_to_admin",type="in_use"} 0
 openstack_nova_quota_server_groups{tenant="invisible_to_admin",type="limit"} 10
 openstack_nova_quota_server_groups{tenant="invisible_to_admin",type="reserved"} 0

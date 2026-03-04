@@ -22,6 +22,7 @@ openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostnam
 openstack_cinder_limits_backup_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000
 openstack_cinder_limits_backup_max_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 1000
 openstack_cinder_limits_backup_max_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 1000
+openstack_cinder_limits_backup_max_gb{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 1000
 openstack_cinder_limits_backup_max_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 1000
 openstack_cinder_limits_backup_max_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 1000
 openstack_cinder_limits_backup_max_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 1000
@@ -32,6 +33,7 @@ openstack_cinder_limits_backup_max_gb{tenant="swifttenanttest4",tenant_id="4b1eb
 openstack_cinder_limits_backup_used_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
 openstack_cinder_limits_backup_used_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
 openstack_cinder_limits_backup_used_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_cinder_limits_backup_used_gb{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 0
 openstack_cinder_limits_backup_used_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
 openstack_cinder_limits_backup_used_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
 openstack_cinder_limits_backup_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
@@ -42,6 +44,7 @@ openstack_cinder_limits_backup_used_gb{tenant="swifttenanttest4",tenant_id="4b1e
 openstack_cinder_limits_volume_max_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 1000
 openstack_cinder_limits_volume_max_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 1000
 openstack_cinder_limits_volume_max_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 1000
 openstack_cinder_limits_volume_max_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 1000
 openstack_cinder_limits_volume_max_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 1000
 openstack_cinder_limits_volume_max_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 1000
@@ -52,6 +55,7 @@ openstack_cinder_limits_volume_max_gb{tenant="swifttenanttest4",tenant_id="4b1eb
 openstack_cinder_limits_volume_used_gb{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 0
 openstack_cinder_limits_volume_used_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 0
 openstack_cinder_limits_volume_used_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 0
+openstack_cinder_limits_volume_used_gb{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 0
 openstack_cinder_limits_volume_used_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 0
 openstack_cinder_limits_volume_used_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 0
 openstack_cinder_limits_volume_used_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 0
@@ -71,8 +75,8 @@ openstack_cinder_snapshots 1
 openstack_cinder_up 1
 # HELP openstack_cinder_volume_gb volume_gb
 # TYPE openstack_cinder_volume_gb gauge
-openstack_cinder_volume_gb{availability_zone="nova",bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 2
-openstack_cinder_volume_gb{availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
+openstack_cinder_volume_gb{availability_zone="nova",bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",status="in-use",tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 2
+openstack_cinder_volume_gb{availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status volume_status
 # TYPE openstack_cinder_volume_status gauge
 openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
@@ -104,6 +108,7 @@ openstack_cinder_volume_status_counter{status="uploading"} 0
 openstack_cinder_volume_type_quota_gigabytes{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",volume_type="lvmdriver-1"} 1000
 openstack_cinder_volume_type_quota_gigabytes{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",volume_type="lvmdriver-1"} 1000
 openstack_cinder_volume_type_quota_gigabytes{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",volume_type="lvmdriver-1"} 1000
+openstack_cinder_volume_type_quota_gigabytes{tenant="demo_with_attachment",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1000
 openstack_cinder_volume_type_quota_gigabytes{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",volume_type="lvmdriver-1"} 1000
 openstack_cinder_volume_type_quota_gigabytes{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",volume_type="lvmdriver-1"} 1000
 openstack_cinder_volume_type_quota_gigabytes{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",volume_type="lvmdriver-1"} 1000

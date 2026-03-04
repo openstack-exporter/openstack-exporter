@@ -1,0 +1,20 @@
+{
+  "versions": [
+    {
+      "id": "v2.0",
+      "status": "CURRENT",
+      "updated": "2015-11-20T00:00:00Z",
+      "links": [
+        {
+          "href": "http://docs.openstack.org/",
+          "rel": "describedby",
+          "type": "text/html"
+        },
+        {
+          "href": "http://test.cloud/designate/v2/",
+          "rel": "self"
+        }
+      ]
+    }
+  ]
+}

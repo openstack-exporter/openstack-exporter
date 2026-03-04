@@ -1,0 +1,30 @@
+{
+  "default_version": {
+    "status": "CURRENT",
+    "min_version": "1.1",
+    "version": "1.91",
+    "id": "v1",
+    "links": [
+      {
+        "href": "http://test.cloud/ironic/v1/",
+        "rel": "self"
+      }
+    ]
+  },
+  "versions": [
+    {
+      "status": "CURRENT",
+      "min_version": "1.1",
+      "version": "1.91",
+      "id": "v1",
+      "links": [
+        {
+          "href": "http://test.cloud/ironic/v1/",
+          "rel": "self"
+        }
+      ]
+    }
+  ],
+  "name": "OpenStack Ironic API",
+  "description": "Ironic is an OpenStack project which aims to provision baremetal machines."
+}

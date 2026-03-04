@@ -1,0 +1,18 @@
+{
+  "versions": [
+    {
+      "status": "CURRENT",
+      "min_version": "1.1",
+      "max_version": "1.11",
+      "id": "v1",
+      "links": [
+        {
+          "href": "http://test.cloud/container-infra/v1/",
+          "rel": "self"
+        }
+      ]
+    }
+  ],
+  "name": "OpenStack Magnum API",
+  "description": "Magnum is an OpenStack project which aims to provide container management."
+}

@@ -52,6 +52,7 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 }
 
 var fixtures map[string]string = map[string]string{
+	"/container-infra/":              "container_infra_api_discovery",
 	"/container-infra/clusters":      "container_infra_clusters",
 	"/compute/":                      "nova_api_discovery",
 	"/compute/v2.1/":                 "nova_api_v2.1",
@@ -96,13 +97,16 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/agents?binary=ovn-controller": "neutron_ovn_controller_agents",
 	"/neutron/v2.0/routers/f8a44de0-fc8e-45df-93c7-f79bf3b01c95/l3-agents": "neutron_routers_l3_agents",
 	"/neutron/v2.0/routers/9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f/l3-agents": "neutron_routers_l3_agents",
+	"/loadbalancer/":                                                       "loadbalancer_api_discovery",
 	"/loadbalancer/v2.0/lbaas/loadbalancers":                               "loadbalancer_loadbalancers",
 	"/loadbalancer/v2.0/octavia/amphorae":                                  "loadbalancer_amphorae",
 	"/loadbalancer/v2.0/lbaas/pools":                                       "loadbalancer_pools",
+	"/ironic/":                                                             "ironic_api_discovery",
 	"/ironic/v1":                                                           "ironic_v1",
 	"/ironic/nodes":                                                        "ironic_nodes",
 	"/ironic/nodes/detail":                                                 "ironic_nodes",
 	"/volumes":                                                             "cinder_api_discovery",
+	"/volumes/":                                                            "cinder_api_discovery",
 	"/volumes/volumes/detail?all_tenants=true":                             "cinder_volumes",
 	"/volumes/snapshots":                                                   "cinder_snapshots",
 	"/volumes/os-services":                                                 "cinder_os_services",
@@ -131,6 +135,7 @@ var fixtures map[string]string = map[string]string{
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",
 	"/orchestration/stacks":         "heat_stacks",
+	"/placement/":                   "placement_api_discovery",
 	"/placement/resource_providers": "resource_providers",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/inventories": "resource_provider_1_inventory",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",

@@ -50,6 +50,7 @@ var (
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
+	ironicAdditionalLabels   = kingpin.Flag("ironic.additional-labels", "Comma separated list of labels (eg. conductor,conductor_group,extra.rack_id)").Default("").String()
 )
 
 func main() {
@@ -126,7 +127,8 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
+
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *ironicAdditionalLabels, nil, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		errChan <- err
 		return
@@ -135,7 +137,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *ironicAdditionalLabels, nil, logger); err != nil {
 				errChan <- err
 				return
 			}
@@ -249,7 +251,7 @@ func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFu
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *ironicAdditionalLabels, nil, logger)
 			if err != nil {
 				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -291,7 +293,7 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *ironicAdditionalLabels, nil, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				logger.Error("enabling exporter for service failed", "service", service, "error", err)
@@ -340,7 +342,7 @@ func SetPasswordIfVaultIsUsed(logger *slog.Logger) {
 	if !vaultConfig.UseVault {
 		return
 	}
-	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress),)
+	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress))
 	if err != nil {
 		logger.Error("failed to create Vault client", "err", err)
 		os.Exit(1)

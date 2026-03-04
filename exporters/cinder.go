@@ -1,21 +1,21 @@
 package exporters
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
+	"errors"
 	"log/slog"
 
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -99,15 +99,9 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	var allVolumes []VolumeWithExt
-	var volumeListOption volumes.ListOpts
+	volumeListOptions := getVolumeListOptions(exporter.TenantID)
 
-	if exporter.TenantID == "" {
-		volumeListOption = volumes.ListOpts{AllTenants: true}
-	} else {
-		volumeListOption = volumes.ListOpts{TenantID: exporter.TenantID}
-	}
-
-	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOption).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -139,10 +133,9 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	}
 
 	var allVolumes []VolumeWithExt
+	volumeListOptions := getVolumeListOptions(exporter.TenantID)
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumes.ListOpts{
-		AllTenants: true,
-	}).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -209,8 +202,9 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSnapshots []snapshots.Snapshot
+	snapshotListOptions := getSnapshotListOptions(exporter.TenantID)
 
-	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshots.ListOpts{AllTenants: true}).AllPages()
+	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshotListOptions).AllPages()
 	if err != nil {
 		return err
 	}
@@ -314,6 +308,7 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 
 	for _, p := range allProjects {
+		exporter.logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
 		if err != nil {
@@ -352,4 +347,18 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 
 	return nil
+}
+
+func getVolumeListOptions(tenantID string) volumes.ListOpts {
+	if tenantID == "" {
+		return volumes.ListOpts{AllTenants: true}
+	}
+	return volumes.ListOpts{TenantID: tenantID}
+}
+
+func getSnapshotListOptions(tenantID string) snapshots.ListOpts {
+	if tenantID == "" {
+		return snapshots.ListOpts{AllTenants: true}
+	}
+	return snapshots.ListOpts{TenantID: tenantID}
 }

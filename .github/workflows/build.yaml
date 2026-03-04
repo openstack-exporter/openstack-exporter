@@ -9,6 +9,53 @@ on:
   workflow_dispatch:
 
 jobs:
+  hadolint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: reviewdog/action-hadolint@v1.50.5
+        with:
+          fail_level: any
+          filter_mode: nofilter
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: reviewdog/action-shellcheck@v1.30.0
+        with:
+          fail_level: any
+          filter_mode: nofilter
+
+  actionlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: reviewdog/action-actionlint@v1.70.0
+        with:
+          fail_level: any
+          filter_mode: nofilter
+
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: reviewdog/action-markdownlint@v0.26.2
+        with:
+          fail_level: any
+          filter_mode: nofilter
+
+  golangci-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: reviewdog/action-golangci-lint@v2.8.0
+        with:
+          fail_level: any
+          filter_mode: nofilter
+
   build:
     name: Build, test, release
     permissions:
@@ -18,7 +65,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -37,12 +84,12 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: "1.23"
 
       - name: Cache Go modules
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -75,8 +122,8 @@ jobs:
 
       # GoReleaser: full release on tags
       - name: Run GoReleaser (Tag Release)
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: goreleaser/goreleaser-action@v5
+        if: contains(github.ref, 'refs/tags/')
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --clean
@@ -85,8 +132,8 @@ jobs:
 
       # GoReleaser: snapshot on branches / PRs
       - name: Run GoReleaser (Snapshot)
-        if: ${{ !startsWith(github.ref, 'refs/tags/') }}
-        uses: goreleaser/goreleaser-action@v5
+        if: ${{ !contains(github.ref, 'refs/tags/') }}
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --snapshot --clean

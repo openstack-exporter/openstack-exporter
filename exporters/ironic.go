@@ -151,7 +151,7 @@ func computeNodeMetricLabels(additionalLabelsString string) ([]string, error) {
 		// strings.Replace(exporter.IronicAdditionalLabels, ".", "_", -1) is done to convert labels like extra.rack_id to extra_rack_id for prometheus compatibility
 		labels := strings.Split(additionalLabelsString, ",")
 		for _, label := range labels {
-			label = strings.Replace(label, ".", "_", -1)
+			label = strings.ReplaceAll(label, ".", "_")
 			if !additionalLabelNameConstraintRe.MatchString(label) {
 				return nil, fmt.Errorf("label %s is not valid prometheus label name", label)
 			}

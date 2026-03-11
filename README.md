@@ -118,6 +118,10 @@ Flags:
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
       --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
+      --extra-labels=<service>.<metric>:<label>,<key=value> ...
+                                 Attach extra labels to a metric. Repeatable. See "Extra labels" section below.
+      --nova.metadata-extra-labels=LABEL=KEY,KEY ...
+                                 Map provided server metadata keys to labels in openstack_nova_server_status metric
 
       --[no-]disable-service.network
                                  Disable the network service exporter
@@ -290,6 +294,89 @@ OpenStack-Exporter is designed to handle both older and newer microversions grac
 This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
 
 ## Metrics
+
+### Extra labels
+
+The `--extra-labels` flag lets you attach additional labels to any metric without modifying source code.
+It can be repeated to target multiple metrics.
+
+#### Flag format
+
+```
+--extra-labels=<service>.<metric>:<label_spec>[,<label_spec>...]
+```
+
+| Part | Description |
+|---|---|
+| `<service>` | Internal exporter name — the token that appears in the metric name after `openstack_` (e.g. `ironic`, `nova`, `cinder`) |
+| `<metric>` | Metric name suffix (e.g. `node`, `server`, `volume`) |
+| `<label_spec>` | One or more comma-separated label specifications (see below) |
+
+#### Label specification types
+
+**Dynamic label** — value resolved from the API response object at scrape time.
+
+```
+<field_path>
+```
+
+`field_path` is the JSON field name of the API object. Use dot notation to access nested map fields (e.g. `extra.rack_id`). Dots in the path are replaced with underscores to form the Prometheus label name (`extra.rack_id` → label `extra_rack_id`).
+
+**Static (constant) label** — a fixed value applied to every sample of the metric.
+
+```
+<label_name>=<value>
+```
+
+#### Examples
+
+Add the `conductor` field and a static `datacenter` label to all Ironic node metrics:
+
+```sh
+openstack-exporter \
+  --extra-labels=ironic.node:conductor,datacenter=dc1 \
+  mycloud
+```
+
+Add a nested `extra` field as a label:
+
+```sh
+openstack-exporter \
+  --extra-labels=ironic.node:extra.rack_id \
+  mycloud
+```
+
+Target multiple metrics across different services in a single invocation:
+
+```sh
+openstack-exporter \
+  --extra-labels=ironic.node:conductor,extra.rack_id,env=production \
+  --extra-labels=nova.server:hypervisor_hostname,region=eu-west \
+  --extra-labels=cinder.volume:host \
+  mycloud
+```
+
+#### Service name reference
+
+The `<service>` token in `--extra-labels` matches the middle segment of the metric name, **not** the `--disable-service.*` flag name:
+
+| `--disable-service.*` flag | `<service>` token for `--extra-labels` | Example metric |
+|---|---|---|
+| `baremetal` | `ironic` | `openstack_ironic_node` |
+| `compute` | `nova` | `openstack_nova_server_status` |
+| `volume` | `cinder` | `openstack_cinder_volume_status` |
+| `network` | `neutron` | `openstack_neutron_agent_state` |
+| `image` | `glance` | `openstack_glance_image_bytes` |
+| `identity` | `identity` | `openstack_identity_projects` |
+| `load-balancer` | `loadbalancer` | `openstack_loadbalancer_loadbalancer_status` |
+| `dns` | `designate` | `openstack_designate_zones` |
+| `database` | `trove` | `openstack_trove_instance_count_active` |
+| `orchestration` | `heat` | `openstack_heat_stacks_count` |
+| `placement` | `placement` | `openstack_placement_resource_allocation_ratio` |
+| `sharev2` | `sharev2` | `openstack_sharev2_shares` |
+| `container-infra` | `container_infra` | `openstack_container_infra_cluster_count_active` |
+| `object-store` | `object_store` | `openstack_object_store_account_bytes` |
+| `gnocchi` | `gnocchi` | `openstack_gnocchi_status_metrics_count` |
 
 ### Slow metrics
 

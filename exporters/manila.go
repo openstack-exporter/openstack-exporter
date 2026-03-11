@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const MANILA_SERVICE string = "sharev2"
+
 type ManilaExporter struct {
 	BaseOpenStackExporter
 }
@@ -35,7 +37,9 @@ func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExpo
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(MANILA_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(MANILA_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -59,11 +63,13 @@ func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["shares_counter"].Metric,
 		prometheus.GaugeValue, float64(len(allShares)))
 
+	shareGbSpec := exporter.ExtraLabels.Extract(MANILA_SERVICE, "share_gb")
 	// share_gb metrics
 	for _, share := range allShares {
+		extraValues := resolveExtraLabelValues(share, shareGbSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_gb"].Metric,
-			prometheus.GaugeValue, float64(share.Size), share.ID, share.Name,
-			share.Status, share.AvailabilityZone, share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
+			prometheus.GaugeValue, float64(share.Size), append([]string{share.ID, share.Name,
+				share.Status, share.AvailabilityZone, share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID}, extraValues...)...)
 	}
 
 	share_status_counter := map[string]int{
@@ -118,11 +124,13 @@ func ListShareStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
+	shareStatusSpec := exporter.ExtraLabels.Extract(MANILA_SERVICE, "share_status")
 	// Share status metrics
 	for _, share := range allShares {
+		extraValues := resolveExtraLabelValues(share, shareStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_status"].Metric,
-			prometheus.GaugeValue, float64(mapVolumeStatus(share.Status)), share.ID, share.Name,
-			share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
+			prometheus.GaugeValue, float64(mapVolumeStatus(share.Status)), append([]string{share.ID, share.Name,
+				share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID}, extraValues...)...)
 	}
 	return nil
 }

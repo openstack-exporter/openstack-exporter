@@ -28,6 +28,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const NOVA_SERVICE string = "nova"
+
 var server_status = []string{
 	"ACTIVE",
 	"BUILD",             // The server has not finished the original build process.
@@ -134,7 +136,9 @@ func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(NOVA_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(NOVA_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -164,13 +168,15 @@ func ListNovaAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		return err
 	}
 
+	spec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "agent_state")
 	for _, service := range allServices {
 		var state = 0
 		if service.State == "up" {
 			state = 1
 		}
+		extraValues := resolveExtraLabelValues(service, spec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.CounterValue, float64(state), append([]string{service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason}, extraValues...)...)
 	}
 
 	return nil
@@ -214,16 +220,26 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		}
 	}
 
+	runningVmsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "running_vms")
+	currentWorkloadSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "current_workload")
+	vcpusAvailableSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "vcpus_available")
+	vcpusUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "vcpus_used")
+	memoryAvailableSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "memory_available_bytes")
+	memoryUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "memory_used_bytes")
+	localStorageAvailableSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "local_storage_available_bytes")
+	localStorageUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "local_storage_used_bytes")
+	freeDiskSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "free_disk_bytes")
 	for _, hypervisor := range allHypervisors {
 		availabilityZone := ""
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
 			availabilityZone = val
 		}
+		baseLabels := []string{hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap)}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.RunningVMs), append(baseLabels, resolveExtraLabelValues(hypervisor, runningVmsSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), append(baseLabels, resolveExtraLabelValues(hypervisor, currentWorkloadSpec)...)...)
 
 		var vcpus int
 		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
@@ -232,25 +248,25 @@ func ListHypervisors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			vcpus = hypervisor.VCPUs
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
-			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(vcpus), append(baseLabels, resolveExtraLabelValues(hypervisor, vcpusAvailableSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), append(baseLabels, resolveExtraLabelValues(hypervisor, vcpusUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), append(baseLabels, resolveExtraLabelValues(hypervisor, memoryAvailableSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), append(baseLabels, resolveExtraLabelValues(hypervisor, memoryUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), append(baseLabels, resolveExtraLabelValues(hypervisor, localStorageAvailableSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_used_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.LocalGBUsed*GIGABYTE), append(baseLabels, resolveExtraLabelValues(hypervisor, localStorageUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregatesLabel(hypervisor.Service.Host, hostToAggrMap))
+			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), append(baseLabels, resolveExtraLabelValues(hypervisor, freeDiskSpec)...)...)
 
 	}
 
@@ -272,9 +288,11 @@ func ListFlavors(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
+	spec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "flavor")
 	for _, f := range allFlavors {
+		extraValues := resolveExtraLabelValues(f, spec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor"].Metric,
-			prometheus.GaugeValue, 1, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
+			prometheus.GaugeValue, 1, append([]string{f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic)}, extraValues...)...)
 	}
 
 	return nil
@@ -310,6 +328,20 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		return err
 	}
 
+	quotaCoresSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_cores")
+	quotaInstancesSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_instances")
+	quotaKeyPairsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_key_pairs")
+	quotaMetadataItemsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_metadata_items")
+	quotaRamSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_ram")
+	quotaServerGroupsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_server_groups")
+	quotaServerGroupMembersSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_server_group_members")
+	quotaFixedIPsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_fixed_ips")
+	quotaFloatingIPsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_floating_ips")
+	quotaSecurityGroupRulesSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_security_group_rules")
+	quotaSecurityGroupsSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_security_groups")
+	quotaInjectedFileContentBytesSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_injected_file_content_bytes")
+	quotaInjectedFilePathBytesSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_injected_file_path_bytes")
+	quotaInjectedFilesSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "quota_injected_files")
 	for _, p := range allProjects {
 		quotaSet, err := quotasets.GetDetail(exporter.Client, p.ID).Extract()
 		if err != nil {
@@ -317,89 +349,89 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaCoresSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaCoresSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_cores"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Cores.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Cores.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaCoresSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaInstancesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaInstancesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_instances"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.Instances.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.Instances.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaInstancesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaKeyPairsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaKeyPairsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_key_pairs"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.KeyPairs.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaKeyPairsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaMetadataItemsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaMetadataItemsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_metadata_items"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.MetadataItems.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaMetadataItemsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaRamSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaRamSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_ram"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.RAM.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.RAM.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaRamSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaServerGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaServerGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaServerGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaServerGroupMembersSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaServerGroupMembersSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_server_group_members"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroupMembers.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaServerGroupMembersSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaFixedIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaFixedIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_fixed_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FixedIPs.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaFixedIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaFloatingIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaFloatingIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floating_ips"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.FloatingIPs.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaFloatingIPsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRulesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRulesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rules"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.SecurityGroupRules.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRulesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_groups"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.ServerGroups.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupsSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaInjectedFileContentBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaInjectedFileContentBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_content_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFileContentBytes.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaInjectedFileContentBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilePathBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilePathBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_file_path_bytes"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFilePathBytes.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilePathBytesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.InUse), "in_use", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.InUse), append([]string{"in_use", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_injected_files"].Metric,
-			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quotaSet.InjectedFiles.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaInjectedFilesSpec)...)...)
 	}
 	return nil
 }
@@ -505,8 +537,9 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 			}()
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
 
+			extraValues := resolveExtraLabelValues(server, exporter.ExtraLabels.Extract(NOVA_SERVICE, "server_status"))
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, metadataValues...), extraValues...)...)
 		}
 	}
 	return nil
@@ -542,6 +575,12 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		return err
 	}
 
+	vcpusMaxSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_vcpus_max")
+	vcpusUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_vcpus_used")
+	memMaxSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_memory_max")
+	memUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_memory_used")
+	instUsedSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_instances_used")
+	instMaxSpec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "limits_instances_max")
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
 		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
@@ -549,23 +588,24 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 			return err
 		}
 
+		baseLabels := []string{p.Name, p.ID}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), append(baseLabels, resolveExtraLabelValues(p, vcpusMaxSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), append(baseLabels, resolveExtraLabelValues(p, vcpusUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), append(baseLabels, resolveExtraLabelValues(p, memMaxSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), append(baseLabels, resolveExtraLabelValues(p, memUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalInstancesUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalInstancesUsed), append(baseLabels, resolveExtraLabelValues(p, instUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), append(baseLabels, resolveExtraLabelValues(p, instMaxSpec)...)...)
 	}
 
 	return nil
@@ -583,11 +623,13 @@ func ListUsage(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 		return err
 	}
 
+	spec := exporter.ExtraLabels.Extract(NOVA_SERVICE, "server_local_gb")
 	// Server status metrics
 	for _, tenant := range allTenantsUsage {
 		for _, server := range tenant.ServerUsages {
+			extraValues := resolveExtraLabelValues(server, spec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_local_gb"].Metric,
-				prometheus.GaugeValue, float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
+				prometheus.GaugeValue, float64(server.LocalGB), append([]string{server.Name, server.InstanceID, tenant.TenantID}, extraValues...)...)
 		}
 
 	}

@@ -35,6 +35,8 @@ func mapInstanceStatus(current string) int {
 	return -1
 }
 
+const TROVE_SERVICE string = "trove"
+
 type TroveExporter struct {
 	BaseOpenStackExporter
 }
@@ -99,7 +101,9 @@ func NewTroveExporter(config *ExporterConfig, logger *slog.Logger) (*TroveExport
 
 	for _, metric := range defaultTroveMetrics {
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(TROVE_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(TROVE_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -118,15 +122,18 @@ func ListAllInstances(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_instances"].Metric,
 		prometheus.GaugeValue, float64(len(allInstances)))
+	instanceStatusSpec := exporter.ExtraLabels.Extract(TROVE_SERVICE, "instance_status")
+	volumeSizeSpec := exporter.ExtraLabels.Extract(TROVE_SERVICE, "instance_volume_size_gb")
+	volumeUsedSpec := exporter.ExtraLabels.Extract(TROVE_SERVICE, "instance_volume_used_gb")
 	for _, instance := range allInstances {
 		labelValues := []string{instance.Datastore.Type, instance.Datastore.Version,
 			instance.HealthStatus, instance.ID, instance.Name, instance.Region, instance.Status, instance.TenantID}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_status"].Metric,
-			prometheus.GaugeValue, float64(mapInstanceStatus(instance.Status)), labelValues...)
+			prometheus.GaugeValue, float64(mapInstanceStatus(instance.Status)), append(labelValues, resolveExtraLabelValues(instance, instanceStatusSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_volume_size_gb"].Metric,
-			prometheus.GaugeValue, float64(instance.Volume.Size), labelValues...)
+			prometheus.GaugeValue, float64(instance.Volume.Size), append(labelValues, resolveExtraLabelValues(instance, volumeSizeSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_volume_used_gb"].Metric,
-			prometheus.GaugeValue, instance.Volume.Used, labelValues...)
+			prometheus.GaugeValue, instance.Volume.Used, append(labelValues, resolveExtraLabelValues(instance, volumeUsedSpec)...)...)
 	}
 
 	return nil

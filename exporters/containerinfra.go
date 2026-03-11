@@ -38,6 +38,8 @@ func mapClusterStatus(current string) int {
 	return -1
 }
 
+const CONTAINER_INFRA_SERVICE string = "container_infra"
+
 type ContainerInfraExporter struct {
 	BaseOpenStackExporter
 }
@@ -62,7 +64,9 @@ func NewContainerInfraExporter(config *ExporterConfig, logger *slog.Logger) (*Co
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(CONTAINER_INFRA_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(CONTAINER_INFRA_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 	return &exporter, nil
@@ -80,17 +84,20 @@ func ListAllClusters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_clusters"].Metric,
 		prometheus.GaugeValue, float64(len(allClusters)))
+	clusterMastersSpec := exporter.ExtraLabels.Extract(CONTAINER_INFRA_SERVICE, "cluster_masters")
+	clusterNodesSpec := exporter.ExtraLabels.Extract(CONTAINER_INFRA_SERVICE, "cluster_nodes")
+	clusterStatusSpec := exporter.ExtraLabels.Extract(CONTAINER_INFRA_SERVICE, "cluster_status")
 	// Cluster status metrics
 	for _, cluster := range allClusters {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_masters"].Metric,
-			prometheus.GaugeValue, float64(cluster.MasterCount), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), cluster.ProjectID)
+			prometheus.GaugeValue, float64(cluster.MasterCount), append([]string{cluster.UUID, cluster.Name,
+				cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), cluster.ProjectID}, resolveExtraLabelValues(cluster, clusterMastersSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_nodes"].Metric,
-			prometheus.GaugeValue, float64(cluster.NodeCount), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
+			prometheus.GaugeValue, float64(cluster.NodeCount), append([]string{cluster.UUID, cluster.Name,
+				cluster.StackID, cluster.Status, strconv.Itoa(cluster.MasterCount), cluster.ProjectID}, resolveExtraLabelValues(cluster, clusterNodesSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_status"].Metric,
-			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
+			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), append([]string{cluster.UUID, cluster.Name,
+				cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID}, resolveExtraLabelValues(cluster, clusterStatusSpec)...)...)
 	}
 	return nil
 }

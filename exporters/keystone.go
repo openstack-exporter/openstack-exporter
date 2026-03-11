@@ -13,6 +13,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const KEYSTONE_SERVICE string = "identity"
+
 type KeystoneExporter struct {
 	BaseOpenStackExporter
 }
@@ -41,7 +43,9 @@ func NewKeystoneExporter(config *ExporterConfig, logger *slog.Logger) (*Keystone
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(KEYSTONE_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(KEYSTONE_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -63,10 +67,12 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
 	if !exporter.MetricIsDisabled("domain_info") {
+		domainInfoSpec := exporter.ExtraLabels.Extract(KEYSTONE_SERVICE, "domain_info")
 		for _, d := range allDomains {
+			extraValues := resolveExtraLabelValues(d, domainInfoSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
 				prometheus.GaugeValue, 1.0,
-				d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
+				append([]string{d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name}, extraValues...)...)
 		}
 	}
 	return nil
@@ -88,11 +94,13 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
 	if !exporter.MetricIsDisabled("project_info") {
+		projectInfoSpec := exporter.ExtraLabels.Extract(KEYSTONE_SERVICE, "project_info")
 		for _, p := range allProjects {
+			extraValues := resolveExtraLabelValues(p, projectInfoSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
-				prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
-				p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name,
-				p.ParentID, strings.Join(p.Tags, ","))
+				prometheus.GaugeValue, 1.0, append([]string{strconv.FormatBool(p.IsDomain),
+					p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name,
+					p.ParentID, strings.Join(p.Tags, ",")}, extraValues...)...)
 		}
 	}
 	return nil

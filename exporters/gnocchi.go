@@ -8,6 +8,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const GNOCCHI_SERVICE string = "gnocchi"
+
 type GnocchiExporter struct {
 	BaseOpenStackExporter
 }
@@ -32,7 +34,9 @@ func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiEx
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(GNOCCHI_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(GNOCCHI_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 	return &exporter, nil

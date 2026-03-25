@@ -13,7 +13,7 @@ type NeutronTestSuite struct {
 
 var neutronExpectedUp = `
 # HELP openstack_neutron_agent_state agent_state
-# TYPE openstack_neutron_agent_state counter
+# TYPE openstack_neutron_agent_state gauge
 openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="04c62b91-b799-48b7-9cd5-2982db6df9c6",service="neutron-openvswitch-agent"} 1
 openstack_neutron_agent_state{adminState="up",availability_zone="",hostname="agenthost1",id="2bf84eaf-d869-49cc-8401-cbbca5177e59",service="neutron-lbaasv2-agent"} 1
 openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="840d5d68-5759-4e9e-812f-f3bd19214c7f",service="neutron-dhcp-agent"} 1

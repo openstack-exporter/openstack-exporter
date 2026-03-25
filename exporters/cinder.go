@@ -253,7 +253,7 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), id, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.GaugeValue, float64(state), id, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
 	}
 
 	return nil

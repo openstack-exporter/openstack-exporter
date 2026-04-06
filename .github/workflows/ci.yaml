@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
-      - uses: reviewdog/action-actionlint@83e4ed25b168066ad8f62f5afbb29ebd8641d982 # v1.69.1
+      - uses: reviewdog/action-actionlint@e58ee9d111489c31395fbe4857b0be6e7635dbda # v1.70.0
         with:
           fail_level: any
           filter_mode: nofilter
@@ -83,7 +83,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: 1.26
 
@@ -121,7 +121,7 @@ jobs:
       # This step runs ONLY when a tag is pushed
       - name: Run GoReleaser (Tag Release)
         if: contains(github.ref, 'refs/tags/')
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --clean
@@ -131,7 +131,7 @@ jobs:
       # This step runs on anything EXCEPT tags
       - name: Run GoReleaser (Snapshot)
         if: ${{ !contains(github.ref, 'refs/tags/') }}
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v7
         with:
           version: latest
           args: release --snapshot --clean

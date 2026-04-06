@@ -147,7 +147,7 @@ func TestBufferFromCache(t *testing.T) {
 	buf, err := BufferFromCache(cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})))
 	assert.NoError(err)
 
-	parser := expfmt.NewTextParser(model.LegacyValidation)
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	metricFamilies, err := parser.TextToMetricFamilies(bytes.NewReader(buf.Bytes()))
 	assert.NoError(err)
 
@@ -200,7 +200,7 @@ func TestWriteCacheToResponse(t *testing.T) {
 	assert.Equal(rr.Code, http.StatusOK, "handler returned wrong status code")
 	assert.NotEmpty(rr.Header().Get("Content-Type"), "missing Content-Type header")
 
-	parser := expfmt.NewTextParser(model.LegacyValidation)
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	metricFamilies, err := parser.TextToMetricFamilies(rr.Body)
 	assert.NoError(err)
 

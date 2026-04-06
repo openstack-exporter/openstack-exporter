@@ -27,6 +27,8 @@ var recordset_status = []string{
 	"error",
 }
 
+const DefaultRecordsetLimit = 1000
+
 func mapZoneStatus(zoneStatus string) int {
 	for idx, status := range zone_status {
 		if status == strings.ToLower(zoneStatus) {
@@ -90,7 +92,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 		prometheus.GaugeValue, float64(len(allZones)))
 
 	// Fetch all recordsets in one go (Designate API supports listing across all zones)
-	allPagesRecordsets, err := recordsets.ListRecordSets(exporter.Client, "all", recordsets.ListOpts{Limit: 1000}).AllPages()
+	allPagesRecordsets, err := recordsets.ListRecordSets(exporter.Client, "all", recordsets.ListOpts{Limit: DefaultRecordsetLimit}).AllPages()
 	if err != nil {
 		return err
 	}

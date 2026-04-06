@@ -158,66 +158,9 @@ func AcceptanceTestChoicesFromEnv() (*AcceptanceTestChoices, error) {
 	}, nil
 }
 
-// NewBlockStorageV1Client returns a *ServiceClient for making calls
-// to the OpenStack Block Storage v1 API. An error will be returned
-// if authentication or client creation was not possible.
-func NewBlockStorageV1Client() (*gophercloud.ServiceClient, error) {
-	client, err := newAuthenticatedClient()
-	if err != nil {
-		return nil, err
-	}
 
-	return openstack.NewBlockStorageV1(client, gophercloud.EndpointOpts{
-		Region: os.Getenv("OS_REGION_NAME"),
-	})
-}
 
-// NewBlockStorageV2Client returns a *ServiceClient for making calls
-// to the OpenStack Block Storage v2 API. An error will be returned
-// if authentication or client creation was not possible.
-func NewBlockStorageV2Client() (*gophercloud.ServiceClient, error) {
-	client, err := newAuthenticatedClient()
-	if err != nil {
-		return nil, err
-	}
 
-	return openstack.NewBlockStorageV2(client, gophercloud.EndpointOpts{
-		Region: os.Getenv("OS_REGION_NAME"),
-	})
-}
-
-// NewBlockStorageV3Client returns a *ServiceClient for making calls
-// to the OpenStack Block Storage v3 API. An error will be returned
-// if authentication or client creation was not possible.
-func NewBlockStorageV3Client() (*gophercloud.ServiceClient, error) {
-	client, err := newAuthenticatedClient()
-	if err != nil {
-		return nil, err
-	}
-
-	return openstack.NewBlockStorageV3(client, gophercloud.EndpointOpts{
-		Region: os.Getenv("OS_REGION_NAME"),
-	})
-}
-
-// NewBlockStorageV2NoAuthClient returns a noauth *ServiceClient for
-// making calls to the OpenStack Block Storage v2 API. An error will be
-// returned if client creation was not possible.
-func NewBlockStorageV2NoAuthClient() (*gophercloud.ServiceClient, error) {
-	client, err := blockstorageNoAuth.NewClient(gophercloud.AuthOptions{
-		Username:   os.Getenv("OS_USERNAME"),
-		TenantName: os.Getenv("OS_TENANT_NAME"),
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	client = configureDebug(client)
-
-	return blockstorageNoAuth.NewBlockStorageNoAuthV2(client, blockstorageNoAuth.EndpointOpts{
-		CinderEndpoint: os.Getenv("CINDER_ENDPOINT"),
-	})
-}
 
 // NewBlockStorageV3NoAuthClient returns a noauth *ServiceClient for
 // making calls to the OpenStack Block Storage v3 API. An error will be

@@ -173,7 +173,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, func() (string, error) {
 		return DEFAULT_UUID, nil
-	}, logger)
+	}, 1000, logger)
 
 	if err != nil {
 		panic(err)

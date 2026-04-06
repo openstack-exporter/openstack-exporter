@@ -1,0 +1,9 @@
+{
+    "stats": {
+        "active_connections": 10,
+        "bytes_in": 1024,
+        "bytes_out": 2048,
+        "request_errors": 2,
+        "total_connections": 500
+    }
+}

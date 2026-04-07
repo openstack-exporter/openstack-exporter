@@ -78,6 +78,11 @@ type LoadbalancerExporter struct {
 var defaultLoadbalancerMetrics = []Metric{
 	{Name: "total_loadbalancers", Fn: ListAllLoadbalancers},
 	{Name: "loadbalancer_status", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
+	{Name: "stats_bytes_in", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
+	{Name: "stats_bytes_out", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
+	{Name: "stats_active_connections", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
+	{Name: "stats_total_connections", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
+	{Name: "stats_request_errors", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
 	{Name: "total_pools", Fn: ListAllPools},
@@ -116,6 +121,27 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancer_status"].Metric,
 			prometheus.GaugeValue, float64(mapLoadbalancerStatus(loadbalancer.OperatingStatus)), loadbalancer.ID, loadbalancer.Name, loadbalancer.ProjectID,
 			loadbalancer.OperatingStatus, loadbalancer.ProvisioningStatus, loadbalancer.Provider, loadbalancer.VipAddress)
+
+		// Loadbalancer stats metrics
+		stats, err := loadbalancers.GetStats(exporter.Client, loadbalancer.ID).Extract()
+		if err != nil {
+			exporter.logger.Warn("failed to get loadbalancer stats", "id", loadbalancer.ID, "error", err)
+			continue
+		}
+
+		labelValues := []string{loadbalancer.ID, loadbalancer.Name, loadbalancer.ProjectID,
+			loadbalancer.OperatingStatus, loadbalancer.ProvisioningStatus, loadbalancer.Provider, loadbalancer.VipAddress}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_bytes_in"].Metric,
+			prometheus.GaugeValue, float64(stats.BytesIn), labelValues...)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_bytes_out"].Metric,
+			prometheus.GaugeValue, float64(stats.BytesOut), labelValues...)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_active_connections"].Metric,
+			prometheus.GaugeValue, float64(stats.ActiveConnections), labelValues...)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_total_connections"].Metric,
+			prometheus.GaugeValue, float64(stats.TotalConnections), labelValues...)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_request_errors"].Metric,
+			prometheus.GaugeValue, float64(stats.RequestErrors), labelValues...)
 	}
 	return nil
 }

@@ -11,7 +11,7 @@ type LoadbalancerTestSuite struct {
 	BaseOpenStackTestSuite
 }
 
-var loadbalancerExpectedUp = `                       
+var loadbalancerExpectedUp = `
 # HELP openstack_loadbalancer_pool_status pool_status
 # TYPE openstack_loadbalancer_pool_status gauge
 openstack_loadbalancer_pool_status{id="ca00ed86-94e3-440e-95c6-ffa35531081e",lb_algorithm="ROUND_ROBIN",loadbalancers="e7284bb2-f46a-42ca-8c9b-e08671255125",name="my_test_pool",operating_status="ERROR",project_id="8b1632d90bfe407787d9996b7f662fd7",protocol="TCP",provisioning_status="ACTIVE"} 0
@@ -22,6 +22,21 @@ openstack_loadbalancer_amphora_status{cert_expiration="2020-08-08T23:44:30Z",com
 # HELP openstack_loadbalancer_loadbalancer_status loadbalancer_status
 # TYPE openstack_loadbalancer_loadbalancer_status gauge
 openstack_loadbalancer_loadbalancer_status{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 0
+# HELP openstack_loadbalancer_stats_active_connections stats_active_connections
+# TYPE openstack_loadbalancer_stats_active_connections gauge
+openstack_loadbalancer_stats_active_connections{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 8
+# HELP openstack_loadbalancer_stats_bytes_in stats_bytes_in
+# TYPE openstack_loadbalancer_stats_bytes_in gauge
+openstack_loadbalancer_stats_bytes_in{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 2.233408e+06
+# HELP openstack_loadbalancer_stats_bytes_out stats_bytes_out
+# TYPE openstack_loadbalancer_stats_bytes_out gauge
+openstack_loadbalancer_stats_bytes_out{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 1.357932e+06
+# HELP openstack_loadbalancer_stats_request_errors stats_request_errors
+# TYPE openstack_loadbalancer_stats_request_errors gauge
+openstack_loadbalancer_stats_request_errors{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 5
+# HELP openstack_loadbalancer_stats_total_connections stats_total_connections
+# TYPE openstack_loadbalancer_stats_total_connections gauge
+openstack_loadbalancer_stats_total_connections{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 524
 # HELP openstack_loadbalancer_total_amphorae total_amphorae
 # TYPE openstack_loadbalancer_total_amphorae gauge
 openstack_loadbalancer_total_amphorae 2

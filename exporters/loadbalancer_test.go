@@ -22,6 +22,21 @@ openstack_loadbalancer_amphora_status{cert_expiration="2020-08-08T23:44:30Z",com
 # HELP openstack_loadbalancer_loadbalancer_status loadbalancer_status
 # TYPE openstack_loadbalancer_loadbalancer_status gauge
 openstack_loadbalancer_loadbalancer_status{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 0
+# HELP openstack_loadbalancer_listener_stats_active_connections listener_stats_active_connections
+# TYPE openstack_loadbalancer_listener_stats_active_connections gauge
+openstack_loadbalancer_listener_stats_active_connections{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 3
+# HELP openstack_loadbalancer_listener_stats_bytes_in listener_stats_bytes_in
+# TYPE openstack_loadbalancer_listener_stats_bytes_in gauge
+openstack_loadbalancer_listener_stats_bytes_in{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 1.048576e+06
+# HELP openstack_loadbalancer_listener_stats_bytes_out listener_stats_bytes_out
+# TYPE openstack_loadbalancer_listener_stats_bytes_out gauge
+openstack_loadbalancer_listener_stats_bytes_out{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 524288
+# HELP openstack_loadbalancer_listener_stats_request_errors listener_stats_request_errors
+# TYPE openstack_loadbalancer_listener_stats_request_errors gauge
+openstack_loadbalancer_listener_stats_request_errors{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 2
+# HELP openstack_loadbalancer_listener_stats_total_connections listener_stats_total_connections
+# TYPE openstack_loadbalancer_listener_stats_total_connections gauge
+openstack_loadbalancer_listener_stats_total_connections{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 150
 # HELP openstack_loadbalancer_stats_active_connections stats_active_connections
 # TYPE openstack_loadbalancer_stats_active_connections gauge
 openstack_loadbalancer_stats_active_connections{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 8
@@ -40,6 +55,9 @@ openstack_loadbalancer_stats_total_connections{id="607226db-27ef-4d41-ae89-f2a80
 # HELP openstack_loadbalancer_total_amphorae total_amphorae
 # TYPE openstack_loadbalancer_total_amphorae gauge
 openstack_loadbalancer_total_amphorae 2
+# HELP openstack_loadbalancer_total_listeners total_listeners
+# TYPE openstack_loadbalancer_total_listeners gauge
+openstack_loadbalancer_total_listeners 1
 # HELP openstack_loadbalancer_total_loadbalancers total_loadbalancers
 # TYPE openstack_loadbalancer_total_loadbalancers gauge
 openstack_loadbalancer_total_loadbalancers 1

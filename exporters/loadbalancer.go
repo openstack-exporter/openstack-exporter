@@ -2,9 +2,11 @@ package exporters
 
 import (
 	"log/slog"
+	"strconv"
 	"time"
 
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
+	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/listeners"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
 	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/pools"
 	"github.com/prometheus/client_golang/prometheus"
@@ -77,6 +79,8 @@ type LoadbalancerExporter struct {
 
 var loadbalancerMetricLabels = []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}
 
+var listenerStatsMetricLabels = []string{"id", "name", "project_id", "operating_status", "provisioning_status", "protocol", "protocol_port", "loadbalancer_id"}
+
 var defaultLoadbalancerMetrics = []Metric{
 	{Name: "total_loadbalancers", Fn: ListAllLoadbalancers},
 	{Name: "loadbalancer_status", Labels: loadbalancerMetricLabels},
@@ -85,6 +89,12 @@ var defaultLoadbalancerMetrics = []Metric{
 	{Name: "stats_active_connections", Labels: loadbalancerMetricLabels, Slow: true},
 	{Name: "stats_total_connections", Labels: loadbalancerMetricLabels, Slow: true},
 	{Name: "stats_request_errors", Labels: loadbalancerMetricLabels, Slow: true},
+	{Name: "total_listeners", Fn: ListAllListeners},
+	{Name: "listener_stats_bytes_in", Labels: listenerStatsMetricLabels, Slow: true},
+	{Name: "listener_stats_bytes_out", Labels: listenerStatsMetricLabels, Slow: true},
+	{Name: "listener_stats_active_connections", Labels: listenerStatsMetricLabels, Slow: true},
+	{Name: "listener_stats_total_connections", Labels: listenerStatsMetricLabels, Slow: true},
+	{Name: "listener_stats_request_errors", Labels: listenerStatsMetricLabels, Slow: true},
 	{Name: "total_amphorae", Fn: ListAllAmphorae},
 	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
 	{Name: "total_pools", Fn: ListAllPools},
@@ -146,6 +156,60 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_total_connections"].Metric,
 				prometheus.GaugeValue, float64(stats.TotalConnections), labelValues...)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["stats_request_errors"].Metric,
+				prometheus.GaugeValue, float64(stats.RequestErrors), labelValues...)
+		}
+	}
+	return nil
+}
+
+func listenerLbsLabels(lbs []listeners.LoadBalancerID) string {
+	label := ""
+	for i, l := range lbs {
+		if i == 0 {
+			label += l.ID
+		} else {
+			label += "," + l.ID
+		}
+	}
+	return label
+}
+
+func ListAllListeners(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allListeners []listeners.Listener
+	allPagesListeners, err := listeners.List(exporter.Client, listeners.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+	allListeners, err = listeners.ExtractListeners(allPagesListeners)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_listeners"].Metric,
+		prometheus.GaugeValue, float64(len(allListeners)))
+
+	// Listener stats metrics (only if enabled)
+	if _, hasStatsMetrics := exporter.Metrics["listener_stats_bytes_in"]; hasStatsMetrics {
+		for _, listener := range allListeners {
+			stats, err := listeners.GetStats(exporter.Client, listener.ID).Extract()
+			if err != nil {
+				exporter.logger.Warn("failed to get listener stats", "id", listener.ID, "error", err)
+				continue
+			}
+
+			labelValues := []string{listener.ID, listener.Name, listener.ProjectID,
+				listener.OperatingStatus, listener.ProvisioningStatus, listener.Protocol,
+				strconv.Itoa(listener.ProtocolPort), listenerLbsLabels(listener.Loadbalancers)}
+
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["listener_stats_bytes_in"].Metric,
+				prometheus.GaugeValue, float64(stats.BytesIn), labelValues...)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["listener_stats_bytes_out"].Metric,
+				prometheus.GaugeValue, float64(stats.BytesOut), labelValues...)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["listener_stats_active_connections"].Metric,
+				prometheus.GaugeValue, float64(stats.ActiveConnections), labelValues...)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["listener_stats_total_connections"].Metric,
+				prometheus.GaugeValue, float64(stats.TotalConnections), labelValues...)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["listener_stats_request_errors"].Metric,
 				prometheus.GaugeValue, float64(stats.RequestErrors), labelValues...)
 		}
 	}

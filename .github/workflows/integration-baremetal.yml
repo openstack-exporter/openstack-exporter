@@ -21,10 +21,25 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Configure apt network retries
+        run: |
+          sudo tee /etc/apt/apt.conf.d/99-ci-network-timeouts >/dev/null <<'EOF'
+          Acquire::Retries "5";
+          Acquire::http::Timeout "30";
+          Acquire::https::Timeout "30";
+          EOF
+
       - name: Work around broken dnsmasq
         run: sudo apt-get purge -y dnsmasq-base
 
+      - name: Preinstall Ironic VM dependencies
+        timeout-minutes: 20
+        run: |
+          sudo apt-get update
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-misc
+
       - name: Deploy devstack
+        timeout-minutes: 120
         uses: gophercloud/devstack-action@60ca1042045c0c9e3e001c64575d381654ffcba1 # v0.19
         with:
           branch: ${{ matrix.openstack_version }}

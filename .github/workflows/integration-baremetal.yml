@@ -23,18 +23,7 @@ jobs:
 
       - name: Configure apt mirror and network retries
         run: |
-          mirror_url="http://archive.ubuntu.com/ubuntu"
-          for apt_file in \
-            /etc/apt/apt-mirrors.txt \
-            /etc/apt/sources.list \
-            /etc/apt/sources.list.d/*.list \
-            /etc/apt/sources.list.d/*.sources; do
-            if [ -f "${apt_file}" ]; then
-              sudo sed -i -E "s#http://[a-z0-9.-]*archive\.ubuntu\.com/ubuntu/?#${mirror_url}#g" "${apt_file}"
-            fi
-          done
-          grep -R "ubuntu.com/ubuntu" /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d || true
-
+          sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/apt-mirrors.txt
           sudo tee /etc/apt/apt.conf.d/99-ci-network-timeouts >/dev/null <<'EOF'
           Acquire::Retries "5";
           Acquire::http::Timeout "30";
@@ -43,12 +32,6 @@ jobs:
 
       - name: Work around broken dnsmasq
         run: sudo apt-get purge -y dnsmasq-base
-
-      - name: Preinstall Ironic VM dependencies
-        timeout-minutes: 20
-        run: |
-          sudo apt-get update
-          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y qemu-system-misc
 
       - name: Deploy devstack
         timeout-minutes: 120

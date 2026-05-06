@@ -340,7 +340,7 @@ func SetPasswordIfVaultIsUsed(logger *slog.Logger) {
 	if !vaultConfig.UseVault {
 		return
 	}
-	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress),)
+	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress))
 	if err != nil {
 		logger.Error("failed to create Vault client", "err", err)
 		os.Exit(1)

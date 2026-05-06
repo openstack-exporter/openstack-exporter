@@ -31,9 +31,10 @@ openstack_identity_project_info{description="",domain_id="default",enabled="true
 openstack_identity_project_info{description="",domain_id="default",enabled="true",id="5961c443439d4fcebe42643723755e9d",is_domain="false",name="invisible_to_admin",parent_id="",tags=""} 1
 openstack_identity_project_info{description="",domain_id="default",enabled="true",id="fdb8424c4e4f4c0ba32c52e2de3bd80e",is_domain="false",name="alt_demo",parent_id="",tags=""} 1
 openstack_identity_project_info{description="This is a demo project.",domain_id="default",enabled="true",id="0cbd49cbf76d405d9c86562e1d579bd3",is_domain="false",name="demo",parent_id="",tags=""} 1
+openstack_identity_project_info{description="",domain_id="default",enabled="true",id="bab7d5c60cd041a0a36f7c4b6e1dd978",is_domain="false",name="demo_with_attachment",parent_id="",tags=""} 1
 # HELP openstack_identity_projects projects
 # TYPE openstack_identity_projects gauge
-openstack_identity_projects 8
+openstack_identity_projects 9
 # HELP openstack_identity_regions regions
 # TYPE openstack_identity_regions gauge
 openstack_identity_regions 1

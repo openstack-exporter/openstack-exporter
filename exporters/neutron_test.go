@@ -79,6 +79,9 @@ openstack_neutron_quota_floatingip{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_floatingip{tenant="demo",type="used"} 0
 openstack_neutron_quota_floatingip{tenant="demo",type="limit"} 50
 openstack_neutron_quota_floatingip{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_floatingip{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_floatingip{tenant="demo_with_attachment",type="limit"} 50
+openstack_neutron_quota_floatingip{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_floatingip{tenant="service",type="used"} 0
 openstack_neutron_quota_floatingip{tenant="service",type="limit"} 50
 openstack_neutron_quota_floatingip{tenant="service",type="reserved"} 0
@@ -105,6 +108,9 @@ openstack_neutron_quota_network{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_network{tenant="demo",type="used"} 0
 openstack_neutron_quota_network{tenant="demo",type="limit"} 100
 openstack_neutron_quota_network{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_network{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_network{tenant="demo_with_attachment",type="limit"} 100
+openstack_neutron_quota_network{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_network{tenant="service",type="used"} 0
 openstack_neutron_quota_network{tenant="service",type="limit"} 100
 openstack_neutron_quota_network{tenant="service",type="reserved"} 0
@@ -131,6 +137,9 @@ openstack_neutron_quota_port{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_port{tenant="demo",type="used"} 0
 openstack_neutron_quota_port{tenant="demo",type="limit"} 100
 openstack_neutron_quota_port{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_port{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_port{tenant="demo_with_attachment",type="limit"} 100
+openstack_neutron_quota_port{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_port{tenant="service",type="used"} 0
 openstack_neutron_quota_port{tenant="service",type="limit"} 100
 openstack_neutron_quota_port{tenant="service",type="reserved"} 0
@@ -157,6 +166,9 @@ openstack_neutron_quota_rbac_policy{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_rbac_policy{tenant="demo",type="used"} 0
 openstack_neutron_quota_rbac_policy{tenant="demo",type="limit"} 10
 openstack_neutron_quota_rbac_policy{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_rbac_policy{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_rbac_policy{tenant="demo_with_attachment",type="limit"} 10
+openstack_neutron_quota_rbac_policy{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_rbac_policy{tenant="service",type="used"} 0
 openstack_neutron_quota_rbac_policy{tenant="service",type="limit"} 10
 openstack_neutron_quota_rbac_policy{tenant="service",type="reserved"} 0
@@ -183,6 +195,9 @@ openstack_neutron_quota_router{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_router{tenant="demo",type="used"} 0
 openstack_neutron_quota_router{tenant="demo",type="limit"} 10
 openstack_neutron_quota_router{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_router{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_router{tenant="demo_with_attachment",type="limit"} 10
+openstack_neutron_quota_router{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_router{tenant="service",type="used"} 0
 openstack_neutron_quota_router{tenant="service",type="limit"} 10
 openstack_neutron_quota_router{tenant="service",type="reserved"} 0
@@ -209,6 +224,9 @@ openstack_neutron_quota_security_group_rule{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_security_group_rule{tenant="demo",type="used"} 0
 openstack_neutron_quota_security_group_rule{tenant="demo",type="limit"} 100
 openstack_neutron_quota_security_group_rule{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_security_group_rule{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_security_group_rule{tenant="demo_with_attachment",type="limit"} 100
+openstack_neutron_quota_security_group_rule{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_security_group_rule{tenant="service",type="used"} 0
 openstack_neutron_quota_security_group_rule{tenant="service",type="limit"} 100
 openstack_neutron_quota_security_group_rule{tenant="service",type="reserved"} 0
@@ -235,6 +253,9 @@ openstack_neutron_quota_security_group{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_security_group{tenant="demo",type="used"} 0
 openstack_neutron_quota_security_group{tenant="demo",type="limit"} 10
 openstack_neutron_quota_security_group{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_security_group{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_security_group{tenant="demo_with_attachment",type="limit"} 10
+openstack_neutron_quota_security_group{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_security_group{tenant="service",type="used"} 0
 openstack_neutron_quota_security_group{tenant="service",type="limit"} 10
 openstack_neutron_quota_security_group{tenant="service",type="reserved"} 0
@@ -261,6 +282,9 @@ openstack_neutron_quota_subnetpool{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_subnetpool{tenant="demo",type="used"} 0
 openstack_neutron_quota_subnetpool{tenant="demo",type="limit"} -1
 openstack_neutron_quota_subnetpool{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_subnetpool{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_subnetpool{tenant="demo_with_attachment",type="limit"} -1
+openstack_neutron_quota_subnetpool{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_subnetpool{tenant="service",type="used"} 0
 openstack_neutron_quota_subnetpool{tenant="service",type="limit"} -1
 openstack_neutron_quota_subnetpool{tenant="service",type="reserved"} 0
@@ -287,6 +311,9 @@ openstack_neutron_quota_subnet{tenant="alt_demo",type="reserved"} 0
 openstack_neutron_quota_subnet{tenant="demo",type="used"} 0
 openstack_neutron_quota_subnet{tenant="demo",type="limit"} 100
 openstack_neutron_quota_subnet{tenant="demo",type="reserved"} 0
+openstack_neutron_quota_subnet{tenant="demo_with_attachment",type="used"} 0
+openstack_neutron_quota_subnet{tenant="demo_with_attachment",type="limit"} 100
+openstack_neutron_quota_subnet{tenant="demo_with_attachment",type="reserved"} 0
 openstack_neutron_quota_subnet{tenant="service",type="used"} 0
 openstack_neutron_quota_subnet{tenant="service",type="limit"} 100
 openstack_neutron_quota_subnet{tenant="service",type="reserved"} 0

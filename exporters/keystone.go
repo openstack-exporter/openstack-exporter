@@ -1,10 +1,13 @@
 package exporters
 
 import (
+	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
 
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
@@ -151,4 +154,41 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 		prometheus.GaugeValue, float64(len(allGroups)))
 
 	return nil
+}
+
+func MapProjectsName(exporter *BaseOpenStackExporter) (map[string]string, error) {
+	var allProjects []projects.Project
+	var eo gophercloud.EndpointOpts
+
+	projectsMap := make(map[string]string)
+
+	// We create a map of project ID to name to to add it to the data
+	if v, ok := endpointOpts["identity"]; ok {
+		eo = v
+	} else if v, ok := endpointOpts["volume"]; ok {
+		eo = v
+	} else {
+		return nil, errors.New("no EndpointOpts available to create Identity client")
+	}
+
+	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return nil, err
+	}
+
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	if err != nil {
+		return nil, err
+	}
+
+	allProjects, err = projects.ExtractProjects(allPagesProject)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range allProjects {
+		projectsMap[p.ID] = p.Name
+	}
+
+	return projectsMap, nil
 }

@@ -21,6 +21,7 @@ jobs:
         with:
           persist-credentials: false
 
+      # NOTE(Sharpz7): Should be reverted + tested before 2027-05-06
       - name: Configure apt mirror and network retries
         run: |
           sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#http://archive.ubuntu.com/ubuntu#g' /etc/apt/apt-mirrors.txt

@@ -1,7 +1,7 @@
 package integration
 
 import (
-	"strings"
+	"log"
 	"testing"
 
 	th "github.com/gophercloud/gophercloud/v2/testhelper"
@@ -22,47 +22,43 @@ func TestBaremetalIntegration(t *testing.T) {
 	_, err = funcs.DeployFakeNode(t, client, node)
 	th.AssertNoErr(t, err)
 
-	// Start the OpenStack exporter
-	_, cleanup, err := startOpenStackExporter([]string{
-		"baremetal",
-	})
+	// Helper to print body on failure
+	failWithBody := func(t *testing.T, body string, msg string, args ...interface{}) {
+		t.Helper()
+		log.Printf("Metrics body:\n%s\n", body)
+		t.Fatalf(msg, args...)
+	}
+
+	// Start exporter
+	_, cleanup, err := startOpenStackExporter([]string{"baremetal"})
 	if err != nil {
-		t.Fatalf("Failed to start OpenStack exporter: %v", err)
+		t.Fatalf("Failed to start exporter: %v", err)
 	}
 	defer cleanup()
 
-	const maxTriesFetch = 10
-	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
+	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
 	if err != nil {
-		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
+		t.Fatalf("Failed to fetch metrics: %v", err)
+	}
+	body := string(bodyBytes)
+	t.Logf("Metrics response body:\n%s", body)
+
+	metricFamilies, err := parseMetrics(bodyBytes)
+	if err != nil {
+		failWithBody(t, body, "Failed to parse metrics response: %v", err)
 	}
 
-	bodyString := string(body)
-
-	// Helper to always dump the full body on failures in subtests
-	logOnFailure := func(t *testing.T) {
-		t.Helper()
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
-		}
-		t.Logf(
-			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
-			statusCode,
-			defaultMetricsURL,
-			bodyString,
-		)
-	}
-
-	// Test for openstack_ironic_node metric
 	t.Run("openstack_ironic_node_metric", func(t *testing.T) {
-		expectedMetric := "openstack_ironic_node"
-		if !strings.Contains(bodyString, expectedMetric) {
-			logOnFailure(t)
-			t.Fatalf("Metric %q not found in metrics response", expectedMetric)
+		sample, ok := findMetric(metricFamilies, "openstack_ironic_node", map[string]string{
+			"id": node.UUID,
+		})
+		if !ok {
+			failWithBody(t, body,
+				"Expected openstack_ironic_node metric for node %s not found",
+				node.UUID,
+			)
 		}
 
-		// Validate that the metric has expected labels
 		expectedLabels := []string{
 			"console_enabled",
 			"deploy_kernel",
@@ -78,90 +74,80 @@ func TestBaremetalIntegration(t *testing.T) {
 		}
 
 		for _, label := range expectedLabels {
-			if !strings.Contains(bodyString, label+"=") {
-				logOnFailure(t)
-				t.Errorf(
-					"Expected label %q not found in openstack_ironic_node metric",
+			if _, ok := sample.labels[label]; !ok {
+				failWithBody(t, body,
+					"Expected label %q not found in openstack_ironic_node metric for node %s",
 					label,
+					node.UUID,
 				)
 			}
 		}
+	})
 
-		// Validate that the metric line contains the expected structure
-		// Should have format: openstack_ironic_node{...labels...} 1
-		if !strings.Contains(bodyString, "openstack_ironic_node{") {
-			logOnFailure(t)
-			t.Error(
-				"openstack_ironic_node metric does not contain expected label structure",
+	t.Run("openstack_ironic_node_boolean_labels", func(t *testing.T) {
+		sample, ok := findMetric(metricFamilies, "openstack_ironic_node", map[string]string{
+			"id": node.UUID,
+		})
+		if !ok {
+			failWithBody(t, body,
+				"Expected openstack_ironic_node metric for node %s not found",
+				node.UUID,
 			)
 		}
 
-		// Check that provision_state="active" is present (from the logs)
-		if !strings.Contains(bodyString, `provision_state="active"`) {
-			// This is informational; still helpful to see the full body.
-			logOnFailure(t)
-			t.Log(
-				`Note: provision_state="active" not found, node might not be in active state yet`,
-			)
-		}
-
-		// Check that console_enabled, maintenance, and retired are boolean strings
-		if strings.Contains(bodyString, "openstack_ironic_node") {
-			if !strings.Contains(bodyString, `console_enabled="false"`) &&
-				!strings.Contains(bodyString, `console_enabled="true"`) {
-				logOnFailure(t)
-				t.Error(`console_enabled should be either "true" or "false"`)
-			}
-			if !strings.Contains(bodyString, `maintenance="false"`) &&
-				!strings.Contains(bodyString, `maintenance="true"`) {
-				logOnFailure(t)
-				t.Error(`maintenance should be either "true" or "false"`)
-			}
-			if !strings.Contains(bodyString, `retired="false"`) &&
-				!strings.Contains(bodyString, `retired="true"`) {
-				logOnFailure(t)
-				t.Error(`retired should be either "true" or "false"`)
+		for _, label := range []string{"console_enabled", "maintenance", "retired"} {
+			switch sample.labels[label] {
+			case "true", "false":
+			default:
+				failWithBody(t, body,
+					"Expected label %q to be either true or false, got %q",
+					label,
+					sample.labels[label],
+				)
 			}
 		}
 	})
 
-	// Test for openstack_ironic_up metric
+	t.Run("openstack_ironic_node_provision_state", func(t *testing.T) {
+		if _, ok := findMetric(metricFamilies, "openstack_ironic_node", map[string]string{
+			"id":              node.UUID,
+			"provision_state": "active",
+		}); !ok {
+			failWithBody(t, body,
+				`Expected provision_state="active" for node %s not found`,
+				node.UUID,
+			)
+		}
+	})
+
 	t.Run("openstack_ironic_up_metric", func(t *testing.T) {
-		expectedMetric := "openstack_ironic_up"
-		if !strings.Contains(bodyString, expectedMetric) {
-			logOnFailure(t)
-			t.Fatalf("Metric %q not found in metrics response", expectedMetric)
+		sample, ok := findMetric(metricFamilies, "openstack_ironic_up", nil)
+		if !ok {
+			failWithBody(t, body,
+				"Metric %q not found in metrics response",
+				"openstack_ironic_up",
+			)
 		}
-
-		// Check that the up metric shows service is up (value should be 1)
-		if !strings.Contains(bodyString, "openstack_ironic_up 1") {
-			logOnFailure(t)
-			t.Error(
-				"openstack_ironic_up metric should have value 1 indicating service is up",
+		if sample.value != 1 {
+			failWithBody(t, body,
+				"openstack_ironic_up metric should have value 1 indicating service is up, got %v",
+				sample.value,
 			)
 		}
 	})
 
-	// Test for metric help and type comments
-	t.Run("metric_metadata", func(t *testing.T) {
-		// Check for HELP comments
-		if !strings.Contains(bodyString, "# HELP openstack_ironic_node node") {
-			logOnFailure(t)
-			t.Error("Missing HELP comment for openstack_ironic_node metric")
+	t.Run("openstack_ironic_core_metrics_present", func(t *testing.T) {
+		expected := []string{
+			"openstack_ironic_node",
+			"openstack_ironic_up",
 		}
-		if !strings.Contains(bodyString, "# HELP openstack_ironic_up up") {
-			logOnFailure(t)
-			t.Error("Missing HELP comment for openstack_ironic_up metric")
-		}
-
-		// Check for TYPE comments
-		if !strings.Contains(bodyString, "# TYPE openstack_ironic_node gauge") {
-			logOnFailure(t)
-			t.Error("Missing TYPE comment for openstack_ironic_node metric")
-		}
-		if !strings.Contains(bodyString, "# TYPE openstack_ironic_up gauge") {
-			logOnFailure(t)
-			t.Error("Missing TYPE comment for openstack_ironic_up metric")
+		for _, metric := range expected {
+			if _, ok := metricFamilies[metric]; !ok {
+				failWithBody(t, body,
+					"Expected Ironic metric %q not found",
+					metric,
+				)
+			}
 		}
 	})
 }

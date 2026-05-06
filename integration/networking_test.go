@@ -1,8 +1,7 @@
 package integration
 
 import (
-	"regexp"
-	"strings"
+	"log"
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
@@ -11,123 +10,82 @@ import (
 func TestNetworkingIntegration(t *testing.T) {
 	clients.RequireLong(t)
 
-	_, cleanup, err := startOpenStackExporter([]string{
-		"network",
-	})
+	// Helper to print body on failure
+	failWithBody := func(t *testing.T, body string, msg string, args ...interface{}) {
+		t.Helper()
+		log.Printf("Metrics body:\n%s\n", body)
+		t.Fatalf(msg, args...)
+	}
+
+	// Start exporter
+	_, cleanup, err := startOpenStackExporter([]string{"network"})
 	if err != nil {
-		t.Fatalf("Failed to start OpenStack exporter: %v", err)
+		t.Fatalf("Failed to start exporter: %v", err)
 	}
 	defer cleanup()
 
-	const maxTriesFetch = 10
-	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
+	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
 	if err != nil {
-		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
+		t.Fatalf("Failed to fetch metrics: %v", err)
 	}
+	body := string(bodyBytes)
+	t.Logf("Metrics response body:\n%s", body)
 
-	bodyString := string(body)
-
-	// Helper to always dump status, endpoint, and full body on failure paths.
-	logOnFailure := func(t *testing.T) {
-		t.Helper()
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
-		}
-		t.Logf(
-			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
-			statusCode,
-			defaultMetricsURL,
-			bodyString,
-		)
+	metricFamilies, err := parseMetrics(bodyBytes)
+	if err != nil {
+		failWithBody(t, body, "Failed to parse metrics response: %v", err)
 	}
 
 	t.Run("openstack_neutron_up_metric", func(t *testing.T) {
-		if !strings.Contains(bodyString, "openstack_neutron_up") {
-			logOnFailure(t)
-			t.Fatalf(
+		sample, ok := findMetric(metricFamilies, "openstack_neutron_up", nil)
+		if !ok {
+			failWithBody(t, body,
 				"Metric %q not found in metrics response",
 				"openstack_neutron_up",
 			)
 		}
-		if !strings.Contains(bodyString, "openstack_neutron_up 1") {
-			logOnFailure(t)
-			t.Error(
-				"openstack_neutron_up metric should have value 1 indicating service is up",
+		if sample.value != 1 {
+			failWithBody(t, body,
+				"openstack_neutron_up metric should have value 1 indicating service is up, got %v",
+				sample.value,
 			)
-		}
-		if !strings.Contains(bodyString, "# HELP openstack_neutron_up up") {
-			logOnFailure(t)
-			t.Error("Missing HELP comment for openstack_neutron_up metric")
-		}
-		if !strings.Contains(bodyString, "# TYPE openstack_neutron_up gauge") {
-			logOnFailure(t)
-			t.Error("Missing TYPE comment for openstack_neutron_up metric")
 		}
 	})
 
 	t.Run("openstack_neutron_core_metrics_present", func(t *testing.T) {
-		// Spot-check a few key Neutron metrics from the reference log
 		expected := []string{
-			"# HELP openstack_neutron_networks",
-			"# HELP openstack_neutron_ports",
-			"# HELP openstack_neutron_subnets",
-			"# HELP openstack_neutron_router",
+			"openstack_neutron_networks",
+			"openstack_neutron_ports",
+			"openstack_neutron_subnets",
+			"openstack_neutron_router",
 		}
 		foundAny := false
 		for _, m := range expected {
-			if strings.Contains(bodyString, m) {
+			if _, ok := metricFamilies[m]; ok {
 				foundAny = true
 				break
 			}
 		}
 		if !foundAny {
-			// Informational, but full body is useful when this triggers.
-			logOnFailure(t)
-			t.Log(
-				"Note: Expected Neutron metrics HELP headers not found; Neutron may not be fully available",
+			failWithBody(t, body,
+				"Expected Neutron core metrics not found; Neutron may not be fully available",
 			)
 		}
 	})
 
-	// Regex-based specificity checks for a network metric line
-	t.Run("neutron_network_line_format", func(t *testing.T) {
-		lineRe := regexp.MustCompile(
-			`(?m)^openstack_neutron_network\{.*\} [0-9.e\+\-]+$`,
-		)
-		lines := lineRe.FindAllString(bodyString, -1)
-		if len(lines) == 0 {
-			logOnFailure(t)
-			t.Fatalf(
-				"No 'openstack_neutron_network' lines found matching expected format",
-			)
-		}
-		labelChecks := []*regexp.Regexp{
-			regexp.MustCompile(`\bid="[^"]+"`),
-			regexp.MustCompile(`\bname="[^"]+"`),
-			regexp.MustCompile(`\bis_external="(?:true|false)"`),
-			regexp.MustCompile(`\bis_shared="(?:true|false)"`),
-			regexp.MustCompile(`\bprovider_network_type="[^"]*"`),
-		}
-		matched := false
-		for _, l := range lines {
-			ok := true
-			for _, re := range labelChecks {
-				if !re.MatchString(l) {
-					ok = false
-					break
+	t.Run("neutron_network_labels_present", func(t *testing.T) {
+		for _, sample := range metricFamilies["openstack_neutron_network"] {
+			if sample.labels["id"] != "" &&
+				sample.labels["name"] != "" &&
+				sample.labels["is_external"] != "" &&
+				sample.labels["is_shared"] != "" {
+				if _, ok := sample.labels["provider_network_type"]; ok {
+					return
 				}
 			}
-			if ok {
-				matched = true
-				break
-			}
 		}
-		if !matched {
-			logOnFailure(t)
-			t.Errorf(
-				"No 'openstack_neutron_network' line contained required labels (id,name,is_external,is_shared,provider_network_type)",
-			)
-		}
+		failWithBody(t, body,
+			"No 'openstack_neutron_network' metric contained required labels (id,name,is_external,is_shared,provider_network_type)",
+		)
 	})
 }

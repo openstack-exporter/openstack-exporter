@@ -1,8 +1,7 @@
 package integration
 
 import (
-	"regexp"
-	"strings"
+	"log"
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
@@ -11,119 +10,81 @@ import (
 func TestIdentityIntegration(t *testing.T) {
 	clients.RequireLong(t)
 
-	_, cleanup, err := startOpenStackExporter([]string{
-		"identity",
-	})
+	// Helper to print body on failure
+	failWithBody := func(t *testing.T, body string, msg string, args ...interface{}) {
+		t.Helper()
+		log.Printf("Metrics body:\n%s\n", body)
+		t.Fatalf(msg, args...)
+	}
+
+	// Start exporter
+	_, cleanup, err := startOpenStackExporter([]string{"identity"})
 	if err != nil {
-		t.Fatalf("Failed to start OpenStack exporter: %v", err)
+		t.Fatalf("Failed to start exporter: %v", err)
 	}
 	defer cleanup()
 
-	const maxTriesFetch = 10
-	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
+	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
 	if err != nil {
-		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
+		t.Fatalf("Failed to fetch metrics: %v", err)
 	}
+	body := string(bodyBytes)
+	t.Logf("Metrics response body:\n%s", body)
 
-	bodyString := string(body)
-
-	// Helper to always dump status, endpoint, and full body on failure paths.
-	logOnFailure := func(t *testing.T) {
-		t.Helper()
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
-		}
-		t.Logf(
-			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
-			statusCode,
-			defaultMetricsURL,
-			bodyString,
-		)
+	metricFamilies, err := parseMetrics(bodyBytes)
+	if err != nil {
+		failWithBody(t, body, "Failed to parse metrics response: %v", err)
 	}
 
 	t.Run("openstack_identity_up_metric", func(t *testing.T) {
-		if !strings.Contains(bodyString, "openstack_identity_up") {
-			logOnFailure(t)
-			t.Fatalf("Metric %q not found in metrics response", "openstack_identity_up")
-		}
-		if !strings.Contains(bodyString, "openstack_identity_up 1") {
-			logOnFailure(t)
-			t.Error(
-				"openstack_identity_up metric should have value 1 indicating service is up",
+		sample, ok := findMetric(metricFamilies, "openstack_identity_up", nil)
+		if !ok {
+			failWithBody(t, body,
+				"Metric %q not found in metrics response",
+				"openstack_identity_up",
 			)
 		}
-		if !strings.Contains(bodyString, "# HELP openstack_identity_up up") {
-			logOnFailure(t)
-			t.Error("Missing HELP comment for openstack_identity_up metric")
-		}
-		if !strings.Contains(bodyString, "# TYPE openstack_identity_up gauge") {
-			logOnFailure(t)
-			t.Error("Missing TYPE comment for openstack_identity_up metric")
+		if sample.value != 1 {
+			failWithBody(t, body,
+				"openstack_identity_up metric should have value 1 indicating service is up, got %v",
+				sample.value,
+			)
 		}
 	})
 
 	t.Run("openstack_identity_core_metrics_present", func(t *testing.T) {
 		expected := []string{
-			"# HELP openstack_identity_projects",
-			"# HELP openstack_identity_users",
-			"# HELP openstack_identity_domains",
+			"openstack_identity_projects",
+			"openstack_identity_users",
+			"openstack_identity_domains",
 		}
 		foundAny := false
 		for _, m := range expected {
-			if strings.Contains(bodyString, m) {
+			if _, ok := metricFamilies[m]; ok {
 				foundAny = true
 				break
 			}
 		}
 		if !foundAny {
-			// Informational, but still useful to have the full body when this triggers.
-			logOnFailure(t)
-			t.Log(
-				"Note: Expected Identity metrics HELP headers not found; Keystone may not be fully available",
+			failWithBody(t, body,
+				"Expected Identity core metrics not found; Keystone may not be fully available",
 			)
 		}
 	})
 
-	// Regex-based specificity checks against project_info metric line
-	t.Run("identity_project_info_line_format", func(t *testing.T) {
-		lineRe := regexp.MustCompile(
-			`(?m)^openstack_identity_project_info\{.*\} [0-9.e\+\-]+$`,
-		)
-		lines := lineRe.FindAllString(bodyString, -1)
-		if len(lines) == 0 {
-			logOnFailure(t)
-			t.Fatalf(
-				"No 'openstack_identity_project_info' lines found matching expected format",
-			)
-		}
-		// Validate key labels exist within a matched line (order-independent)
-		labelChecks := []*regexp.Regexp{
-			regexp.MustCompile(`\bid="[^"]+"`),
-			regexp.MustCompile(`\bname="[^"]+"`),
-			regexp.MustCompile(`\bdomain_id="[^"]+"`),
-			regexp.MustCompile(`\benabled="(?:true|false)"`),
-			regexp.MustCompile(`\bparent_id="[^"]+"`),
-		}
-		matched := false
-		for _, l := range lines {
-			ok := true
-			for _, re := range labelChecks {
-				if !re.MatchString(l) {
-					ok = false
-					break
+	t.Run("identity_project_info_labels_present", func(t *testing.T) {
+		for _, sample := range metricFamilies["openstack_identity_project_info"] {
+			if sample.labels["id"] != "" &&
+				sample.labels["name"] != "" &&
+				sample.labels["domain_id"] != "" &&
+				sample.labels["enabled"] != "" {
+				if _, ok := sample.labels["parent_id"]; ok {
+					return
 				}
 			}
-			if ok {
-				matched = true
-				break
-			}
 		}
-		if !matched {
-			logOnFailure(t)
-			t.Errorf(
-				"No 'openstack_identity_project_info' line contained required labels (id,name,domain_id,enabled,parent_id)",
-			)
-		}
+		failWithBody(t, body,
+			"No 'openstack_identity_project_info' metric contained required labels (id,name,domain_id,enabled,parent_id)",
+		)
 	})
 }

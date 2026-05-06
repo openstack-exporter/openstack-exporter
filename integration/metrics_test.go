@@ -6,6 +6,7 @@ import (
 
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
+	"github.com/prometheus/common/model"
 )
 
 type metricSample struct {
@@ -14,7 +15,7 @@ type metricSample struct {
 }
 
 func parseMetrics(body []byte) (map[string][]metricSample, error) {
-	parser := expfmt.TextParser{}
+	parser := expfmt.NewTextParser(model.UTF8Validation)
 	metricFamilies, err := parser.TextToMetricFamilies(bytes.NewReader(body))
 	if err != nil {
 		return nil, err

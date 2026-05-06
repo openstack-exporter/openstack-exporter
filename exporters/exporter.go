@@ -47,8 +47,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), completePlacementInParallel bool, logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, uuidGenFunc, completePlacementInParallel, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -61,18 +61,19 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client                   *gophercloud.ServiceClient
-	ClientV2                 *gophercloudv2.ServiceClient
-	Prefix                   string
-	DisabledMetrics          []string
-	CollectTime              bool
-	UUIDGenFunc              func() (string, error)
-	DisableSlowMetrics       bool
-	DisableDeprecatedMetrics bool
-	DisableCinderAgentUUID   bool
-	DomainID                 string
-	TenantID                 string
-	NovaMetadataMapping      *utils.LabelMappingFlag
+	Client                     *gophercloud.ServiceClient
+	ClientV2                   *gophercloudv2.ServiceClient
+	Prefix                     string
+	DisabledMetrics            []string
+	CollectTime                bool
+	UUIDGenFunc                func() (string, error)
+	DisableSlowMetrics         bool
+	DisableDeprecatedMetrics   bool
+	DisableCinderAgentUUID     bool
+	DomainID                   string
+	TenantID                   string
+	NovaMetadataMapping        *utils.LabelMappingFlag
+	CompletePlacementInParallel bool
 }
 
 type BaseOpenStackExporter struct {
@@ -231,7 +232,7 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 	return []byte(poc), false, nil
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), completePlacementInParallel bool, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
@@ -296,18 +297,19 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:                   client,
-		ClientV2:                 clientV2,
-		Prefix:                   prefix,
-		DisabledMetrics:          disabledMetrics,
-		CollectTime:              collectTime,
-		UUIDGenFunc:              uuidGenFunc,
-		DisableSlowMetrics:       disableSlowMetrics,
-		DisableDeprecatedMetrics: disableDeprecatedMetrics,
-		DisableCinderAgentUUID:   disableCinderAgentUUID,
-		DomainID:                 domainID,
-		TenantID:                 tenantID,
-		NovaMetadataMapping:      novaMetadataMapping,
+		Client:                     client,
+		ClientV2:                   clientV2,
+		Prefix:                     prefix,
+		DisabledMetrics:            disabledMetrics,
+		CollectTime:                collectTime,
+		UUIDGenFunc:                uuidGenFunc,
+		DisableSlowMetrics:         disableSlowMetrics,
+		DisableDeprecatedMetrics:   disableDeprecatedMetrics,
+		DisableCinderAgentUUID:     disableCinderAgentUUID,
+		DomainID:                   domainID,
+		TenantID:                   tenantID,
+		NovaMetadataMapping:         novaMetadataMapping,
+		CompletePlacementInParallel: completePlacementInParallel,
 	}
 
 	switch name {

@@ -1,9 +1,10 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
+	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -11,11 +12,14 @@ type PlacementExporter struct {
 	BaseOpenStackExporter
 }
 
+var placementResourceLabels = []string{"hostname", "resourcetype"}
+
 var defaultPlacementMetrics = []Metric{
-	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_allocation_ratio", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_reserved", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_usage", Labels: []string{"hostname", "resourcetype"}},
+	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
+	{Name: "resource_allocation_ratio", Labels: placementResourceLabels},
+	{Name: "resource_generation", Labels: placementResourceLabels},
+	{Name: "resource_reserved", Labels: placementResourceLabels},
+	{Name: "resource_usage", Labels: placementResourceLabels},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -37,10 +41,10 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	return &exporter, nil
 }
 
-func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
 
-	allPagesResourceProviders, err := resourceproviders.List(exporter.Client, resourceproviders.ListOpts{}).AllPages()
+	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -49,40 +53,47 @@ func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- p
 		return err
 	}
 
-	uuidToNameMap := map[string]string{}
-
 	for _, resourceprovider := range allResourceProviders {
-		uuidToNameMap[resourceprovider.UUID] = resourceprovider.Name
-
-		inventoryResult, err := resourceproviders.GetInventories(exporter.Client, resourceprovider.UUID).Extract()
+		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
 		}
 
 		for k, v := range inventoryResult.Inventories {
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(v.Total), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(v.AllocationRatio), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(v.Reserved), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_total", float64(v.Total), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_allocation_ratio", float64(v.AllocationRatio), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_generation", float64(inventoryResult.ResourceProviderGeneration), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_reserved", float64(v.Reserved), resourceprovider.Name, k)
 		}
 
-		usagesResult, err := resourceproviders.GetUsages(exporter.Client, resourceprovider.UUID).Extract()
+		usagesResult, err := resourceproviders.GetUsages(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
 		}
 
 		for k, v := range usagesResult.Usages {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(v), resourceprovider.Name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k)
 		}
 
 	}
 
 	return nil
 
+}
+
+func emitPlacementResourceMetric(
+	exporter *BaseOpenStackExporter,
+	ch chan<- prometheus.Metric,
+	metricName string,
+	value float64,
+	hostname string,
+	resourceType string,
+) {
+	ch <- prometheus.MustNewConstMetric(
+		exporter.Metrics[metricName].Metric,
+		prometheus.GaugeValue,
+		value,
+		hostname,
+		resourceType,
+	)
 }

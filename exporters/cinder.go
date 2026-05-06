@@ -55,6 +55,8 @@ func mapVolumeStatus(volStatus string) int {
 	return -1
 }
 
+const CINDER_SERVICE string = "cinder"
+
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
@@ -74,7 +76,7 @@ var defaultCinderMetrics = []Metric{
 func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExporter, error) {
 	exporter := CinderExporter{
 		BaseOpenStackExporter{
-			Name:           "cinder",
+			Name:           CINDER_SERVICE,
 			ExporterConfig: *config,
 			logger:         logger,
 		},
@@ -85,7 +87,9 @@ func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExpo
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(CINDER_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(CINDER_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -116,18 +120,30 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	if err != nil {
 		return err
 	}
+	extraLabels := make([]string, 0)
+	labelSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "volume_status")
+	if labelSpec != nil {
+		extraLabels = append(extraLabels, labelSpec.DynamicFields...)
+	}
 
 	// Volume status metrics
 	for _, volume := range allVolumes {
-		if len(volume.Attachments) > 0 {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
-		} else {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+		extraLabelValues := make([]string, len(extraLabels))
+		for i, label := range extraLabels {
+			extraLabelValues[i] = resolveField(volume, label)
 		}
+		labelValues := []string{volume.ID, volume.Name, volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType}
+		if len(volume.Attachments) > 0 {
+
+			labelValues = append(labelValues, volume.Attachments[0].ServerID)
+
+		} else {
+			labelValues = append(labelValues, "")
+
+		}
+		labelValues = append(labelValues, extraLabelValues...)
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), labelValues...)
 	}
 	return nil
 }
@@ -155,17 +171,29 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
 		prometheus.GaugeValue, float64(len(allVolumes)))
 
+	extraLabels := make([]string, 0)
+	labelSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "volume_gb")
+	if labelSpec != nil {
+		extraLabels = append(extraLabels, labelSpec.DynamicFields...)
+	}
+
 	// Volume_gb metrics
 	for _, volume := range allVolumes {
-		if len(volume.Attachments) > 0 {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
-				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
-		} else {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
-				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, "")
+		extraLabelValues := make([]string, len(extraLabels))
+		for i, label := range extraLabels {
+			extraLabelValues[i] = resolveField(volume, label)
 		}
+
+		labelValues := []string{volume.ID, volume.Name, volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType}
+		if len(volume.Attachments) > 0 {
+			labelValues = append(labelValues, volume.Attachments[0].ServerID)
+		} else {
+			labelValues = append(labelValues, "")
+		}
+		labelValues = append(labelValues, extraLabelValues...)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+			prometheus.GaugeValue, float64(volume.Size), labelValues...)
 	}
 
 	volume_status_counter := map[string]int{
@@ -238,10 +266,19 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	if err != nil {
 		return err
 	}
+	extraLabels := make([]string, 0)
+	labelSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "agent_state")
+	if labelSpec != nil {
+		extraLabels = append(extraLabels, labelSpec.DynamicFields...)
+	}
 
 	for _, service := range allServices {
 		var state = 0
 		var id string
+		extraLabelValues := make([]string, len(extraLabels))
+		for i, label := range extraLabels {
+			extraLabelValues[i] = resolveField(service, label)
+		}
 
 		if service.State == "up" {
 			state = 1
@@ -252,8 +289,10 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 			}
 		}
 
+		labelValues := []string{id, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason}
+		labelValues = append(labelValues, extraLabelValues...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), id, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.CounterValue, float64(state), labelValues...)
 	}
 
 	return nil
@@ -273,12 +312,33 @@ func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prome
 	if err != nil {
 		return err
 	}
+	freeGbExtraLabels := make([]string, 0)
+	freeGbLabelSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "pool_capacity_free_gb")
+	if freeGbLabelSpec != nil {
+		freeGbExtraLabels = append(freeGbExtraLabels, freeGbLabelSpec.DynamicFields...)
+	}
+	totalGbExtraLabels := make([]string, 0)
+	totalGbLabelSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "pool_capacity_total_gb")
+	if totalGbLabelSpec != nil {
+		totalGbExtraLabels = append(totalGbExtraLabels, totalGbLabelSpec.DynamicFields...)
+	}
 
 	for _, stat := range allStats {
+		freeGbExtraLabelValues := make([]string, len(freeGbExtraLabels))
+		for i, label := range freeGbExtraLabels {
+			freeGbExtraLabelValues[i] = resolveField(stat, label)
+		}
+		totalGbExtraLabelValues := make([]string, len(totalGbExtraLabels))
+		for i, label := range totalGbExtraLabels {
+			totalGbExtraLabelValues[i] = resolveField(stat, label)
+		}
+		labelValues := []string{stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName}
+		freeGbLabelValues := append(labelValues, freeGbExtraLabelValues...)
+		totalGbLabelValues := append(labelValues, totalGbExtraLabelValues...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_capacity_free_gb"].Metric, prometheus.GaugeValue,
-			float64(stat.Capabilities.FreeCapacityGB), stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName)
+			float64(stat.Capabilities.FreeCapacityGB), freeGbLabelValues...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_capacity_total_gb"].Metric, prometheus.GaugeValue,
-			float64(stat.Capabilities.TotalCapacityGB), stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName)
+			float64(stat.Capabilities.TotalCapacityGB), totalGbLabelValues...)
 	}
 	return nil
 }
@@ -313,6 +373,11 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 		return err
 	}
 
+	limitsVolumeMaxSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "limits_volume_max_gb")
+	limitsVolumeUsedSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "limits_volume_used_gb")
+	limitsBackupMaxSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "limits_backup_max_gb")
+	limitsBackupUsedSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "limits_backup_used_gb")
+	volumeTypeQuotaSpec := exporter.ExtraLabels.Extract(CINDER_SERVICE, "volume_type_quota_gigabytes")
 	for _, p := range allProjects {
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
@@ -333,22 +398,22 @@ func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 				volumeType := strings.TrimPrefix(key, "gigabytes_")
 				if quotaValue, ok := value.(float64); ok {
 					ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_quota_gigabytes"].Metric,
-						prometheus.GaugeValue, quotaValue, p.Name, p.ID, volumeType)
+						prometheus.GaugeValue, quotaValue, append([]string{p.Name, p.ID, volumeType}, resolveExtraLabelValues(p, volumeTypeQuotaSpec)...)...)
 				}
 			}
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), append([]string{p.Name, p.ID}, resolveExtraLabelValues(p, limitsVolumeMaxSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), append([]string{p.Name, p.ID}, resolveExtraLabelValues(p, limitsVolumeUsedSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_max_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), append([]string{p.Name, p.ID}, resolveExtraLabelValues(p, limitsBackupMaxSpec)...)...)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), append([]string{p.Name, p.ID}, resolveExtraLabelValues(p, limitsBackupUsedSpec)...)...)
 	}
 
 	return nil

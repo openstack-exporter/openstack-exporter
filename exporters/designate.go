@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const DESIGNATE_SERVICE string = "designate"
+
 type DesignateExporter struct {
 	BaseOpenStackExporter
 }
@@ -68,7 +70,9 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(DESIGNATE_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(DESIGNATE_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -89,6 +93,9 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
+	zoneStatusSpec := exporter.ExtraLabels.Extract(DESIGNATE_SERVICE, "zone_status")
+	recordsetsSpec := exporter.ExtraLabels.Extract(DESIGNATE_SERVICE, "recordsets")
+	recordsetsStatusSpec := exporter.ExtraLabels.Extract(DESIGNATE_SERVICE, "recordsets_status")
 	// Collect recordsets for zone and write metrics for zones and recordsets
 	for _, zone := range allZones {
 
@@ -103,17 +110,19 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
-			prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
+			prometheus.GaugeValue, float64(len(allRecordsets)), append([]string{zone.ID, zone.Name, zone.ProjectID}, resolveExtraLabelValues(zone, recordsetsSpec)...)...)
 
 		for _, recordset := range allRecordsets {
+			extraValues := resolveExtraLabelValues(recordset, recordsetsStatusSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
-				prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
-				recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
+				prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), append([]string{recordset.ID, recordset.Name,
+					recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type}, extraValues...)...)
 		}
 
+		extraValues := resolveExtraLabelValues(zone, zoneStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
-			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
-			zone.Status, zone.ProjectID, zone.Type)
+			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), append([]string{zone.ID, zone.Name,
+				zone.Status, zone.ProjectID, zone.Type}, extraValues...)...)
 
 	}
 

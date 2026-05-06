@@ -31,6 +31,7 @@ func mockEnableExporter(
 	domainID string,
 	tenantID string,
 	novaMetadataMapping *utils.LabelMappingFlag,
+	extraFlags *utils.ExtraLabelsFlag,
 	uuidGenFunc func() (string, error),
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
@@ -87,6 +88,7 @@ func TestCollectCache(t *testing.T) {
 	disableCinderAgentUUID := false
 	domainID := ""
 	tenantID := ""
+	extraLabels := new(utils.ExtraLabelsFlag)
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
@@ -105,6 +107,7 @@ func TestCollectCache(t *testing.T) {
 		domainID,
 		tenantID,
 		novaMetadataMapping,
+		extraLabels,
 		nil,
 		logger,
 	); err != nil {

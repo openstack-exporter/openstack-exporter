@@ -33,6 +33,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const NEUTRON_SERVICE string = "neutron"
+
 var network_status = []string{
 	"ACTIVE",
 	"BUILD",
@@ -104,7 +106,9 @@ func NewNeutronExporter(config *ExporterConfig, logger *slog.Logger) (*NeutronEx
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(NEUTRON_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(NEUTRON_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -125,10 +129,12 @@ func ListFloatingIps(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
+	floatingIPSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "floating_ip")
 	failedFIPs := 0
 	for _, fip := range allFloatingIPs {
+		extraValues := resolveExtraLabelValues(fip, floatingIPSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ip"].Metric,
-			prometheus.GaugeValue, 1, fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP)
+			prometheus.GaugeValue, 1, append([]string{fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP}, extraValues...)...)
 		if fip.FixedIP != "" {
 			if fip.Status != "ACTIVE" {
 				failedFIPs = failedFIPs + 1
@@ -158,6 +164,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
+	agentStateSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "agent_state")
 	for _, agent := range allAgents {
 		var state = 0
 		var id string
@@ -181,8 +188,9 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 		zone = agent.AvailabilityZone
 
+		extraValues := resolveExtraLabelValues(agent, agentStateSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), id, agent.Host, agent.Binary, adminState, zone)
+			prometheus.CounterValue, float64(state), append([]string{id, agent.Host, agent.Binary, adminState, zone}, extraValues...)...)
 	}
 
 	return nil
@@ -209,11 +217,13 @@ func ListNetworks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
 	if !exporter.MetricIsDisabled("network") {
+		networkSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "network")
 		for _, net := range allNetworks {
+			extraValues := resolveExtraLabelValues(net, networkSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
-				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
-				strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
-				net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ","))
+				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), append([]string{net.ID, net.TenantID, net.Status, net.Name,
+					strconv.FormatBool(net.Shared), strconv.FormatBool(net.External), net.NetworkType,
+					net.PhysicalNetwork, net.SegmentationID, strings.Join(net.Subnets, ","), strings.Join(net.Tags, ",")}, extraValues...)...)
 		}
 	}
 	return nil
@@ -254,10 +264,12 @@ func ListSubnets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
 	if !exporter.MetricIsDisabled("subnet") {
+		subnetSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "subnet")
 		for _, subnet := range allSubnets {
+			extraValues := resolveExtraLabelValues(subnet, subnetSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
-				prometheus.GaugeValue, 1.0, subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
-				subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ","))
+				prometheus.GaugeValue, 1.0, append([]string{subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
+					subnet.GatewayIP, strconv.FormatBool(subnet.EnableDHCP), strings.Join(subnet.DNSNameservers, ","), strings.Join(subnet.Tags, ",")}, extraValues...)...)
 		}
 	}
 	return nil
@@ -286,6 +298,7 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	portsWithNoIP := float64(0)
 	lbaasPortsInactive := float64(0)
 
+	portSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "port")
 	for _, port := range allPorts {
 		if port.Status == "ACTIVE" && len(port.FixedIPs) == 0 {
 			portsWithNoIP++
@@ -306,9 +319,10 @@ func ListPorts(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 					fixedIPs += fip.IPAddress + ","
 				}
 			}
+			extraValues := resolveExtraLabelValues(port, portSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["port"].Metric,
-				prometheus.GaugeValue, 1, port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
-				port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs)
+				prometheus.GaugeValue, 1, append([]string{port.ID, port.NetworkID, port.MACAddress, port.DeviceOwner,
+					port.Status, port.VIFType, strconv.FormatBool(port.AdminStateUp), fixedIPs}, extraValues...)...)
 		}
 	}
 
@@ -374,6 +388,8 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 		return fmt.Errorf("failed to unmarshal network_ip_availabilities JSON: %w", err)
 	}
 
+	networkIPTotalSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "network_ip_availabilities_total")
+	networkIPUsedSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "network_ip_availabilities_used")
 	for _, network := range wrapper.NetworkIPAvailabilities {
 		projectID := network.ProjectID
 		if projectID == "" && network.TenantID != "" {
@@ -397,14 +413,14 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 			usedFloat64, _ := usedBig.Float64()
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
-				prometheus.GaugeValue, totalFloat64, network.NetworkID,
-				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
-				subnet.SubnetName, projectID)
+				prometheus.GaugeValue, totalFloat64, append([]string{network.NetworkID,
+					network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+					subnet.SubnetName, projectID}, resolveExtraLabelValues(subnet, networkIPTotalSpec)...)...)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
-				prometheus.GaugeValue, usedFloat64, network.NetworkID,
-				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
-				subnet.SubnetName, projectID)
+				prometheus.GaugeValue, usedFloat64, append([]string{network.NetworkID,
+					network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+					subnet.SubnetName, projectID}, resolveExtraLabelValues(subnet, networkIPUsedSpec)...)...)
 		}
 	}
 
@@ -441,15 +457,18 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		ovnBackendEnabled = true
 	}
 
+	routerSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "router")
+	l3AgentSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "l3_agent_of_router")
 	failedRouters := 0
 	for _, router := range allRouters {
 		if router.Status != "ACTIVE" {
 			failedRouters = failedRouters + 1
 		}
 		if !exporter.MetricIsDisabled("router") {
+			extraValues := resolveExtraLabelValues(router, routerSpec)
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
-				prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
-				strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
+				prometheus.GaugeValue, 1, append([]string{router.ID, router.Name, router.ProjectID,
+					strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID}, extraValues...)...)
 		}
 		if ovnBackendEnabled {
 			continue
@@ -471,9 +490,10 @@ func ListRouters(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 					state = 1
 				}
 
+				extraValues := resolveExtraLabelValues(agent, l3AgentSpec)
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["l3_agent_of_router"].Metric,
-					prometheus.GaugeValue, float64(state), router.ID, agent.ID,
-					agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
+					prometheus.GaugeValue, float64(state), append([]string{router.ID, agent.ID,
+						agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host}, extraValues...)...)
 			}
 		}
 	}
@@ -590,6 +610,9 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 		return err
 	}
 
+	subnetsTotalSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "subnets_total")
+	subnetsUsedSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "subnets_used")
+	subnetsFreeSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "subnets_free")
 	for _, subnetPool := range subnetPools {
 		ipPrefixes, err := subnetPool.IPPrefixes()
 		if err != nil {
@@ -601,23 +624,22 @@ func ListSubnetsPerPool(exporter *BaseOpenStackExporter, ch chan<- prometheus.Me
 					continue
 				}
 
+				baseLabels := []string{strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
+					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name}
 				totalSubnets := math.Pow(2, float64(prefixLength-int(ipPrefix.Bits())))
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_total"].Metric,
-					prometheus.GaugeValue, totalSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
-					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+					prometheus.GaugeValue, totalSubnets, append(baseLabels, resolveExtraLabelValues(subnetPool, subnetsTotalSpec)...)...)
 
 				usedSubnets := calculateUsedSubnets(subnetPool.subnets, ipPrefix, prefixLength)
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_used"].Metric,
-					prometheus.GaugeValue, usedSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
-					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+					prometheus.GaugeValue, usedSubnets, append(baseLabels, resolveExtraLabelValues(subnetPool, subnetsUsedSpec)...)...)
 
 				freeSubnets, err := calculateFreeSubnets(&ipPrefix, subnetPool.subnets, prefixLength)
 				if err != nil {
 					return err
 				}
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets_free"].Metric,
-					prometheus.GaugeValue, freeSubnets, strconv.Itoa(subnetPool.IPversion), ipPrefix.String(), strconv.Itoa(prefixLength),
-					subnetPool.ProjectID, subnetPool.ID, subnetPool.Name)
+					prometheus.GaugeValue, freeSubnets, append(baseLabels, resolveExtraLabelValues(subnetPool, subnetsFreeSpec)...)...)
 			}
 		}
 	}
@@ -655,6 +677,15 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		return err
 	}
 
+	quotaNetworkSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_network")
+	quotaSubnetSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_subnet")
+	quotaSubnetpoolSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_subnetpool")
+	quotaPortSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_port")
+	quotaRouterSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_router")
+	quotaFloatingipSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_floatingip")
+	quotaSecurityGroupSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_security_group")
+	quotaSecurityGroupRuleSpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_security_group_rule")
+	quotaRbacPolicySpec := exporter.ExtraLabels.Extract(NEUTRON_SERVICE, "quota_rbac_policy")
 	for _, p := range allProjects {
 		// quota are obtained from the neutron API, so now we can just use this exporter's client
 		quota, err := quotas.GetDetail(exporter.Client, p.ID).Extract()
@@ -663,59 +694,59 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaNetworkSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaNetworkSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_network"].Metric,
-			prometheus.GaugeValue, float64(quota.Network.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Network.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaNetworkSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaSubnetSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSubnetSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnet"].Metric,
-			prometheus.GaugeValue, float64(quota.Subnet.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Subnet.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSubnetSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaSubnetpoolSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSubnetpoolSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_subnetpool"].Metric,
-			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SubnetPool.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSubnetpoolSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaPortSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaPortSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_port"].Metric,
-			prometheus.GaugeValue, float64(quota.Port.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Port.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaPortSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaRouterSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaRouterSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_router"].Metric,
-			prometheus.GaugeValue, float64(quota.Router.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.Router.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaRouterSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaFloatingipSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaFloatingipSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_floatingip"].Metric,
-			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.FloatingIP.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaFloatingipSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroup.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRuleSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRuleSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_security_group_rule"].Metric,
-			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.SecurityGroupRule.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaSecurityGroupRuleSpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), "used", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Used), append([]string{"used", p.Name}, resolveExtraLabelValues(p, quotaRbacPolicySpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), "reserved", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Reserved), append([]string{"reserved", p.Name}, resolveExtraLabelValues(p, quotaRbacPolicySpec)...)...)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["quota_rbac_policy"].Metric,
-			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), "limit", p.Name)
+			prometheus.GaugeValue, float64(quota.RBACPolicy.Limit), append([]string{"limit", p.Name}, resolveExtraLabelValues(p, quotaRbacPolicySpec)...)...)
 	}
 	return nil
 }

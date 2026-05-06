@@ -67,6 +67,8 @@ func extractStacks(r pagination.Page) ([]listedStack, error) {
 	return s.ListedStacks, err
 }
 
+const HEAT_SERVICE string = "heat"
+
 type HeatExporter struct {
 	BaseOpenStackExporter
 }
@@ -87,7 +89,9 @@ func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter
 
 	for _, metric := range defaultHeatMetrics {
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(HEAT_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(HEAT_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -110,11 +114,13 @@ func ListAllStacks(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 		stack_status_counter[s] = 0
 	}
 
+	stackStatusSpec := exporter.ExtraLabels.Extract(HEAT_SERVICE, "stack_status")
 	for _, stack := range allStacks {
 		stack_status_counter[stack.Status]++
 		// Stack status metrics
+		extraValues := resolveExtraLabelValues(stack, stackStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stack_status"].Metric,
-			prometheus.GaugeValue, float64(mapHeatStatus(stack.Status)), stack.ID, stack.Name, stack.Project, stack.Status)
+			prometheus.GaugeValue, float64(mapHeatStatus(stack.Status)), append([]string{stack.ID, stack.Name, stack.Project, stack.Status}, extraValues...)...)
 	}
 
 	// Stack status counter metrics

@@ -71,6 +71,8 @@ func mapPoolStatus(current string) int {
 	return -1
 }
 
+const LOADBALANCER_SERVICE string = "loadbalancer"
+
 type LoadbalancerExporter struct {
 	BaseOpenStackExporter
 }
@@ -93,7 +95,9 @@ func NewLoadbalancerExporter(config *ExporterConfig, logger *slog.Logger) (*Load
 		},
 	}
 	for _, metric := range defaultLoadbalancerMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+		labels := computeMetricLabels(LOADBALANCER_SERVICE, metric, exporter.ExtraLabels)
+		constLabels := computeConstantLabels(LOADBALANCER_SERVICE, metric, exporter.ExtraLabels)
+		exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 	}
 	return &exporter, nil
 }
@@ -111,11 +115,13 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_loadbalancers"].Metric,
 		prometheus.GaugeValue, float64(len(allLoadbalancers)))
+	lbStatusSpec := exporter.ExtraLabels.Extract(LOADBALANCER_SERVICE, "loadbalancer_status")
 	// Loadbalancer status metrics
 	for _, loadbalancer := range allLoadbalancers {
+		extraValues := resolveExtraLabelValues(loadbalancer, lbStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancer_status"].Metric,
-			prometheus.GaugeValue, float64(mapLoadbalancerStatus(loadbalancer.OperatingStatus)), loadbalancer.ID, loadbalancer.Name, loadbalancer.ProjectID,
-			loadbalancer.OperatingStatus, loadbalancer.ProvisioningStatus, loadbalancer.Provider, loadbalancer.VipAddress)
+			prometheus.GaugeValue, float64(mapLoadbalancerStatus(loadbalancer.OperatingStatus)), append([]string{loadbalancer.ID, loadbalancer.Name, loadbalancer.ProjectID,
+				loadbalancer.OperatingStatus, loadbalancer.ProvisioningStatus, loadbalancer.Provider, loadbalancer.VipAddress}, extraValues...)...)
 	}
 	return nil
 }
@@ -133,11 +139,13 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_amphorae"].Metric,
 		prometheus.GaugeValue, float64(len(allAmphorae)))
+	amphoraStatusSpec := exporter.ExtraLabels.Extract(LOADBALANCER_SERVICE, "amphora_status")
 	// Loadbalancer status metrics
 	for _, amphora := range allAmphorae {
+		extraValues := resolveExtraLabelValues(amphora, amphoraStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["amphora_status"].Metric,
-			prometheus.GaugeValue, float64(mapAmphoraStatus(amphora.Status)), amphora.ID, amphora.LoadbalancerID, amphora.ComputeID, amphora.Status,
-			amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339))
+			prometheus.GaugeValue, float64(mapAmphoraStatus(amphora.Status)), append([]string{amphora.ID, amphora.LoadbalancerID, amphora.ComputeID, amphora.Status,
+				amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339)}, extraValues...)...)
 	}
 	return nil
 }
@@ -154,10 +162,12 @@ func ListAllPools(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 	}
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_pools"].Metric,
 		prometheus.GaugeValue, float64(len(allPools)))
+	poolStatusSpec := exporter.ExtraLabels.Extract(LOADBALANCER_SERVICE, "pool_status")
 	for _, pool := range allPools {
+		extraValues := resolveExtraLabelValues(pool, poolStatusSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_status"].Metric,
-			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
-			lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID)
+			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), append([]string{pool.ID, pool.ProvisioningStatus, pool.Name,
+				lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID}, extraValues...)...)
 	}
 	return nil
 }

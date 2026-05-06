@@ -9,6 +9,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const GLANCE_SERVICE string = "glance"
+
 type GlanceExporter struct {
 	BaseOpenStackExporter
 }
@@ -33,7 +35,9 @@ func NewGlanceExporter(config *ExporterConfig, logger *slog.Logger) (*GlanceExpo
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := computeMetricLabels(GLANCE_SERVICE, metric, exporter.ExtraLabels)
+			constLabels := computeConstantLabels(GLANCE_SERVICE, metric, exporter.ExtraLabels)
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, constLabels)
 		}
 	}
 
@@ -74,13 +78,16 @@ func ListImageProperties(exporter *BaseOpenStackExporter, ch chan<- prometheus.M
 		return err
 	}
 
+	imageBytesSpec := exporter.ExtraLabels.Extract(GLANCE_SERVICE, "image_bytes")
+	imageCreatedSpec := exporter.ExtraLabels.Extract(GLANCE_SERVICE, "image_created_at")
 	for _, image := range allImages {
+		extraBytes := resolveExtraLabelValues(image, imageBytesSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["image_bytes"].Metric,
-			prometheus.GaugeValue, float64(image.SizeBytes), image.ID, image.Name,
-			image.Owner)
+			prometheus.GaugeValue, float64(image.SizeBytes), append([]string{image.ID, image.Name, image.Owner}, extraBytes...)...)
+		extraCreated := resolveExtraLabelValues(image, imageCreatedSpec)
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["image_created_at"].Metric,
-			prometheus.GaugeValue, float64(image.CreatedAt.Unix()), image.ID, image.Name,
-			image.Owner, string(image.Visibility), strconv.FormatBool(image.Hidden), string(image.Status))
+			prometheus.GaugeValue, float64(image.CreatedAt.Unix()), append([]string{image.ID, image.Name,
+				image.Owner, string(image.Visibility), strconv.FormatBool(image.Hidden), string(image.Status)}, extraCreated...)...)
 
 	}
 

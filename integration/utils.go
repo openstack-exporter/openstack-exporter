@@ -115,6 +115,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			domainID,
 			tenantID,
 			novaMetadataMapping, // non-nil here
+			dnsConcurrentCount,
 			nil,
 			logger,
 		)

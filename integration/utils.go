@@ -85,6 +85,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	cloud := "devstack-system-admin" // Must exist in CI clouds.yaml
 	domainID := ""
 	tenantID := ""
+	dnsConcurrentCount := 10
 
 	// Logger similar to main.go
 	promlogConfig := &promslog.Config{}

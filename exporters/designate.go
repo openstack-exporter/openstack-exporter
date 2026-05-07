@@ -89,32 +89,34 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
-	// Collect recordsets for zone and write metrics for zones and recordsets
+	// Fetch all recordsets in one go (Designate API supports listing across all zones)
+	allPagesRecordsets, err := recordsets.ListRecordSets(exporter.Client, "all", recordsets.ListOpts{Limit: exporter.DesignateRecordsetLimit}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allRecordsets, err := recordsets.ExtractRecordSets(allPagesRecordsets)
+	if err != nil {
+		return err
+	}
+
+	zoneCounts := make(map[string]int)
+
+	for _, recordset := range allRecordsets {
+		zoneCounts[recordset.ZoneName] = zoneCounts[recordset.ZoneName] + 1
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
+			prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
+			recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
+	}
+
+	// Emit zone related metrics
 	for _, zone := range allZones {
-
-		allPagesRecordsets, err := recordsets.ListByZone(exporter.Client, zone.ID, recordsets.ListOpts{}).AllPages()
-		if err != nil {
-			return err
-		}
-
-		allRecordsets, err := recordsets.ExtractRecordSets(allPagesRecordsets)
-		if err != nil {
-			return err
-		}
-
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
-			prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
-
-		for _, recordset := range allRecordsets {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
-				prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
-				recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
-		}
+			prometheus.GaugeValue, float64(zoneCounts[zone.Name]), zone.ID, zone.Name, zone.ProjectID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
 			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
 			zone.Status, zone.ProjectID, zone.Type)
-
 	}
 
 	return nil

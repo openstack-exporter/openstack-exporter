@@ -65,6 +65,7 @@ type PrometheusMetric struct {
 type ExporterConfig struct {
 	Client                   *gophercloud.ServiceClient
 	ClientV2                 *gophercloudv2.ServiceClient
+	ServiceName              string
 	Prefix                   string
 	DisabledMetrics          []string
 	CollectTime              bool
@@ -319,6 +320,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	exporterConfig := ExporterConfig{
 		Client:                   client,
 		ClientV2:                 clientV2,
+		ServiceName:              name,
 		Prefix:                   prefix,
 		DisabledMetrics:          disabledMetrics,
 		CollectTime:              collectTime,

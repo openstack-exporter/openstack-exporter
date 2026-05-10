@@ -17,14 +17,14 @@ jobs:
     name: Deploy OpenStack ${{ matrix.name }} with Neutron and run networking integration tests
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
       - name: Deploy devstack
         uses: gophercloud/devstack-action@60ca1042045c0c9e3e001c64575d381654ffcba1
         with:
           branch: ${{ matrix.openstack_version }}
           enabled_services: "${{ matrix.additional_services }}"
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           go-version: '^1.22'
       - name: Display clouds.yaml configuration
@@ -41,7 +41,7 @@ jobs:
         if: failure()
       - name: Upload logs artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-networking-${{ matrix.name }}-${{ github.run_id }}
           path: /tmp/devstack-logs/*

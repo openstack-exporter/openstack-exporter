@@ -123,7 +123,7 @@ func main() {
 			*endpointType,
 			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
 			*domainID, *tenantID,
-      *dnsConcurrentCount,
+			*dnsConcurrentCount,
 			logger,
 		)
 		if err != nil {
@@ -138,7 +138,7 @@ func main() {
 			*endpointType,
 			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
 			*domainID, *tenantID,
-      *dnsConcurrentCount,
+			*dnsConcurrentCount,
 			logger,
 			commonExporter,
 		)
@@ -358,7 +358,7 @@ func buildAndValidateExporters(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
-  dnsConcurrentCount int,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 ) (*prometheus.Registry, int) {
 	registry := prometheus.NewPedanticRegistry()
@@ -378,7 +378,7 @@ func buildAndValidateExporters(
 				collectTime, disableSlowMetrics,
 				disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID, novaMetadataMapping,
-        dnsConcurrentCount,
+				dnsConcurrentCount,
 				nil,
 				logger,
 			)
@@ -452,7 +452,7 @@ func initSingleCloudRegistry(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
-  dnsConcurrentCount int,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 	commonExporter *exporters.CommonMetricsExporter,
 ) (*prometheus.Registry, error) {
@@ -465,7 +465,7 @@ func initSingleCloudRegistry(
 		endpointType,
 		collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
 		domainID, tenantID,
-    dnsConcurrentCount,
+		dnsConcurrentCount,
 		logger,
 	)
 	if enabled == 0 {
@@ -483,7 +483,7 @@ func initMultiCloudRegistries(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
-  dnsConcurrentCount int,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 ) (map[string]*prometheus.Registry, error) {
 	allClouds, err := clientconfig.LoadCloudsYAML()
@@ -507,7 +507,7 @@ func initMultiCloudRegistries(
 				endpointType,
 				collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID,
-        dnsConcurrentCount,
+				dnsConcurrentCount,
 				logger,
 			)
 

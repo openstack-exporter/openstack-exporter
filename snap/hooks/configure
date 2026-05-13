@@ -26,6 +26,7 @@
 [ -z "$(snapctl get disable-service.volume)" ] && snapctl set disable-service.volume=false
 [ -z "$(snapctl get disable-slow-metrics)" ] && snapctl set disable-slow-metrics=false
 [ -z "$(snapctl get domain-id)" ] && snapctl set domain-id=
+[ -z "$(snapctl get tenant-id)" ] && snapctl set tenant-id=
 [ -z "$(snapctl get endpoint-type)" ] && snapctl set endpoint-type=
 [ -z "$(snapctl get log.format)" ] && snapctl set log.format=
 [ -z "$(snapctl get log.level)" ] && snapctl set log.level=

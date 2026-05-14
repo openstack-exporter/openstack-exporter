@@ -184,7 +184,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		zone = agent.AvailabilityZone
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), id, agent.Host, agent.Binary, adminState, zone)
+			prometheus.GaugeValue, float64(state), id, agent.Host, agent.Binary, adminState, zone)
 	}
 
 	return nil

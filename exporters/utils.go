@@ -15,6 +15,8 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
+    "github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	openstackv2 "github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gophercloud/utils/gnocchi"
@@ -380,8 +382,20 @@ func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
 
 		allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 		if err != nil {
-			return nil, err
-		}
+        	if _, ok := err.(gophercloud.ErrDefault403); !ok {
+            	return nil, err
+            }
+
+            user, err := tokens.Get(c, c.TokenID).ExtractUser()
+            if err != nil {
+            	return nil, err
+            }
+
+            allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
+            if err != nil {
+            	return nil, err
+            }
+        }
 
 		allProjects, err = projects.ExtractProjects(allPagesProject)
 		if err != nil {

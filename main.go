@@ -55,6 +55,7 @@ var (
 	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
 	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
+	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
 )
 
 func main() {
@@ -122,6 +123,7 @@ func main() {
 			*endpointType,
 			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
 			*domainID, *tenantID,
+			*dnsConcurrentCount,
 			logger,
 		)
 		if err != nil {
@@ -136,6 +138,7 @@ func main() {
 			*endpointType,
 			*collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID,
 			*domainID, *tenantID,
+			*dnsConcurrentCount,
 			logger,
 			commonExporter,
 		)
@@ -173,7 +176,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		errChan <- err
 		return
@@ -182,7 +185,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
 				errChan <- err
 				return
 			}
@@ -355,6 +358,7 @@ func buildAndValidateExporters(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 ) (*prometheus.Registry, int) {
 	registry := prometheus.NewPedanticRegistry()
@@ -374,6 +378,7 @@ func buildAndValidateExporters(
 				collectTime, disableSlowMetrics,
 				disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID, novaMetadataMapping,
+				dnsConcurrentCount,
 				nil,
 				logger,
 			)
@@ -447,6 +452,7 @@ func initSingleCloudRegistry(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 	commonExporter *exporters.CommonMetricsExporter,
 ) (*prometheus.Registry, error) {
@@ -459,6 +465,7 @@ func initSingleCloudRegistry(
 		endpointType,
 		collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
 		domainID, tenantID,
+		dnsConcurrentCount,
 		logger,
 	)
 	if enabled == 0 {
@@ -476,6 +483,7 @@ func initMultiCloudRegistries(
 	endpointType string,
 	collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
 	domainID, tenantID string,
+	dnsConcurrentCount int,
 	logger *slog.Logger,
 ) (map[string]*prometheus.Registry, error) {
 	allClouds, err := clientconfig.LoadCloudsYAML()
@@ -499,6 +507,7 @@ func initMultiCloudRegistries(
 				endpointType,
 				collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
 				domainID, tenantID,
+				dnsConcurrentCount,
 				logger,
 			)
 

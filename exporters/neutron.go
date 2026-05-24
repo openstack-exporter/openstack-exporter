@@ -29,6 +29,11 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/quotas"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/security/groups"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/subnetpools"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/vpnaas/endpointgroups"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/vpnaas/ikepolicies"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/vpnaas/ipsecpolicies"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/vpnaas/services"
+	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/vpnaas/siteconnections"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/subnets"
@@ -44,6 +49,44 @@ var network_status = []string{
 
 func mapNetworkStatus(current string) int {
 	for idx, status := range network_status {
+		if current == status {
+			return idx
+		}
+	}
+	return -1
+}
+
+var vpn_service_status = []string{
+	"ACTIVE",
+	"DOWN",
+	"BUILD",
+	"ERROR",
+	"PENDING_CREATE",
+	"PENDING_UPDATE",
+	"PENDING_DELETE",
+}
+
+func mapVpnServiceStatus(current string) int {
+	for idx, status := range vpn_service_status {
+		if current == status {
+			return idx
+		}
+	}
+	return -1
+}
+
+var vpn_connection_status = []string{
+	"ACTIVE",
+	"DOWN",
+	"BUILD",
+	"ERROR",
+	"PENDING_CREATE",
+	"PENDING_UPDATE",
+	"PENDING_DELETE",
+}
+
+func mapVpnConnectionStatus(current string) int {
+	for idx, status := range vpn_connection_status {
 		if current == status {
 			return idx
 		}
@@ -72,6 +115,13 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports_lb_not_active"},
 	{Name: "router", Labels: []string{"id", "name", "project_id", "admin_state_up", "status", "external_network_id"}},
 	{Name: "routers", Fn: ListRouters},
+	{Name: "vpn_endpoint_groups", Fn: ListVpnEndpointGroups},
+	{Name: "vpn_ike_policies", Fn: ListIkePolicies},
+	{Name: "vpn_ipsec_policies", Fn: ListIpsecPolicies},
+	{Name: "vpn_services", Fn: ListVpnServices},
+	{Name: "vpn_service", Labels: []string{"id", "project_id", "subnet_id", "router_id", "admin_state_up", "name", "external_ipv4", "external_ipv6", "flavor_id"}},
+	{Name: "vpn_siteconnections", Fn: ListVpnSiteConnections},
+	{Name: "vpn_siteconnection", Labels: []string{"id", "project_id", "admin_state_up", "name", "vpn_service_id", "ike_policy_id", "ipsec_policy_id", "peer_id", "peer_ep_group_id", "local_id", "local_ep_group_id"}},
 	{Name: "routers_not_active"},
 	{Name: "l3_agent_of_router", Labels: []string{"router_id", "l3_agent_id", "ha_state", "agent_alive", "agent_admin_up", "agent_host"}},
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "availability_zone"}, Fn: ListAgentStates},
@@ -407,6 +457,112 @@ func ListNetworkIPAvailabilities(exporter *BaseOpenStackExporter, ch chan<- prom
 				prometheus.GaugeValue, usedFloat64, network.NetworkID,
 				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
 				subnet.SubnetName, projectID)
+		}
+	}
+
+	return nil
+}
+
+// ListVpnEndpointGroups : count total number of vpn endpoint groups instantiated
+func ListVpnEndpointGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allEndpointGroups []endpointgroups.EndpointGroup
+
+	allPagesEndpointGroups, err := endpointgroups.List(exporter.Client, endpointgroups.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allEndpointGroups, err = endpointgroups.ExtractEndpointGroups(allPagesEndpointGroups)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_endpoint_groups"].Metric, prometheus.GaugeValue, float64(len(allEndpointGroups)))
+
+	return nil
+}
+
+// ListIkePolicies : count total number of ipsec ike policies instantiated
+func ListIkePolicies(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allIkePolicies []ikepolicies.Policy
+
+	allPagesIkePolicies, err := ikepolicies.List(exporter.Client, ikepolicies.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allIkePolicies, err = ikepolicies.ExtractPolicies(allPagesIkePolicies)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_ike_policies"].Metric, prometheus.GaugeValue, float64(len(allIkePolicies)))
+
+	return nil
+}
+
+// ListIpsecPolicies : count total number of ipsec policies instantiated
+func ListIpsecPolicies(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allIpsecPolicies []ipsecpolicies.Policy
+
+	allPagesIpsecPolicies, err := ipsecpolicies.List(exporter.Client, ipsecpolicies.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allIpsecPolicies, err = ipsecpolicies.ExtractPolicies(allPagesIpsecPolicies)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_ipsec_policies"].Metric, prometheus.GaugeValue, float64(len(allIpsecPolicies)))
+
+	return nil
+}
+
+// ListVpnServices : count total number of vpn services instantiated and list each VPN Service info
+func ListVpnServices(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allVpnServices []services.Service
+
+	allPagesVpnServices, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allVpnServices, err = services.ExtractServices(allPagesVpnServices)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_services"].Metric, prometheus.GaugeValue, float64(len(allVpnServices)))
+	if !exporter.MetricIsDisabled("vpn_service") {
+		for _, service := range allVpnServices {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_service"].Metric,
+				prometheus.GaugeValue, float64(mapVpnServiceStatus(service.Status)), service.ID, service.ProjectID, service.SubnetID, service.RouterID, strconv.FormatBool(service.AdminStateUp), service.Name, service.ExternalV4IP, service.ExternalV6IP, service.FlavorID)
+		}
+	}
+
+	return nil
+}
+
+// ListVpnSiteConnections : count total number of vpn ipsec site connections instantiated and list each VPN ipsec site connection info
+func ListVpnSiteConnections(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allVpnSiteConnections []siteconnections.Connection
+
+	allPagesVpnSiteConnection, err := siteconnections.List(exporter.Client, siteconnections.ListOpts{}).AllPages()
+	if err != nil {
+		return err
+	}
+
+	allVpnSiteConnections, err = siteconnections.ExtractConnections(allPagesVpnSiteConnection)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_siteconnections"].Metric, prometheus.GaugeValue, float64(len(allVpnSiteConnections)))
+	if !exporter.MetricIsDisabled("vpn_siteconnection") {
+		for _, connection := range allVpnSiteConnections {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_siteconnection"].Metric, prometheus.GaugeValue, float64(mapVpnConnectionStatus(connection.Status)), connection.ID, connection.ProjectID, strconv.FormatBool(connection.AdminStateUp), connection.Name, connection.VPNServiceID, connection.IKEPolicyID, connection.IPSecPolicyID, connection.PeerID, connection.PeerEPGroupID, connection.LocalID, connection.LocalEPGroupID)
 		}
 	}
 

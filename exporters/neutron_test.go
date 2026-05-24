@@ -351,6 +351,27 @@ openstack_neutron_subnets_used{ip_version="6",prefix="2001:db8::/63",prefix_leng
 # HELP openstack_neutron_up up
 # TYPE openstack_neutron_up gauge
 openstack_neutron_up 1
+# HELP openstack_neutron_vpn_endpoint_groups vpn_endpoint_groups
+# TYPE openstack_neutron_vpn_endpoint_groups gauge
+openstack_neutron_vpn_endpoint_groups 1
+# HELP openstack_neutron_vpn_ike_policies vpn_ike_policies
+# TYPE openstack_neutron_vpn_ike_policies gauge
+openstack_neutron_vpn_ike_policies 1
+# HELP openstack_neutron_vpn_ipsec_policies vpn_ipsec_policies
+# TYPE openstack_neutron_vpn_ipsec_policies gauge
+openstack_neutron_vpn_ipsec_policies 1
+# HELP openstack_neutron_vpn_service vpn_service
+# TYPE openstack_neutron_vpn_service gauge
+openstack_neutron_vpn_service{admin_state_up="true",external_ipv4="",external_ipv6="",flavor_id="",id="5c561d9d-eaea-45f6-ae3e-08d1a7080828",name="vpnservice1",project_id="10039663455a446d8ba2cbb058b0f578",router_id="66e3b16c-8ce5-40fb-bb49-ab6d8dc3f2aa",subnet_id=""} 4
+# HELP openstack_neutron_vpn_services vpn_services
+# TYPE openstack_neutron_vpn_services gauge
+openstack_neutron_vpn_services 1
+# HELP openstack_neutron_vpn_siteconnection vpn_siteconnection
+# TYPE openstack_neutron_vpn_siteconnection gauge
+openstack_neutron_vpn_siteconnection{admin_state_up="true",id="851f280f-5639-4ea3-81aa-e298525ab74b",ike_policy_id="9b00d6b0-6c93-4ca5-9747-b8ade7bb514f",ipsec_policy_id="e6e23d0c-9519-4d52-8ea4-5b1f96d857b1",local_ep_group_id="3e1815dd-e212-43d0-8f13-b494fa553e68",local_id="",name="vpnconnection1",peer_ep_group_id="9ad5a7e0-6dac-41b4-b20d-a7b8645fddf1",peer_id="172.24.4.233",project_id="10039663455a446d8ba2cbb058b0f578",vpn_service_id="5c561d9d-eaea-45f6-ae3e-08d1a7080828"} 4
+# HELP openstack_neutron_vpn_siteconnections vpn_siteconnections
+# TYPE openstack_neutron_vpn_siteconnections gauge
+openstack_neutron_vpn_siteconnections 1
 `
 
 func (suite *NeutronTestSuite) TestNeutronExporter() {

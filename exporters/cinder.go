@@ -11,7 +11,6 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/volumes"
-	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -87,13 +86,7 @@ func ListVolumesStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 	type VolumeWithExt = volumes.Volume
 
 	var allVolumes []VolumeWithExt
-	var volumeListOption volumes.ListOpts
-
-	if exporter.TenantID == "" {
-		volumeListOption = volumes.ListOpts{AllTenants: true}
-	} else {
-		volumeListOption = volumes.ListOpts{TenantID: exporter.TenantID}
-	}
+	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
 	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
 	if err != nil {
@@ -124,10 +117,9 @@ func ListVolumes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	type VolumeWithExt = volumes.Volume
 
 	var allVolumes []VolumeWithExt
+	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
-	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumes.ListOpts{
-		AllTenants: true,
-	}).AllPages(ctx)
+	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -174,8 +166,9 @@ func ListVolumes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 
 func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSnapshots []snapshots.Snapshot
+	snapshotListOption := getSnapshotListOptions(exporter.TenantID)
 
-	allPagesSnapshot, err := snapshots.List(exporter.ClientV2, snapshots.ListOpts{AllTenants: true}).AllPages(ctx)
+	allPagesSnapshot, err := snapshots.List(exporter.ClientV2, snapshotListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -249,19 +242,7 @@ func ListCinderPoolCapacityFree(ctx context.Context, exporter *BaseOpenStackExpo
 }
 
 func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	cli, err := newIdentityV3ClientV2FromExporter(exporter, "volume")
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}
@@ -305,4 +286,18 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 	}
 
 	return nil
+}
+
+func getVolumeListOptions(tenantID string) volumes.ListOpts {
+	if tenantID == "" {
+		return volumes.ListOpts{AllTenants: true}
+	}
+	return volumes.ListOpts{TenantID: tenantID}
+}
+
+func getSnapshotListOptions(tenantID string) snapshots.ListOpts {
+	if tenantID == "" {
+		return snapshots.ListOpts{AllTenants: true}
+	}
+	return snapshots.ListOpts{TenantID: tenantID}
 }

@@ -19,7 +19,6 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
-	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -286,19 +285,7 @@ func collectNovaQuotaDetail(ch chan<- prometheus.Metric, metric *prometheus.Desc
 }
 
 func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}
@@ -368,15 +355,9 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	type ServerWithExt = servers.Server
 
 	var allServers []ServerWithExt
-	var serverListOption servers.ListOpts
 	var flavorIDMapper flavorIDMapper
+	serverListOption := getServerListOptions(exporter.TenantID)
 
-	if exporter.TenantID == "" {
-		serverListOption = servers.ListOpts{AllTenants: true}
-	} else {
-		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
-
-	}
 	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
 	if err != nil {
 		return err
@@ -439,26 +420,19 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 }
 
 func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	cli, err := newIdentityV3ClientV2FromExporter(exporter, "compute")
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
-		limits, err := limits.Get(ctx, exporter.ClientV2, limits.GetOpts{TenantID: p.ID}).Extract()
+		limitGetOpts := limits.GetOpts{TenantID: p.ID}
+		if p.ID == exporter.TenantID {
+			limitGetOpts = limits.GetOpts{}
+		}
+
+		limits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
 		if err != nil {
 			return err
 		}
@@ -506,6 +480,13 @@ func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	}
 
 	return nil
+}
+
+func getServerListOptions(tenantID string) servers.ListOpts {
+	if tenantID == "" {
+		return servers.ListOpts{AllTenants: true}
+	}
+	return servers.ListOpts{TenantID: tenantID}
 }
 
 // Help function to determine if this aggregate has only the 'availability_zone' metadata

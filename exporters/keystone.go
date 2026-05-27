@@ -11,7 +11,6 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/domains"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/groups"
-	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/regions"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
@@ -80,14 +79,7 @@ func ListDomains(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 }
 
 func ListProjects(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	allPagesProject, err := projects.List(exporter.ClientV2, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}

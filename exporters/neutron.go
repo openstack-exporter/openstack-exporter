@@ -13,7 +13,6 @@ import (
 
 	"go4.org/netipx"
 
-	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/floatingips"
@@ -657,19 +656,7 @@ func collectNeutronQuotaDetail(ch chan<- prometheus.Metric, metric *prometheus.D
 }
 
 func ListNetworkQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	cli, err := newIdentityV3ClientV2FromExporter(exporter, "network")
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(cli, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}

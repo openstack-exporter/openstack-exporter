@@ -13,6 +13,9 @@ import (
 
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	openstackv2 "github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
 	gnocchiv2 "github.com/gophercloud/utils/v2/gnocchi"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
@@ -198,6 +201,43 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 	}
 
 	return nil, fmt.Errorf("unable to create a service client for %s", service)
+}
+
+// GetProjects returns all projects for the configured domain or just the configured project.
+func GetProjects(ctx context.Context, exporter *BaseOpenStackExporter) ([]projects.Project, error) {
+	c, err := newIdentityV3ClientV2FromExporter(exporter, exporter.ServiceName)
+	if err != nil {
+		return nil, err
+	}
+
+	if exporter.TenantID != "" {
+		exporter.logger.Debug("retrieving single project based on configured project ID", "project_id", exporter.TenantID)
+		project, err := projects.Get(ctx, c, exporter.TenantID).Extract()
+		if err != nil {
+			return nil, err
+		}
+		return []projects.Project{*project}, nil
+	}
+
+	exporter.logger.Debug("retrieving all projects for configured domain", "domain_id", exporter.DomainID)
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
+	if err != nil {
+		if !gophercloudv2.ResponseCodeIs(err, http.StatusForbidden) {
+			return nil, err
+		}
+
+		user, err := tokens.Get(ctx, c, c.ProviderClient.TokenID).ExtractUser()
+		if err != nil {
+			return nil, err
+		}
+
+		allPagesProject, err = users.ListProjects(c, user.ID).AllPages(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return projects.ExtractProjects(allPagesProject)
 }
 
 // GetEndpointType return openstack endpoints for configured type

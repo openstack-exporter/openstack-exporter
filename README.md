@@ -118,8 +118,8 @@ Flags:
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
       --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
-      --tenant-id=TENANT-ID      Gather metrics only for the given Tenant ID
-                                 (default to all tenants)
+      --project-id=PROJECT-ID    Gather metrics only for the given Project ID
+                                 (defaults to all projects)
       --[no-]disable-service-autodetect
                                  Disable single-cloud service autodetection and
                                  use only explicit service flags

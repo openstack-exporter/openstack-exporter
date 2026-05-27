@@ -17,6 +17,8 @@ import (
 	"github.com/gophercloud/gophercloud"
 	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/external"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
@@ -647,7 +649,19 @@ func ListNetworkQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
-		return err
+		if _, ok := err.(gophercloud.ErrDefault403); !ok {
+			return err
+		}
+
+		user, err := tokens.Get(c, c.TokenID).ExtractUser()
+		if err != nil {
+			return err
+		}
+
+		allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
+		if err != nil {
+			return err
+		}
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)

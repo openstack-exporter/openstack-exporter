@@ -25,6 +25,8 @@ import (
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/flavors"
 	"github.com/gophercloud/gophercloud/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
+	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -302,7 +304,19 @@ func ListQuotas(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 
 	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
-		return err
+		if _, ok := err.(gophercloud.ErrDefault403); !ok {
+			return err
+		}
+
+		user, err := tokens.Get(c, c.TokenID).ExtractUser()
+		if err != nil {
+			return err
+		}
+
+		allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
+		if err != nil {
+			return err
+		}
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)
@@ -449,15 +463,9 @@ func ListAllServers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric
 
 	var allServers []ServerWithExt
 	var allFlavors []flavors.Flavor
-	var serverListOption servers.ListOpts
 
-	if exporter.TenantID == "" {
-		serverListOption = servers.ListOpts{AllTenants: true}
-	} else {
-		serverListOption = servers.ListOpts{TenantID: exporter.TenantID}
-
-	}
-	allPagesServers, err := servers.List(exporter.Client, serverListOption).AllPages()
+	serverListOptions := getServerListOptions(exporter.TenantID)
+	allPagesServers, err := servers.List(exporter.Client, serverListOptions).AllPages()
 
 	if err != nil {
 		return err
@@ -534,7 +542,19 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
 	if err != nil {
-		return err
+		if _, ok := err.(gophercloud.ErrDefault403); !ok {
+			return err
+		}
+
+		user, err := tokens.Get(c, c.TokenID).ExtractUser()
+		if err != nil {
+			return err
+		}
+
+		allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
+		if err != nil {
+			return err
+		}
 	}
 
 	allProjects, err = projects.ExtractProjects(allPagesProject)
@@ -543,8 +563,18 @@ func ListComputeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 	}
 
 	for _, p := range allProjects {
+		exporter.logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
+
+		// If projectID == configured tenantID we don't provide getOpts, since specifying
+		// a tenantID requires `os_compute_api:limits:other_project` permissions, even
+		// if TenantID  is the project to which the current credential is scoped.
+		limitGetOpts := limits.GetOpts{TenantID: p.ID}
+		if p.ID == exporter.TenantID {
+			limitGetOpts = limits.GetOpts{}
+		}
+
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
-		limits, err := limits.Get(exporter.Client, limits.GetOpts{TenantID: p.ID}).Extract()
+		limits, err := limits.Get(exporter.Client, limitGetOpts).Extract()
 		if err != nil {
 			return err
 		}
@@ -619,4 +649,11 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 		}
 	}
 	return label
+}
+
+func getServerListOptions(tenantID string) servers.ListOpts {
+	if tenantID == "" {
+		return servers.ListOpts{AllTenants: true}
+	}
+	return servers.ListOpts{TenantID: tenantID}
 }

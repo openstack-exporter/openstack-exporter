@@ -13,6 +13,7 @@ type PlacementExporter struct {
 }
 
 var placementResourceLabels = []string{"hostname", "resourcetype"}
+var placementAllocationLabels = []string{"hostname", "consumer_id", "resourcetype"}
 
 var defaultPlacementMetrics = []Metric{
 	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
@@ -20,6 +21,7 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_generation", Labels: placementResourceLabels},
 	{Name: "resource_reserved", Labels: placementResourceLabels},
 	{Name: "resource_usage", Labels: placementResourceLabels},
+	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -75,6 +77,25 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k)
 		}
 
+		if _, ok := exporter.Metrics["resource_provider_allocations"]; ok {
+			allocationsResult, err := resourceproviders.GetAllocations(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
+			if err != nil {
+				return err
+			}
+
+			for consumerID, allocation := range allocationsResult.Allocations {
+				for resourceClass, amount := range allocation.Resources {
+					ch <- prometheus.MustNewConstMetric(
+						exporter.Metrics["resource_provider_allocations"].Metric,
+						prometheus.GaugeValue,
+						float64(amount),
+						resourceprovider.Name,
+						consumerID,
+						resourceClass,
+					)
+				}
+			}
+		}
 	}
 
 	return nil

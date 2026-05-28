@@ -139,6 +139,8 @@ var fixtures map[string]string = map[string]string{
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/usages":      "resource_provider_1_usage",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/usages":      "resource_provider_2_usage",
+	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/allocations": "resource_provider_1_allocations",
+	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/allocations": "resource_provider_2_allocations",
 	"/compute/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/2db68fed84324f29bb73130c6c2094fb/detail":                 "nova_quotas_1_usage",

@@ -1,15 +1,13 @@
 module github.com/openstack-exporter/openstack-exporter
 
-go 1.23.0
-
-toolchain go1.24.4
+go 1.25.0
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/gophercloud/gophercloud v1.14.1
-	github.com/gophercloud/gophercloud/v2 v2.10.0
+	github.com/gophercloud/gophercloud/v2 v2.12.0
 	github.com/gophercloud/utils v0.0.0-20231010081019-80377eca5d56
-	github.com/gophercloud/utils/v2 v2.0.0-20250711132455-9770683b100a
+	github.com/gophercloud/utils/v2 v2.0.0-20260424064311-2eeed4ceb3e9
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/vault-client-go v0.4.3
 	github.com/jarcoal/httpmock v1.4.0
@@ -20,7 +18,7 @@ require (
 	github.com/prometheus/exporter-toolkit v0.14.0
 	github.com/stretchr/testify v1.11.1
 	go4.org/netipx v0.0.0-20231129151722-fdeea329fbba
-	golang.org/x/sync v0.16.0
+	golang.org/x/sync v0.20.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -30,7 +28,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/coreos/go-systemd/v22 v22.6.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/gofrs/uuid/v5 v5.3.2 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/hashicorp/go-retryablehttp v0.7.7 // indirect
 	github.com/hashicorp/go-rootcerts v1.0.2 // indirect
@@ -46,12 +43,14 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/xhit/go-str2duration/v2 v2.1.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
-	golang.org/x/crypto v0.41.0 // indirect
-	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/crypto v0.51.0 // indirect
+	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	golang.org/x/sys v0.35.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.0.0-20220922220347-f3bd1da661af // indirect
 	google.golang.org/protobuf v1.36.8 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/gophercloud/gophercloud/v2 v2.12.0 => github.com/gophercloud/gophercloud/v2 v2.0.1-0.20260528091511-89b42266882a

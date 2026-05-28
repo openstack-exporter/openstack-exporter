@@ -14,7 +14,6 @@ import (
 	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/utils/openstack/clientconfig"
-	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/openstack-exporter/openstack-exporter/utils"
@@ -266,7 +265,6 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	var tlsConfig tls.Config
 
 	opts := clientconfig.ClientOpts{Cloud: cloud}
-	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
 
 	config, err := clientconfig.GetCloudFromYAML(&opts)
 	if err != nil {
@@ -314,7 +312,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		return nil, err
 	}
 
-	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
+	clientV2, err := NewServiceClientV2(name, &opts, transport, endpointType)
 	if err != nil {
 		return nil, err
 	}

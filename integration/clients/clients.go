@@ -158,10 +158,6 @@ func AcceptanceTestChoicesFromEnv() (*AcceptanceTestChoices, error) {
 	}, nil
 }
 
-
-
-
-
 // NewBlockStorageV3NoAuthClient returns a noauth *ServiceClient for
 // making calls to the OpenStack Block Storage v3 API. An error will be
 // returned if client creation was not possible.
@@ -190,7 +186,7 @@ func NewComputeV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewComputeV2(client, gophercloud.EndpointOpts{
+	return openstack.NewComputeV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -204,7 +200,7 @@ func NewBareMetalV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewBareMetalV1(client, gophercloud.EndpointOpts{
+	return openstack.NewBareMetalV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -238,7 +234,7 @@ func NewBareMetalIntrospectionV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewBareMetalIntrospectionV1(client, gophercloud.EndpointOpts{
+	return openstack.NewBareMetalIntrospectionV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -252,7 +248,7 @@ func NewDBV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewDBV1(client, gophercloud.EndpointOpts{
+	return openstack.NewDBV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -266,7 +262,7 @@ func NewDNSV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewDNSV2(client, gophercloud.EndpointOpts{
+	return openstack.NewDNSV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -280,7 +276,7 @@ func NewIdentityV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewIdentityV2(client, gophercloud.EndpointOpts{
+	return openstack.NewIdentityV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -294,7 +290,7 @@ func NewIdentityV2AdminClient() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewIdentityV2(client, gophercloud.EndpointOpts{
+	return openstack.NewIdentityV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region:       os.Getenv("OS_REGION_NAME"),
 		Availability: gophercloud.AvailabilityAdmin,
 	})
@@ -316,7 +312,7 @@ func NewIdentityV2UnauthenticatedClient() (*gophercloud.ServiceClient, error) {
 
 	client = configureDebug(client)
 
-	return openstack.NewIdentityV2(client, gophercloud.EndpointOpts{})
+	return openstack.NewIdentityV2(context.TODO(), client, gophercloud.EndpointOpts{})
 }
 
 // NewIdentityV3Client returns a *ServiceClient for making calls
@@ -328,7 +324,7 @@ func NewIdentityV3Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewIdentityV3(client, gophercloud.EndpointOpts{
+	return openstack.NewIdentityV3(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -349,7 +345,7 @@ func NewIdentityV3UnauthenticatedClient() (*gophercloud.ServiceClient, error) {
 
 	client = configureDebug(client)
 
-	return openstack.NewIdentityV3(client, gophercloud.EndpointOpts{})
+	return openstack.NewIdentityV3(context.TODO(), client, gophercloud.EndpointOpts{})
 }
 
 // NewImageV2Client returns a *ServiceClient for making calls to the
@@ -361,7 +357,7 @@ func NewImageV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewImageV2(client, gophercloud.EndpointOpts{
+	return openstack.NewImageV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -375,7 +371,7 @@ func NewNetworkV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewNetworkV2(client, gophercloud.EndpointOpts{
+	return openstack.NewNetworkV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -389,7 +385,7 @@ func NewObjectStorageV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewObjectStorageV1(client, gophercloud.EndpointOpts{
+	return openstack.NewObjectStorageV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -403,7 +399,7 @@ func NewSharedFileSystemV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewSharedFileSystemV2(client, gophercloud.EndpointOpts{
+	return openstack.NewSharedFileSystemV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -417,7 +413,7 @@ func NewLoadBalancerV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewLoadBalancerV2(client, gophercloud.EndpointOpts{
+	return openstack.NewLoadBalancerV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -431,7 +427,7 @@ func NewMessagingV2Client(clientID string) (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewMessagingV2(client, clientID, gophercloud.EndpointOpts{
+	return openstack.NewMessagingV2(context.TODO(), client, clientID, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -445,7 +441,7 @@ func NewContainerV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewContainerV1(client, gophercloud.EndpointOpts{
+	return openstack.NewContainerV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -459,7 +455,7 @@ func NewKeyManagerV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewKeyManagerV1(client, gophercloud.EndpointOpts{
+	return openstack.NewKeyManagerV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -486,7 +482,7 @@ func NewContainerInfraV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewContainerInfraV1(client, gophercloud.EndpointOpts{
+	return openstack.NewContainerInfraV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -500,7 +496,7 @@ func NewWorkflowV2Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewWorkflowV2(client, gophercloud.EndpointOpts{
+	return openstack.NewWorkflowV2(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -514,7 +510,7 @@ func NewOrchestrationV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewOrchestrationV1(client, gophercloud.EndpointOpts{
+	return openstack.NewOrchestrationV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }
@@ -528,7 +524,7 @@ func NewPlacementV1Client() (*gophercloud.ServiceClient, error) {
 		return nil, err
 	}
 
-	return openstack.NewPlacementV1(client, gophercloud.EndpointOpts{
+	return openstack.NewPlacementV1(context.TODO(), client, gophercloud.EndpointOpts{
 		Region: os.Getenv("OS_REGION_NAME"),
 	})
 }

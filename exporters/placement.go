@@ -13,7 +13,7 @@ type PlacementExporter struct {
 }
 
 var placementResourceLabels = []string{"hostname", "resourcetype"}
-var placementAllocationLabels = []string{"hostname", "consumer_id", "resourcetype"}
+var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
 
 var defaultPlacementMetrics = []Metric{
 	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},

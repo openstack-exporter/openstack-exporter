@@ -30,12 +30,12 @@ openstack_placement_resource_generation{hostname="cmp-5-svr8208.localdomain",res
 openstack_placement_resource_generation{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 12
 # HELP openstack_placement_resource_provider_allocations resource_provider_allocations
 # TYPE openstack_placement_resource_provider_allocations gauge
-openstack_placement_resource_provider_allocations{consumer_id="a0b15655-e674-4e63-aa64-cde2f5de4402",hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 40
-openstack_placement_resource_provider_allocations{consumer_id="a0b15655-e674-4e63-aa64-cde2f5de4402",hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 4096
-openstack_placement_resource_provider_allocations{consumer_id="a0b15655-e674-4e63-aa64-cde2f5de4402",hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 2
-openstack_placement_resource_provider_allocations{consumer_id="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e",hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 80
-openstack_placement_resource_provider_allocations{consumer_id="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e",hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 8192
-openstack_placement_resource_provider_allocations{consumer_id="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e",hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 4
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB",uuid="a0b15655-e674-4e63-aa64-cde2f5de4402"} 40
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB",uuid="a0b15655-e674-4e63-aa64-cde2f5de4402"} 4096
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU",uuid="a0b15655-e674-4e63-aa64-cde2f5de4402"} 2
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 80
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 8192
+openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 4
 # HELP openstack_placement_resource_reserved resource_reserved
 # TYPE openstack_placement_resource_reserved gauge
 openstack_placement_resource_reserved{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 0

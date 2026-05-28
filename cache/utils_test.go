@@ -73,6 +73,7 @@ func TestCollectCache(t *testing.T) {
 	domainID := ""
 	tenantID := ""
 	novaMetadataMapping := new(utils.LabelMappingFlag)
+	dnsConcurrentCount := 10
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	if err := CollectCache(CollectCacheOptions{
@@ -90,6 +91,7 @@ func TestCollectCache(t *testing.T) {
 		DomainID:                 domainID,
 		TenantID:                 tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
+		DnsConcurrentCount:       dnsConcurrentCount,
 	}, logger); err != nil {
 		t.Errorf("Collect cache failed")
 	}

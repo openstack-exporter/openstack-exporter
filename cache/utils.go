@@ -36,6 +36,7 @@ type CollectCacheOptions struct {
 	DomainID                    string
 	TenantID                    string
 	NovaMetadataMapping         *utils.LabelMappingFlag
+	DnsConcurrentCount          int
 	UUIDGenFunc                 func() (string, error)
 	CompletePlacementInParallel bool
 }
@@ -87,6 +88,7 @@ func CollectCache(options CollectCacheOptions, logger *slog.Logger) error {
 				DomainID:                    options.DomainID,
 				TenantID:                    options.TenantID,
 				NovaMetadataMapping:         options.NovaMetadataMapping,
+				DnsConcurrentCount:          options.DnsConcurrentCount,
 				UUIDGenFunc:                 options.UUIDGenFunc,
 				CompletePlacementInParallel: options.CompletePlacementInParallel,
 			}, logger)

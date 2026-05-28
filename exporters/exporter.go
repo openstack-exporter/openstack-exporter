@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
@@ -18,6 +19,7 @@ import (
 	"github.com/mitchellh/go-homedir"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 type Metric struct {
@@ -60,6 +62,7 @@ type ExporterOptions struct {
 	DomainID                    string
 	TenantID                    string
 	NovaMetadataMapping         *utils.LabelMappingFlag
+	DnsConcurrentCount          int
 	UUIDGenFunc                 func() (string, error)
 	CompletePlacementInParallel bool
 }
@@ -80,6 +83,7 @@ type PrometheusMetric struct {
 type ExporterConfig struct {
 	Client                      *gophercloud.ServiceClient
 	ClientV2                    *gophercloudv2.ServiceClient
+	ServiceName                 string
 	Prefix                      string
 	DisabledMetrics             []string
 	CollectTime                 bool
@@ -90,6 +94,7 @@ type ExporterConfig struct {
 	DomainID                    string
 	TenantID                    string
 	NovaMetadataMapping         *utils.LabelMappingFlag
+	DnsConcurrentCount          int
 	CompletePlacementInParallel bool
 }
 
@@ -146,29 +151,48 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 }
 
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
-	metricsDown := 0
-	metricsCount := len(exporter.Metrics)
+	metricsCount := 0
+	var failures int32
+
+	var g errgroup.Group
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
 			exporter.logger.Debug("No function handler set for metric", "metric", name)
-			metricsCount--
 			continue
 		}
 
-		if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
-			exporter.logger.Error("Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
-			metricsDown++
-		}
+		metricsCount++
+
+		name := name
+		metric := metric
+
+		g.Go(func() error {
+			if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
+				exporter.logger.Error(
+					"Failed to collect metric for exporter",
+					"exporter", exporter.Name,
+					"metric", name,
+					"err", err,
+				)
+				atomic.AddInt32(&failures, 1)
+			}
+			return nil
+		})
 	}
 
-	//If all metrics collections fails for a given service, we'll flag it as down.
-	if metricsDown >= metricsCount {
+	_ = g.Wait()
+
+	if metricsCount == 0 {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
+		return
+	}
+
+	if int(atomic.LoadInt32(&failures)) >= metricsCount {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
 	}
-
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
@@ -220,6 +244,10 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 			Fn: fn,
 		}
 	}
+}
+
+func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
+	return exporter.DnsConcurrentCount
 }
 
 // took from here:
@@ -316,6 +344,7 @@ func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporte
 	exporterConfig := ExporterConfig{
 		Client:                      client,
 		ClientV2:                    clientV2,
+		ServiceName:                 options.Service,
 		Prefix:                      options.Prefix,
 		DisabledMetrics:             options.DisabledMetrics,
 		CollectTime:                 options.CollectTime,
@@ -326,6 +355,7 @@ func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporte
 		DomainID:                    options.DomainID,
 		TenantID:                    options.TenantID,
 		NovaMetadataMapping:         options.NovaMetadataMapping,
+		DnsConcurrentCount:          options.DnsConcurrentCount,
 		CompletePlacementInParallel: options.CompletePlacementInParallel,
 	}
 

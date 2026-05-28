@@ -178,6 +178,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 		DisabledMetrics:     []string{},
 		EndpointType:        "public",
 		NovaMetadataMapping: novaMetadataMapping,
+		DnsConcurrentCount:  10,
 		UUIDGenFunc: func() (string, error) {
 			return DEFAULT_UUID, nil
 		},

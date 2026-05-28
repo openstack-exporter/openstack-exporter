@@ -34,22 +34,22 @@ var defaultEnabledServices = []string{"network", "compute", "image", "volume", "
 var DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 var (
-	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
-	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
-	endpointType             = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
-	collectTime              = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
-	disabledMetrics          = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
-	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
-	disableDeprecatedMetrics = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
-	disableCinderAgentUUID   = kingpin.Flag("disable-cinder-agent-uuid", "Disable UUID generation for Cinder agents").Default("false").Bool()
-	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
-	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
-	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
-	cacheEnable              = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
-	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
-	tenantID                 = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
-	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
+	metrics                     = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
+	osClientConfig              = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
+	prefix                      = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
+	endpointType                = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
+	collectTime                 = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
+	disabledMetrics             = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
+	disableSlowMetrics          = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
+	disableDeprecatedMetrics    = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
+	disableCinderAgentUUID      = kingpin.Flag("disable-cinder-agent-uuid", "Disable UUID generation for Cinder agents").Default("false").Bool()
+	cloud                       = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
+	multiCloud                  = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
+	domainID                    = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
+	cacheEnable                 = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
+	cacheTTL                    = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
+	tenantID                    = kingpin.Flag("tenant-id", "Gather metrics only for the given Tenant ID (default to all tenants)").String()
+	novaMetadataMapping         = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
 	completePlacementInParallel = kingpin.Flag("complete-placement-in-parallel", "Enable parallel collection of placement resource provider data (1 API call + 2N parallel calls instead of 3N sequential calls)").Default("false").Bool()
 )
 
@@ -127,7 +127,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, *completePlacementInParallel, logger); err != nil {
+	if err := cache.CollectCache(cacheOptions(services), logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		errChan <- err
 		return
@@ -136,7 +136,7 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, *completePlacementInParallel, logger); err != nil {
+			if err := cache.CollectCache(cacheOptions(services), logger); err != nil {
 				errChan <- err
 				return
 			}
@@ -147,6 +147,44 @@ func cacheBackgroundService(ctx context.Context, services map[string]*bool, errC
 			logger.Info("Backend service is stopping")
 			return
 		}
+	}
+}
+
+func cacheOptions(services map[string]*bool) cache.CollectCacheOptions {
+	return cache.CollectCacheOptions{
+		EnableExporterFunc:          exporters.EnableExporter,
+		MultiCloud:                  *multiCloud,
+		Services:                    services,
+		Prefix:                      *prefix,
+		Cloud:                       *cloud,
+		DisabledMetrics:             *disabledMetrics,
+		EndpointType:                *endpointType,
+		CollectTime:                 *collectTime,
+		DisableSlowMetrics:          *disableSlowMetrics,
+		DisableDeprecatedMetrics:    *disableDeprecatedMetrics,
+		DisableCinderAgentUUID:      *disableCinderAgentUUID,
+		DomainID:                    *domainID,
+		TenantID:                    *tenantID,
+		NovaMetadataMapping:         novaMetadataMapping,
+		CompletePlacementInParallel: *completePlacementInParallel,
+	}
+}
+
+func exporterOptions(service, cloud string) exporters.ExporterOptions {
+	return exporters.ExporterOptions{
+		Service:                     service,
+		Prefix:                      *prefix,
+		Cloud:                       cloud,
+		DisabledMetrics:             *disabledMetrics,
+		EndpointType:                *endpointType,
+		CollectTime:                 *collectTime,
+		DisableSlowMetrics:          *disableSlowMetrics,
+		DisableDeprecatedMetrics:    *disableDeprecatedMetrics,
+		DisableCinderAgentUUID:      *disableCinderAgentUUID,
+		DomainID:                    *domainID,
+		TenantID:                    *tenantID,
+		NovaMetadataMapping:         novaMetadataMapping,
+		CompletePlacementInParallel: *completePlacementInParallel,
 	}
 }
 
@@ -250,7 +288,7 @@ func probeHandler(services map[string]*bool, logger *slog.Logger) http.HandlerFu
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, *completePlacementInParallel, logger)
+			exp, err := exporters.EnableExporter(exporterOptions(service, cloud), logger)
 			if err != nil {
 				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -292,7 +330,7 @@ func metricHandler(services map[string]*bool, logger *slog.Logger) http.HandlerF
 		registry := prometheus.NewPedanticRegistry()
 		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, nil, *completePlacementInParallel, logger)
+			exp, err := exporters.EnableExporter(exporterOptions(service, *cloud), logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				logger.Error("enabling exporter for service failed", "service", service, "error", err)
@@ -341,7 +379,7 @@ func SetPasswordIfVaultIsUsed(logger *slog.Logger) {
 	if !vaultConfig.UseVault {
 		return
 	}
-	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress),)
+	client, err := vault.New(vault.WithAddress(vaultConfig.VaultAddress))
 	if err != nil {
 		logger.Error("failed to create Vault client", "err", err)
 		os.Exit(1)

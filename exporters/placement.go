@@ -38,16 +38,6 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	return &exporter, nil
 }
 
-type resourceProviderData struct {
-	Name            string
-	UUID            string
-	Inventories     map[string]resourceproviders.Inventory
-	Usages          map[string]int
-	err             error
-	inventoriesDone chan struct{}
-	usagesDone      chan struct{}
-}
-
 const maxConcurrentRequests = 50
 
 func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
@@ -66,126 +56,73 @@ func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- p
 		return nil
 	}
 
+	concurrency := 1
 	if exporter.CompletePlacementInParallel {
-		return listPlacementResourceProvidersParallel(exporter, ch, allResourceProviders)
+		concurrency = maxConcurrentRequests
 	}
-	return listPlacementResourceProvidersSequential(exporter, ch, allResourceProviders)
+	return collectPlacementResourceProviders(exporter, ch, allResourceProviders, concurrency)
 }
 
-func listPlacementResourceProvidersSequential(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric, allResourceProviders []resourceproviders.ResourceProvider) error {
-	for _, resourceprovider := range allResourceProviders {
-		inventoryResult, err := resourceproviders.GetInventories(exporter.Client, resourceprovider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-
-		for k, v := range inventoryResult.Inventories {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(v.Total), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(v.AllocationRatio), resourceprovider.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(v.Reserved), resourceprovider.Name, k)
-		}
-
-		usagesResult, err := resourceproviders.GetUsages(exporter.Client, resourceprovider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-
-		for k, v := range usagesResult.Usages {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(v), resourceprovider.Name, k)
-		}
-	}
-	return nil
-}
-
-func listPlacementResourceProvidersParallel(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric, allResourceProviders []resourceproviders.ResourceProvider) error {
-	semaphore := make(chan struct{}, maxConcurrentRequests)
+func collectPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric, allResourceProviders []resourceproviders.ResourceProvider, concurrency int) error {
+	semaphore := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
+	var errMu sync.Mutex
+	var errCollect error
 
-	dataChan := make(chan *resourceProviderData, len(allResourceProviders))
+	setError := func(err error) {
+		errMu.Lock()
+		defer errMu.Unlock()
+		if errCollect == nil {
+			errCollect = err
+		}
+	}
 
 	for _, rp := range allResourceProviders {
-		data := &resourceProviderData{
-			Name:            rp.Name,
-			UUID:            rp.UUID,
-			Inventories:     make(map[string]resourceproviders.Inventory),
-			Usages:          make(map[string]int),
-			inventoriesDone: make(chan struct{}),
-			usagesDone:      make(chan struct{}),
-		}
-		dataChan <- data
+		rp := rp
 
 		wg.Add(1)
-		go func(data *resourceProviderData) {
+		go func() {
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			inventoryResult, err := resourceproviders.GetInventories(exporter.Client, data.UUID).Extract()
+			inventoryResult, err := resourceproviders.GetInventories(exporter.Client, rp.UUID).Extract()
 			if err != nil {
-				data.err = err
-			} else {
-				for k, v := range inventoryResult.Inventories {
-					data.Inventories[k] = v
-				}
+				setError(err)
+				return
 			}
-			close(data.inventoriesDone)
-		}(data)
+
+			for k, v := range inventoryResult.Inventories {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
+					prometheus.GaugeValue, float64(v.Total), rp.Name, k)
+
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
+					prometheus.GaugeValue, float64(v.AllocationRatio), rp.Name, k)
+
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
+					prometheus.GaugeValue, float64(v.Reserved), rp.Name, k)
+			}
+		}()
 
 		wg.Add(1)
-		go func(data *resourceProviderData) {
+		go func() {
 			defer wg.Done()
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			usagesResult, err := resourceproviders.GetUsages(exporter.Client, data.UUID).Extract()
+			usagesResult, err := resourceproviders.GetUsages(exporter.Client, rp.UUID).Extract()
 			if err != nil {
-				if data.err == nil {
-					data.err = err
-				}
-			} else {
-				for k, v := range usagesResult.Usages {
-					data.Usages[k] = v
-				}
+				setError(err)
+				return
 			}
-			close(data.usagesDone)
-		}(data)
+
+			for k, v := range usagesResult.Usages {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
+					prometheus.GaugeValue, float64(v), rp.Name, k)
+			}
+		}()
 	}
 
 	wg.Wait()
-	close(dataChan)
-
-	var errCollect error
-	for data := range dataChan {
-		if data.err != nil && errCollect == nil {
-			errCollect = data.err
-			continue
-		}
-
-		<-data.inventoriesDone
-		<-data.usagesDone
-
-		for k, v := range data.Inventories {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(v.Total), data.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(v.AllocationRatio), data.Name, k)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(v.Reserved), data.Name, k)
-		}
-
-		for k, v := range data.Usages {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(v), data.Name, k)
-		}
-	}
-
 	return errCollect
 }

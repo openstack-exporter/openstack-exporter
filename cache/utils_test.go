@@ -18,23 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mockEnableExporter(
-	service,
-	prefix,
-	cloud string,
-	disabledMetrics []string,
-	endpointType string,
-	collectTime bool,
-	disableSlowMetrics bool,
-	disableDeprecatedMetrics bool,
-	disableCinderAgentUUID bool,
-	domainID string,
-	tenantID string,
-	novaMetadataMapping *utils.LabelMappingFlag,
-	uuidGenFunc func() (string, error),
-	completePlacementInParallel bool,
-	logger *slog.Logger,
-) (*exporters.OpenStackExporter, error) {
+func mockEnableExporter(options exporters.ExporterOptions, logger *slog.Logger) (*exporters.OpenStackExporter, error) {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
@@ -91,25 +75,22 @@ func TestCollectCache(t *testing.T) {
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	if err := CollectCache(
-		mockEnableExporter,
-		multiCloud,
-		services,
-		prefix,
-		cloud,
-		disabledMetrics,
-		endpointType,
-		collectTime,
-		disableSlowMetrics,
-		disableDeprecatedMetrics,
-		disableCinderAgentUUID,
-		domainID,
-		tenantID,
-		novaMetadataMapping,
-		nil,
-		false,
-		logger,
-	); err != nil {
+	if err := CollectCache(CollectCacheOptions{
+		EnableExporterFunc:       mockEnableExporter,
+		MultiCloud:               multiCloud,
+		Services:                 services,
+		Prefix:                   prefix,
+		Cloud:                    cloud,
+		DisabledMetrics:          disabledMetrics,
+		EndpointType:             endpointType,
+		CollectTime:              collectTime,
+		DisableSlowMetrics:       disableSlowMetrics,
+		DisableDeprecatedMetrics: disableDeprecatedMetrics,
+		DisableCinderAgentUUID:   disableCinderAgentUUID,
+		DomainID:                 domainID,
+		TenantID:                 tenantID,
+		NovaMetadataMapping:      novaMetadataMapping,
+	}, logger); err != nil {
 		t.Errorf("Collect cache failed")
 	}
 

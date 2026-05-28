@@ -47,8 +47,25 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), completePlacementInParallel bool, logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, uuidGenFunc, completePlacementInParallel, logger)
+type ExporterOptions struct {
+	Service                     string
+	Prefix                      string
+	Cloud                       string
+	DisabledMetrics             []string
+	EndpointType                string
+	CollectTime                 bool
+	DisableSlowMetrics          bool
+	DisableDeprecatedMetrics    bool
+	DisableCinderAgentUUID      bool
+	DomainID                    string
+	TenantID                    string
+	NovaMetadataMapping         *utils.LabelMappingFlag
+	UUIDGenFunc                 func() (string, error)
+	CompletePlacementInParallel bool
+}
+
+func EnableExporter(options ExporterOptions, logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(options, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -61,18 +78,18 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client                     *gophercloud.ServiceClient
-	ClientV2                   *gophercloudv2.ServiceClient
-	Prefix                     string
-	DisabledMetrics            []string
-	CollectTime                bool
-	UUIDGenFunc                func() (string, error)
-	DisableSlowMetrics         bool
-	DisableDeprecatedMetrics   bool
-	DisableCinderAgentUUID     bool
-	DomainID                   string
-	TenantID                   string
-	NovaMetadataMapping        *utils.LabelMappingFlag
+	Client                      *gophercloud.ServiceClient
+	ClientV2                    *gophercloudv2.ServiceClient
+	Prefix                      string
+	DisabledMetrics             []string
+	CollectTime                 bool
+	UUIDGenFunc                 func() (string, error)
+	DisableSlowMetrics          bool
+	DisableDeprecatedMetrics    bool
+	DisableCinderAgentUUID      bool
+	DomainID                    string
+	TenantID                    string
+	NovaMetadataMapping         *utils.LabelMappingFlag
 	CompletePlacementInParallel bool
 }
 
@@ -232,14 +249,14 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 	return []byte(poc), false, nil
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), completePlacementInParallel bool, logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport *http.Transport
 	var tlsConfig tls.Config
 
-	opts := clientconfig.ClientOpts{Cloud: cloud}
-	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
+	opts := clientconfig.ClientOpts{Cloud: options.Cloud}
+	optsv2 := clientconfigv2.ClientOpts{Cloud: options.Cloud}
 
 	config, err := clientconfig.GetCloudFromYAML(&opts)
 	if err != nil {
@@ -282,37 +299,37 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	}
 
-	client, err := NewServiceClient(name, &opts, transport, endpointType)
+	client, err := NewServiceClient(options.Service, &opts, transport, options.EndpointType)
 	if err != nil {
 		return nil, err
 	}
 
-	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
+	clientV2, err := NewServiceClientV2(options.Service, &optsv2, transport, options.EndpointType)
 	if err != nil {
 		return nil, err
 	}
 
-	if uuidGenFunc == nil {
-		uuidGenFunc = uuid.GenerateUUID
+	if options.UUIDGenFunc == nil {
+		options.UUIDGenFunc = uuid.GenerateUUID
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:                     client,
-		ClientV2:                   clientV2,
-		Prefix:                     prefix,
-		DisabledMetrics:            disabledMetrics,
-		CollectTime:                collectTime,
-		UUIDGenFunc:                uuidGenFunc,
-		DisableSlowMetrics:         disableSlowMetrics,
-		DisableDeprecatedMetrics:   disableDeprecatedMetrics,
-		DisableCinderAgentUUID:     disableCinderAgentUUID,
-		DomainID:                   domainID,
-		TenantID:                   tenantID,
-		NovaMetadataMapping:         novaMetadataMapping,
-		CompletePlacementInParallel: completePlacementInParallel,
+		Client:                      client,
+		ClientV2:                    clientV2,
+		Prefix:                      options.Prefix,
+		DisabledMetrics:             options.DisabledMetrics,
+		CollectTime:                 options.CollectTime,
+		UUIDGenFunc:                 options.UUIDGenFunc,
+		DisableSlowMetrics:          options.DisableSlowMetrics,
+		DisableDeprecatedMetrics:    options.DisableDeprecatedMetrics,
+		DisableCinderAgentUUID:      options.DisableCinderAgentUUID,
+		DomainID:                    options.DomainID,
+		TenantID:                    options.TenantID,
+		NovaMetadataMapping:         options.NovaMetadataMapping,
+		CompletePlacementInParallel: options.CompletePlacementInParallel,
 	}
 
-	switch name {
+	switch options.Service {
 	case "network":
 		exporter, err = NewNeutronExporter(&exporterConfig, logger)
 	case "compute":
@@ -344,7 +361,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	case "sharev2":
 		exporter, err = NewManilaExporter(&exporterConfig, logger)
 	default:
-		return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)
+		return nil, fmt.Errorf("couldn't find a handler for %s exporter", options.Service)
 	}
 
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
+	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
 )
 
 func TestNetworkingIntegration(t *testing.T) {
@@ -88,4 +89,78 @@ func TestNetworkingIntegration(t *testing.T) {
 			"No 'openstack_neutron_network' metric contained required labels (id,name,is_external,is_shared,provider_network_type)",
 		)
 	})
+}
+
+func TestNetworkingNetworkCreateDeleteUpdatesExporterMetrics(t *testing.T) {
+	clients.RequireLong(t)
+
+	networkClient, err := clients.NewNetworkV2Client()
+	if err != nil {
+		t.Fatalf("Failed to build network client: %v", err)
+	}
+
+	failWithBody := func(t *testing.T, body string, msg string, args ...interface{}) {
+		t.Helper()
+		log.Printf("Metrics body:\n%s\n", body)
+		t.Fatalf(msg, args...)
+	}
+
+	_, cleanup, err := startOpenStackExporter([]string{"network"})
+	if err != nil {
+		t.Fatalf("Failed to start exporter: %v", err)
+	}
+	defer cleanup()
+
+	network, err := funcs.CreateNetwork(t, networkClient)
+	if err != nil {
+		t.Fatalf("Could not create test network: %v", err)
+	}
+
+	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
+	if err != nil {
+		funcs.DeleteNetwork(t, networkClient, network)
+		t.Fatalf("Failed to fetch metrics after creating network: %v", err)
+	}
+	body := string(bodyBytes)
+	t.Logf("Metrics response body after network create:\n%s", body)
+
+	metricFamilies, err := parseMetrics(bodyBytes)
+	if err != nil {
+		funcs.DeleteNetwork(t, networkClient, network)
+		failWithBody(t, body, "Failed to parse metrics response after creating network: %v", err)
+	}
+
+	if _, ok := findMetric(metricFamilies, "openstack_neutron_network", map[string]string{
+		"id":   network.ID,
+		"name": network.Name,
+	}); !ok {
+		funcs.DeleteNetwork(t, networkClient, network)
+		failWithBody(t, body,
+			"Expected network metric for created network %s not found",
+			network.ID,
+		)
+	}
+
+	funcs.DeleteNetwork(t, networkClient, network)
+
+	_, bodyBytes, err = httpGetRetry(defaultMetricsURL, 10, t)
+	if err != nil {
+		t.Fatalf("Failed to fetch metrics after deleting network: %v", err)
+	}
+	body = string(bodyBytes)
+	t.Logf("Metrics response body after network delete:\n%s", body)
+
+	metricFamilies, err = parseMetrics(bodyBytes)
+	if err != nil {
+		failWithBody(t, body, "Failed to parse metrics response after deleting network: %v", err)
+	}
+
+	if _, ok := findMetric(metricFamilies, "openstack_neutron_network", map[string]string{
+		"id": network.ID,
+	}); ok {
+		failWithBody(t, body,
+			"Expected network metric for deleted network %s to disappear",
+			network.ID,
+		)
+	}
 }

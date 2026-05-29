@@ -31,6 +31,7 @@ func mockEnableExporter(
 	domainID string,
 	tenantID string,
 	novaMetadataMapping *utils.LabelMappingFlag,
+	dnsConcurrentCount int,
 	uuidGenFunc func() (string, error),
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
@@ -88,6 +89,7 @@ func TestCollectCache(t *testing.T) {
 	domainID := ""
 	tenantID := ""
 	novaMetadataMapping := new(utils.LabelMappingFlag)
+	dnsConcurrentCount := 10
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	if err := CollectCache(
@@ -105,6 +107,7 @@ func TestCollectCache(t *testing.T) {
 		domainID,
 		tenantID,
 		novaMetadataMapping,
+		dnsConcurrentCount,
 		nil,
 		logger,
 	); err != nil {

@@ -1,0 +1,26 @@
+[
+  {
+    "name": "centos9-appstream",
+    "count": 22505,
+    "bytes": 52570729217,
+    "last_modified": "2023-06-16T18:03:53.675510"
+  },
+  {
+    "name": "centos9-baseos",
+    "count": 2931,
+    "bytes": 3481572133,
+    "last_modified": "2023-06-16T14:04:44.738530"
+  },
+  {
+    "name": "centos9-epel",
+    "count": 16785,
+    "bytes": 16001261302,
+    "last_modified": "2023-06-28T13:10:25.008590"
+  },
+  {
+    "name": "centos9-epel-next",
+    "count": 509,
+    "bytes": 302234197,
+    "last_modified": "2023-06-28T13:10:56.860970"
+  }
+]

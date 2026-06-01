@@ -156,7 +156,7 @@ func ListNovaAgentState(ctx context.Context, exporter *BaseOpenStackExporter, ch
 			state = 1
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
+			prometheus.GaugeValue, float64(state), service.ID, service.Host, service.Binary, service.Status, service.Zone, service.DisabledReason)
 	}
 
 	return nil

@@ -1,0 +1,19 @@
+{
+    "resource_provider_generation": 20,
+    "allocations": {
+        "a0b15655-e674-4e63-aa64-cde2f5de4402": {
+            "resources": {
+                "VCPU": 2,
+                "MEMORY_MB": 4096,
+                "DISK_GB": 40
+            }
+        },
+        "b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e": {
+            "resources": {
+                "VCPU": 4,
+                "MEMORY_MB": 8192,
+                "DISK_GB": 80
+            }
+        }
+    }
+}

@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
@@ -11,9 +12,8 @@ import (
 
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/utils/openstack/clientconfig"
+	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/go-homedir"
@@ -40,6 +40,8 @@ const (
 	//nolint: deadcode, unused
 	TERABYTE
 )
+
+var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
 type OpenStackExporter interface {
 	prometheus.Collector
@@ -81,7 +83,6 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client                      *gophercloud.ServiceClient
 	ClientV2                    *gophercloudv2.ServiceClient
 	ServiceName                 string
 	Prefix                      string
@@ -105,12 +106,8 @@ type BaseOpenStackExporter struct {
 	logger  *slog.Logger
 }
 
-type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
+type ListFunc func(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var (
-	endpointOpts   = make(map[string]gophercloud.EndpointOpts)
-	endpointOptsMu sync.Mutex
-)
 var (
 	endpointOptsV2   map[string]gophercloudv2.EndpointOpts
 	endpointOptsV2Mu sync.Mutex
@@ -136,9 +133,11 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	ctx := context.TODO()
+
 	exporter.logger.Info("Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
-	err := metric.Fn(exporter, ch)
+	err := metric.Fn(ctx, exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}
@@ -147,6 +146,7 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 	if exporter.CollectTime {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
+
 	return nil
 }
 
@@ -204,7 +204,6 @@ func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
-
 	if exporter.MetricIsDisabled(name) {
 		exporter.logger.Warn("metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
@@ -280,13 +279,12 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
-	var transport *http.Transport
+	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
-	opts := clientconfig.ClientOpts{Cloud: options.Cloud}
 	optsv2 := clientconfigv2.ClientOpts{Cloud: options.Cloud}
 
-	config, err := clientconfig.GetCloudFromYAML(&opts)
+	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
 	if err != nil {
 		return nil, err
 	}
@@ -327,9 +325,15 @@ func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporte
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	}
 
-	client, err := NewServiceClient(options.Service, &opts, transport, options.EndpointType)
-	if err != nil {
-		return nil, err
+	if _, ok := os.LookupEnv("OS_DEBUG"); ok {
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+
+		transport = &clientutilsv2.RoundTripper{
+			Rt:     transport,
+			Logger: &clientutilsv2.DefaultLogger{},
+		}
 	}
 
 	clientV2, err := NewServiceClientV2(options.Service, &optsv2, transport, options.EndpointType)
@@ -342,7 +346,6 @@ func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporte
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:                      client,
 		ClientV2:                    clientV2,
 		ServiceName:                 options.Service,
 		Prefix:                      options.Prefix,

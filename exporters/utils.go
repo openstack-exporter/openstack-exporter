@@ -16,7 +16,6 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
-	gnocchiv2 "github.com/gophercloud/utils/v2/gnocchi"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
 
@@ -124,6 +123,22 @@ func newAuthenticatedProviderClient(opts *clientconfigv2.ClientOpts, transport h
 	return pClient, cloud, eo, nil
 }
 
+func newGnocchiV1V2(client *gophercloudv2.ProviderClient, eo gophercloudv2.EndpointOpts) (*gophercloudv2.ServiceClient, error) {
+	const clientType = "metric"
+
+	sc := new(gophercloudv2.ServiceClient)
+	eo.ApplyDefaults(clientType)
+	url, err := client.EndpointLocator(eo)
+	if err != nil {
+		return sc, err
+	}
+	sc.ProviderClient = client
+	sc.Endpoint = url
+	sc.ResourceBase = sc.Endpoint + "v1/"
+	sc.Type = clientType
+	return sc, nil
+}
+
 func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ServiceClient, error) {
 	pClient, cloud, eo, err := newAuthenticatedProviderClient(opts, transport, endpointType)
 	if err != nil {
@@ -153,7 +168,7 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 	case "dns":
 		return openstackv2.NewDNSV2(pClient, eo)
 	case "gnocchi":
-		return gnocchiv2.NewGnocchiV1(pClient, eo)
+		return newGnocchiV1V2(pClient, eo)
 	case "identity":
 		identityVersion := "3"
 		if v := cloud.IdentityAPIVersion; v != "" {

@@ -86,6 +86,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	domainID := ""
 	tenantID := ""
 	dnsConcurrentCount := 10
+	designateRecordsetLimit := 1000
 
 	// Logger similar to main.go
 	promlogConfig := &promslog.Config{}
@@ -118,6 +119,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			novaMetadataMapping, // non-nil here
 			dnsConcurrentCount,
 			nil,
+			designateRecordsetLimit,
 			logger,
 		)
 		if err != nil {

@@ -18,8 +18,8 @@ import (
 )
 
 func mockEnableExporter(
-	service,
-	prefix,
+	service string,
+	prefix string,
 	cloud string,
 	disabledMetrics []string,
 	endpointType string,
@@ -32,6 +32,7 @@ func mockEnableExporter(
 	novaMetadataMapping *utils.LabelMappingFlag,
 	dnsConcurrentCount int,
 	uuidGenFunc func() (string, error),
+	designateRecordsetLimit int,
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
@@ -106,6 +107,7 @@ func TestCollectCache(t *testing.T) {
 		novaMetadataMapping,
 		dnsConcurrentCount,
 		nil,
+		1000,
 		logger,
 	)
 	assert.NoError(err, "Collect cache failed")

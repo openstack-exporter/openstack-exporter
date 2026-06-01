@@ -20,7 +20,7 @@ import (
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
 	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, int, func() (string, error), *slog.Logger,
+		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, int, func() (string, error), int, *slog.Logger,
 	) (*exporters.OpenStackExporter, error),
 	multiCloud bool,
 	services []string, prefix,
@@ -36,6 +36,7 @@ func CollectCache(
 	novaMetadataMapping *utils.LabelMappingFlag,
 	dnsConcurrentCount int,
 	uuidGenFunc func() (string, error),
+	designateRecordsetLimit int,
 	logger *slog.Logger,
 ) error {
 	logger.Info("Run collect cache job")
@@ -68,7 +69,7 @@ func CollectCache(
 			lg2 := lg.With("service", service)
 			lg2.Info("Start collect cache data")
 
-			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, designateRecordsetLimit, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				lg2.Error("enabling exporter for service failed", "error", err)

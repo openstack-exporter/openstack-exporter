@@ -19,7 +19,7 @@
       "storage_interface": "noop",
       "conductor_group": "",
       "protected_reason": null,
-      "maintenance_reason": null,
+      "maintenance_reason": "Firmware upgrade",
       "states": [
         {
           "href": "https://openstack.example.org:6385/v1/nodes/c9f98cc9-25e9-424e-8a89-002989054ec2/states",

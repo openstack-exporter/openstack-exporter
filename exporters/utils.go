@@ -6,25 +6,39 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 
-	"log/slog"
-
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	openstackv2 "github.com/gophercloud/gophercloud/v2/openstack"
-	"github.com/gophercloud/utils/gnocchi"
-	"github.com/gophercloud/utils/openstack/clientconfig"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
+	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
 
-func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloud.ProviderClient, error) {
-	options, err := clientconfig.AuthOptions(opts)
+var serviceCatalogTypesByExporterService = map[string][]string{
+	"network":         {"network"},
+	"compute":         {"compute"},
+	"image":           {"image"},
+	"volume":          {"block-storage", "volume", "volumev2", "volumev3"},
+	"identity":        {"identity"},
+	"object-store":    {"object-store"},
+	"load-balancer":   {"load-balancer"},
+	"container-infra": {"container-infrastructure-management", "container-infra"},
+	"dns":             {"dns"},
+	"baremetal":       {"baremetal"},
+	"gnocchi":         {"metric", "gnocchi"},
+	"database":        {"database"},
+	"orchestration":   {"orchestration"},
+	"placement":       {"placement"},
+	"sharev2":         {"shared-file-system", "sharev2"},
+}
+
+func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper) (*gophercloudv2.ProviderClient, error) {
+	options, err := clientconfigv2.AuthOptions(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -32,83 +46,81 @@ func AuthenticatedClient(opts *clientconfig.ClientOpts, transport *http.Transpor
 	// Fixes #42
 	options.AllowReauth = true
 
-	client, err := openstack.NewClient(options.IdentityEndpoint)
+	client, err := openstackv2.NewClient(options.IdentityEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	if transport != nil {
-		transport.Proxy = http.ProxyFromEnvironment
+		if tr, ok := transport.(*http.Transport); ok {
+			tr.Proxy = http.ProxyFromEnvironment
+		}
+
 		client.HTTPClient.Transport = transport
 	}
 
-	err = openstack.Authenticate(client, *options)
+	err = openstackv2.Authenticate(context.TODO(), client, *options)
 	if err != nil {
 		return nil, err
 	}
 	return client, nil
 }
 
-func convertAuthOptionsV2(options *gophercloud.AuthOptions) *gophercloudv2.AuthOptions {
-	if options == nil {
-		return nil
+func newAuthenticatedProviderClient(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ProviderClient, *clientconfigv2.Cloud, gophercloudv2.EndpointOpts, error) {
+	cloud := new(clientconfigv2.Cloud)
+
+	if opts == nil {
+		opts = new(clientconfigv2.ClientOpts)
 	}
 
-	converted := &gophercloudv2.AuthOptions{
-		IdentityEndpoint:            options.IdentityEndpoint,
-		Username:                    options.Username,
-		UserID:                      options.UserID,
-		Password:                    options.Password,
-		Passcode:                    options.Passcode,
-		DomainID:                    options.DomainID,
-		DomainName:                  options.DomainName,
-		TenantID:                    options.TenantID,
-		TenantName:                  options.TenantName,
-		AllowReauth:                 options.AllowReauth,
-		TokenID:                     options.TokenID,
-		ApplicationCredentialID:     options.ApplicationCredentialID,
-		ApplicationCredentialName:   options.ApplicationCredentialName,
-		ApplicationCredentialSecret: options.ApplicationCredentialSecret,
+	var cloudName string
+	if opts.Cloud != "" {
+		cloudName = opts.Cloud
 	}
 
-	if options.Scope != nil {
-		converted.Scope = &gophercloudv2.AuthScope{
-			ProjectID:   options.Scope.ProjectID,
-			ProjectName: options.Scope.ProjectName,
-			DomainID:    options.Scope.DomainID,
-			DomainName:  options.Scope.DomainName,
-			System:      options.Scope.System,
+	envPrefix := "OS_"
+	if opts.EnvPrefix != "" {
+		envPrefix = opts.EnvPrefix
+	}
+
+	if v := os.Getenv(envPrefix + "CLOUD"); v != "" {
+		cloudName = v
+	}
+
+	if cloudName != "" {
+		var err error
+		cloud, err = clientconfigv2.GetCloudFromYAML(opts)
+		if err != nil {
+			return nil, nil, gophercloudv2.EndpointOpts{}, err
 		}
 	}
 
-	return converted
-}
-
-func AuthenticatedClientV2(opts *clientconfig.ClientOpts, transport *http.Transport) (*gophercloudv2.ProviderClient, error) {
-	options, err := clientconfig.AuthOptions(opts)
+	pClient, err := AuthenticatedClientV2(opts, transport)
 	if err != nil {
-		return nil, err
+		return nil, nil, gophercloudv2.EndpointOpts{}, err
 	}
 
-	// Fixes #42
-	options.AllowReauth = true
-	optionsV2 := convertAuthOptionsV2(options)
-
-	client, err := openstackv2.NewClient(optionsV2.IdentityEndpoint)
-	if err != nil {
-		return nil, err
+	var region string
+	if v := os.Getenv(envPrefix + "REGION_NAME"); v != "" {
+		region = v
 	}
 
-	if transport != nil {
-		transport.Proxy = http.ProxyFromEnvironment
-		client.HTTPClient.Transport = transport
+	if v := cloud.RegionName; v != "" {
+		region = v
 	}
 
-	err = openstackv2.Authenticate(context.TODO(), client, *optionsV2)
-	if err != nil {
-		return nil, err
+	if opts != nil {
+		if v := opts.RegionName; v != "" {
+			region = v
+		}
 	}
-	return client, nil
+
+	eo := gophercloudv2.EndpointOpts{
+		Region:       region,
+		Availability: GetEndpointTypeV2(endpointType),
+	}
+
+	return pClient, cloud, eo, nil
 }
 
 func newGnocchiV1V2(client *gophercloudv2.ProviderClient, eo gophercloudv2.EndpointOpts) (*gophercloudv2.ServiceClient, error) {
@@ -116,7 +128,7 @@ func newGnocchiV1V2(client *gophercloudv2.ProviderClient, eo gophercloudv2.Endpo
 
 	sc := new(gophercloudv2.ServiceClient)
 	eo.ApplyDefaults(clientType)
-	url, err := client.EndpointLocator(context.TODO(), eo)
+	url, err := client.EndpointLocator(eo)
 	if err != nil {
 		return sc, err
 	}
@@ -127,209 +139,10 @@ func newGnocchiV1V2(client *gophercloudv2.ProviderClient, eo gophercloudv2.Endpo
 	return sc, nil
 }
 
-// NewServiceClient is a convenience function to get a new service client.
-func NewServiceClient(service string, opts *clientconfig.ClientOpts, transport *http.Transport, endpointType string) (*gophercloud.ServiceClient, error) {
-	cloud := new(clientconfig.Cloud)
-
-	// If no opts were passed in, create an empty ClientOpts.
-	if opts == nil {
-		opts = new(clientconfig.ClientOpts)
-	}
-
-	// Determine if a clouds.yaml entry should be retrieved.
-	// Start by figuring out the cloud name.
-	// First check if one was explicitly specified in opts.
-	var cloudName string
-	if opts.Cloud != "" {
-		cloudName = opts.Cloud
-	}
-
-	// Next see if a cloud name was specified as an environment variable.
-	envPrefix := "OS_"
-	if opts.EnvPrefix != "" {
-		envPrefix = opts.EnvPrefix
-	}
-
-	if v := os.Getenv(envPrefix + "CLOUD"); v != "" {
-		cloudName = v
-	}
-
-	// If a cloud name was determined, try to look it up in clouds.yaml.
-	if cloudName != "" {
-		// Get the requested cloud.
-		var err error
-		cloud, err = clientconfig.GetCloudFromYAML(opts)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Get a Provider Client
-	pClient, err := AuthenticatedClient(opts, transport)
+func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) (*gophercloudv2.ServiceClient, error) {
+	pClient, cloud, eo, err := newAuthenticatedProviderClient(opts, transport, endpointType)
 	if err != nil {
 		return nil, err
-	}
-
-	// Determine the region to use.
-	// First, check if the REGION_NAME environment variable is set.
-	var region string
-	if v := os.Getenv(envPrefix + "REGION_NAME"); v != "" {
-		region = v
-	}
-
-	// Next, check if the cloud entry sets a region.
-	if v := cloud.RegionName; v != "" {
-		region = v
-	}
-
-	// Finally, see if one was specified in the ClientOpts.
-	// If so, this takes precedence.
-	if v := opts.RegionName; v != "" {
-		region = v
-	}
-
-	eo := gophercloud.EndpointOpts{
-		Region:       region,
-		Availability: GetEndpointType(endpointType),
-	}
-
-	// Keep a map of the EndpointOpts for each service
-	endpointOptsMu.Lock()
-	if endpointOpts == nil {
-		endpointOpts = make(map[string]gophercloud.EndpointOpts)
-	}
-	endpointOpts[service] = eo
-	endpointOptsMu.Unlock()
-
-	switch service {
-	case "baremetal":
-		return openstack.NewBareMetalV1(pClient, eo)
-	case "clustering":
-		return openstack.NewClusteringV1(pClient, eo)
-	case "compute":
-		return openstack.NewComputeV2(pClient, eo)
-	case "container":
-		return openstack.NewContainerV1(pClient, eo)
-	case "container-infra":
-		return openstack.NewContainerInfraV1(pClient, eo)
-	case "database":
-		return openstack.NewDBV1(pClient, eo)
-	case "dns":
-		return openstack.NewDNSV2(pClient, eo)
-	case "gnocchi":
-		return gnocchi.NewGnocchiV1(pClient, eo)
-	case "identity":
-		identityVersion := "3"
-		if v := cloud.IdentityAPIVersion; v != "" {
-			identityVersion = v
-		}
-
-		switch identityVersion {
-		case "v2", "2", "2.0":
-			return openstack.NewIdentityV2(pClient, eo)
-		case "v3", "3":
-			return openstack.NewIdentityV3(pClient, eo)
-		default:
-			return nil, fmt.Errorf("invalid identity API version")
-		}
-	case "image":
-		return openstack.NewImageServiceV2(pClient, eo)
-	case "load-balancer":
-		return openstack.NewLoadBalancerV2(pClient, eo)
-	case "network":
-		return openstack.NewNetworkV2(pClient, eo)
-	case "object-store":
-		return openstack.NewObjectStorageV1(pClient, eo)
-	case "orchestration":
-		return openstack.NewOrchestrationV1(pClient, eo)
-	case "placement":
-		return openstack.NewPlacementV1(pClient, eo)
-	case "sharev2":
-		return openstack.NewSharedFileSystemV2(pClient, eo)
-	case "volume":
-		volumeVersion := "3"
-		if v := cloud.VolumeAPIVersion; v != "" {
-			volumeVersion = v
-		}
-
-		switch volumeVersion {
-		case "v1", "1":
-			return openstack.NewBlockStorageV1(pClient, eo)
-		case "v2", "2":
-			return openstack.NewBlockStorageV2(pClient, eo)
-		case "v3", "3":
-			return openstack.NewBlockStorageV3(pClient, eo)
-		default:
-			return nil, fmt.Errorf("invalid volume API version")
-		}
-	}
-
-	return nil, fmt.Errorf("unable to create a service client for %s", service)
-}
-
-func NewServiceClientV2(service string, opts *clientconfig.ClientOpts, transport *http.Transport, endpointType string) (*gophercloudv2.ServiceClient, error) {
-	cloud := new(clientconfig.Cloud)
-
-	// If no opts were passed in, create an empty ClientOpts.
-	if opts == nil {
-		opts = new(clientconfig.ClientOpts)
-	}
-
-	// Determine if a clouds.yaml entry should be retrieved.
-	// Start by figuring out the cloud name.
-	// First check if one was explicitly specified in opts.
-	var cloudName string
-	if opts.Cloud != "" {
-		cloudName = opts.Cloud
-	}
-
-	// Next see if a cloud name was specified as an environment variable.
-	envPrefix := "OS_"
-	if opts.EnvPrefix != "" {
-		envPrefix = opts.EnvPrefix
-	}
-
-	if v := os.Getenv(envPrefix + "CLOUD"); v != "" {
-		cloudName = v
-	}
-
-	// If a cloud name was determined, try to look it up in clouds.yaml.
-	if cloudName != "" {
-		// Get the requested cloud.
-		var err error
-		cloud, err = clientconfig.GetCloudFromYAML(opts)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// Get a Provider Client
-	pClient, err := AuthenticatedClientV2(opts, transport)
-	if err != nil {
-		return nil, err
-	}
-
-	// Determine the region to use.
-	// First, check if the REGION_NAME environment variable is set.
-	var region string
-	if v := os.Getenv(envPrefix + "REGION_NAME"); v != "" {
-		region = v
-	}
-
-	// Next, check if the cloud entry sets a region.
-	if v := cloud.RegionName; v != "" {
-		region = v
-	}
-
-	// Finally, see if one was specified in the ClientOpts.
-	// If so, this takes precedence.
-	if v := opts.RegionName; v != "" {
-		region = v
-	}
-
-	eo := gophercloudv2.EndpointOpts{
-		Region:       region,
-		Availability: GetEndpointTypeV2(endpointType),
 	}
 
 	// Keep a map of the EndpointOpts for each service
@@ -342,17 +155,18 @@ func NewServiceClientV2(service string, opts *clientconfig.ClientOpts, transport
 
 	switch service {
 	case "baremetal":
-		return openstackv2.NewBareMetalV1(context.TODO(), pClient, eo)
+		return openstackv2.NewBareMetalV1(pClient, eo)
 	case "compute":
-		return openstackv2.NewComputeV2(context.TODO(), pClient, eo)
-	case "container":
-		return openstackv2.NewContainerV1(context.TODO(), pClient, eo)
+		return openstackv2.NewComputeV2(pClient, eo)
+	// NOTE: Intentionally disabled here: openstack-exporter has no "container" exporter.
+	// case "container":
+	// 	return openstackv2.NewContainerV1(pClient, eo)
 	case "container-infra":
-		return openstackv2.NewContainerInfraV1(context.TODO(), pClient, eo)
+		return openstackv2.NewContainerInfraV1(pClient, eo)
 	case "database":
-		return openstackv2.NewDBV1(context.TODO(), pClient, eo)
+		return openstackv2.NewDBV1(pClient, eo)
 	case "dns":
-		return openstackv2.NewDNSV2(context.TODO(), pClient, eo)
+		return openstackv2.NewDNSV2(pClient, eo)
 	case "gnocchi":
 		return newGnocchiV1V2(pClient, eo)
 	case "identity":
@@ -363,26 +177,26 @@ func NewServiceClientV2(service string, opts *clientconfig.ClientOpts, transport
 
 		switch identityVersion {
 		case "v2", "2", "2.0":
-			return openstackv2.NewIdentityV2(context.TODO(), pClient, eo)
+			return openstackv2.NewIdentityV2(pClient, eo)
 		case "v3", "3":
-			return openstackv2.NewIdentityV3(context.TODO(), pClient, eo)
+			return openstackv2.NewIdentityV3(pClient, eo)
 		default:
 			return nil, fmt.Errorf("invalid identity API version")
 		}
 	case "image":
-		return openstackv2.NewImageV2(context.TODO(), pClient, eo)
+		return openstackv2.NewImageV2(pClient, eo)
 	case "load-balancer":
-		return openstackv2.NewLoadBalancerV2(context.TODO(), pClient, eo)
+		return openstackv2.NewLoadBalancerV2(pClient, eo)
 	case "network":
-		return openstackv2.NewNetworkV2(context.TODO(), pClient, eo)
+		return openstackv2.NewNetworkV2(pClient, eo)
 	case "object-store":
-		return openstackv2.NewObjectStorageV1(context.TODO(), pClient, eo)
+		return openstackv2.NewObjectStorageV1(pClient, eo)
 	case "orchestration":
-		return openstackv2.NewOrchestrationV1(context.TODO(), pClient, eo)
+		return openstackv2.NewOrchestrationV1(pClient, eo)
 	case "placement":
-		return openstackv2.NewPlacementV1(context.TODO(), pClient, eo)
+		return openstackv2.NewPlacementV1(pClient, eo)
 	case "sharev2":
-		return openstackv2.NewSharedFileSystemV2(context.TODO(), pClient, eo)
+		return openstackv2.NewSharedFileSystemV2(pClient, eo)
 	case "volume":
 		volumeVersion := "3"
 		if v := cloud.VolumeAPIVersion; v != "" {
@@ -391,11 +205,11 @@ func NewServiceClientV2(service string, opts *clientconfig.ClientOpts, transport
 
 		switch volumeVersion {
 		case "v1", "1":
-			return openstackv2.NewBlockStorageV1(context.TODO(), pClient, eo)
+			return openstackv2.NewBlockStorageV1(pClient, eo)
 		case "v2", "2":
-			return openstackv2.NewBlockStorageV2(context.TODO(), pClient, eo)
+			return openstackv2.NewBlockStorageV2(pClient, eo)
 		case "v3", "3":
-			return openstackv2.NewBlockStorageV3(context.TODO(), pClient, eo)
+			return openstackv2.NewBlockStorageV3(pClient, eo)
 		default:
 			return nil, fmt.Errorf("invalid volume API version")
 		}
@@ -404,65 +218,41 @@ func NewServiceClientV2(service string, opts *clientconfig.ClientOpts, transport
 	return nil, fmt.Errorf("unable to create a service client for %s", service)
 }
 
-// GetProjects returns all projects for domain or given project based on whether tenantID is configured.
-func GetProjects(exporter *BaseOpenStackExporter) ([]projects.Project, error) {
-	var eo gophercloud.EndpointOpts
-
-	// We need a list of all tenants/projects. Therefore, within the exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts specific to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts[exporter.ServiceName]; ok {
-		exporter.logger.Warn("Identity EndpointOpts not available, falling back to service specific endpoint", "service", exporter.ServiceName)
-		eo = v
-	} else {
-		return nil, errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+// GetProjects returns all projects for the configured domain or just the configured project.
+func GetProjects(ctx context.Context, exporter *BaseOpenStackExporter) ([]projects.Project, error) {
+	c, err := newIdentityV3ClientV2FromExporter(exporter, exporter.ServiceName)
 	if err != nil {
 		return nil, err
 	}
 
-	var allProjects []projects.Project
-	if exporter.TenantID == "" {
-		// If no tenantID is configured we get all the tenants.
-		exporter.logger.Debug("retrieving all projects based for given domainName", "domain", exporter.DomainID)
-
-		allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-		if err != nil {
-			if _, ok := err.(gophercloud.ErrDefault403); !ok {
-				return nil, err
-			}
-
-			user, err := tokens.Get(c, c.TokenID).ExtractUser()
-			if err != nil {
-				return nil, err
-			}
-
-			allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		allProjects, err = projects.ExtractProjects(allPagesProject)
+	if exporter.TenantID != "" {
+		exporter.logger.Debug("retrieving single project based on configured project ID", "project_id", exporter.TenantID)
+		project, err := projects.Get(ctx, c, exporter.TenantID).Extract()
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		// Retrieve the specific project specified by tenantID.
-		exporter.logger.Debug("retrieving single project based on configured tenantID", "project", exporter.TenantID)
-
-		project, err := projects.Get(c, exporter.TenantID).Extract()
-		if err != nil {
-			return nil, err
-		}
-		allProjects = []projects.Project{*project}
+		return []projects.Project{*project}, nil
 	}
 
-	return allProjects, nil
+	exporter.logger.Debug("retrieving all projects for configured domain", "domain_id", exporter.DomainID)
+	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
+	if err != nil {
+		if !gophercloudv2.ResponseCodeIs(err, http.StatusForbidden) {
+			return nil, err
+		}
+
+		user, err := tokens.Get(ctx, c, c.ProviderClient.TokenID).ExtractUser()
+		if err != nil {
+			return nil, err
+		}
+
+		allPagesProject, err = users.ListProjects(c, user.ID).AllPages(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return projects.ExtractProjects(allPagesProject)
 }
 
 // GetEndpointType return openstack endpoints for configured type
@@ -474,35 +264,6 @@ func GetEndpointTypeV2(endpointType string) gophercloudv2.Availability {
 		return gophercloudv2.AvailabilityAdmin
 	}
 	return gophercloudv2.AvailabilityPublic
-}
-
-// GetEndpointType return openstack endpoints for configured type
-func GetEndpointType(endpointType string) gophercloud.Availability {
-	if endpointType == "internal" || endpointType == "internalURL" {
-		return gophercloud.AvailabilityInternal
-	}
-	if endpointType == "admin" || endpointType == "adminURL" {
-		return gophercloud.AvailabilityAdmin
-	}
-	return gophercloud.AvailabilityPublic
-}
-
-// RemoveElements remove not needed elements
-func RemoveElements(slice []string, drop []string) []string {
-	res := []string{}
-	for _, s := range slice {
-		keep := true
-		for _, d := range drop {
-			if s == d {
-				keep = false
-				break
-			}
-		}
-		if keep {
-			res = append(res, s)
-		}
-	}
-	return res
 }
 
 func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool, error) {
@@ -528,4 +289,57 @@ func additionalTLSTrust(caCertFile string, logger *slog.Logger) (*x509.CertPool,
 		}
 	}
 	return trustedCAs, nil
+}
+
+func mapStatus(mapping map[string]int, current string) int {
+	v, ok := mapping[current]
+	if !ok {
+		return -1
+	}
+
+	return v
+}
+
+func AutodetectServicesFromCatalog(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, endpointType string) ([]string, error) {
+	providerClient, _, endpointOpts, err := newAuthenticatedProviderClient(opts, transport, endpointType)
+	if err != nil {
+		return nil, err
+	}
+
+	enabledServices := make([]string, 0, len(SupportedExporters))
+	for _, service := range SupportedExporters {
+		if !isServiceAvailable(providerClient, endpointOpts, service) {
+			continue
+		}
+		enabledServices = append(enabledServices, service)
+	}
+
+	if len(enabledServices) == 0 {
+		return nil, errors.New("no services autodetected")
+	}
+
+	return enabledServices, nil
+}
+
+func isServiceAvailable(providerClient *gophercloudv2.ProviderClient, endpointOpts gophercloudv2.EndpointOpts, service string) bool {
+	serviceTypes, ok := serviceCatalogTypesByExporterService[service]
+	if !ok {
+		return false
+	}
+
+	for _, serviceType := range serviceTypes {
+		eo := endpointOpts
+		eo.ApplyDefaults(serviceType)
+		endpoint, err := providerClient.EndpointLocator(eo)
+		if err == nil && endpoint != "" {
+			return true
+		}
+	}
+
+	return false
+}
+
+func IsExporterNameValid(service string) bool {
+	_, ok := serviceCatalogTypesByExporterService[service]
+	return ok
 }

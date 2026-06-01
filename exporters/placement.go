@@ -1,22 +1,29 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"sync"
 
-	"github.com/gophercloud/gophercloud/openstack/placement/v1/resourceproviders"
+	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 type PlacementExporter struct {
 	BaseOpenStackExporter
 }
 
+var placementResourceLabels = []string{"hostname", "resourcetype"}
+var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
+
 var defaultPlacementMetrics = []Metric{
-	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_allocation_ratio", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_reserved", Labels: []string{"hostname", "resourcetype"}},
-	{Name: "resource_usage", Labels: []string{"hostname", "resourcetype"}},
+	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
+	{Name: "resource_allocation_ratio", Labels: placementResourceLabels},
+	{Name: "resource_generation", Labels: placementResourceLabels},
+	{Name: "resource_reserved", Labels: placementResourceLabels},
+	{Name: "resource_usage", Labels: placementResourceLabels},
+	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -38,17 +45,17 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	return &exporter, nil
 }
 
-// resourceProviderData holds the inventory and usage data for a single resource provider
 type resourceProviderData struct {
-	name       string
-	inventries *resourceproviders.ResourceProviderInventories
-	usages     *resourceproviders.ResourceProviderUsage
+	name        string
+	inventories *resourceproviders.ResourceProviderInventories
+	usages      *resourceproviders.ResourceProviderUsage
+	allocations *resourceproviders.ResourceProviderAllocations
 }
 
-func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
 
-	allPagesResourceProviders, err := resourceproviders.List(exporter.Client, resourceproviders.ListOpts{}).AllPages()
+	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -57,105 +64,96 @@ func ListPlacementResourceProviders(exporter *BaseOpenStackExporter, ch chan<- p
 		return err
 	}
 
-	// Limit concurrency to avoid overwhelming the API
-	// Using a semaphore pattern with buffered channel
-	const maxConcurrency = 10
-	sem := make(chan struct{}, maxConcurrency)
+	var (
+		mu      sync.Mutex
+		results = make([]resourceProviderData, 0, len(allResourceProviders))
+	)
 
-	// Collect results with mutex protection
-	var mu sync.Mutex
-	results := make([]resourceProviderData, 0, len(allResourceProviders))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(10)
 
-	// Error channel to collect errors from goroutines
-	errCh := make(chan error, len(allResourceProviders))
-	var wg sync.WaitGroup
-
-	for _, rp := range allResourceProviders {
-		wg.Add(1)
-		// Capture loop variable
-		resourceProvider := rp
-
-		go func() {
-			defer wg.Done()
-
-			// Acquire semaphore
-			sem <- struct{}{}
-			defer func() { <-sem }()
-
-			// Fetch inventories and usages concurrently for this provider
-			var inventory *resourceproviders.ResourceProviderInventories
-			var usage *resourceproviders.ResourceProviderUsage
-			var inventoryErr, usageErr error
-
-			var innerWg sync.WaitGroup
-			innerWg.Add(2)
-
-			// Fetch inventories
-			go func() {
-				defer innerWg.Done()
-				inventory, inventoryErr = resourceproviders.GetInventories(exporter.Client, resourceProvider.UUID).Extract()
-			}()
-
-			// Fetch usages
-			go func() {
-				defer innerWg.Done()
-				usage, usageErr = resourceproviders.GetUsages(exporter.Client, resourceProvider.UUID).Extract()
-			}()
-
-			innerWg.Wait()
-
-			// Check for errors
-			if inventoryErr != nil {
-				errCh <- inventoryErr
-				return
-			}
-			if usageErr != nil {
-				errCh <- usageErr
-				return
+	collectAllocations := exporter.Metrics["resource_provider_allocations"] != nil
+	for _, resourceprovider := range allResourceProviders {
+		resourceprovider := resourceprovider
+		g.Go(func() error {
+			inventoryResult, err := resourceproviders.GetInventories(gCtx, exporter.ClientV2, resourceprovider.UUID).Extract()
+			if err != nil {
+				return err
 			}
 
-			// Store results with mutex protection
+			usagesResult, err := resourceproviders.GetUsages(gCtx, exporter.ClientV2, resourceprovider.UUID).Extract()
+			if err != nil {
+				return err
+			}
+
+			var allocationsResult *resourceproviders.ResourceProviderAllocations
+			if collectAllocations {
+				allocationsResult, err = resourceproviders.GetAllocations(gCtx, exporter.ClientV2, resourceprovider.UUID).Extract()
+				if err != nil {
+					return err
+				}
+			}
+
 			mu.Lock()
 			results = append(results, resourceProviderData{
-				name:       resourceProvider.Name,
-				inventries: inventory,
-				usages:     usage,
+				name:        resourceprovider.Name,
+				inventories: inventoryResult,
+				usages:      usagesResult,
+				allocations: allocationsResult,
 			})
 			mu.Unlock()
-		}()
+			return nil
+		})
 	}
 
-	// Wait for all goroutines to complete
-	wg.Wait()
-	close(errCh)
-
-	// Check if any errors occurred
-	for err := range errCh {
-		if err != nil {
-			return err
-		}
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
-	// Emit metrics from collected results
 	for _, data := range results {
-		// Emit inventory metrics
-		for resourceType, inv := range data.inventries.Inventories {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_total"].Metric,
-				prometheus.GaugeValue, float64(inv.Total), data.name, resourceType)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_allocation_ratio"].Metric,
-				prometheus.GaugeValue, float64(inv.AllocationRatio), data.name, resourceType)
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_reserved"].Metric,
-				prometheus.GaugeValue, float64(inv.Reserved), data.name, resourceType)
+		for k, v := range data.inventories.Inventories {
+			emitPlacementResourceMetric(exporter, ch, "resource_total", float64(v.Total), data.name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_allocation_ratio", float64(v.AllocationRatio), data.name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_generation", float64(data.inventories.ResourceProviderGeneration), data.name, k)
+			emitPlacementResourceMetric(exporter, ch, "resource_reserved", float64(v.Reserved), data.name, k)
 		}
 
-		// Emit usage metrics
-		for resourceType, usageValue := range data.usages.Usages {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["resource_usage"].Metric,
-				prometheus.GaugeValue, float64(usageValue), data.name, resourceType)
+		for k, v := range data.usages.Usages {
+			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), data.name, k)
+		}
+
+		if data.allocations != nil {
+			for consumerID, allocation := range data.allocations.Allocations {
+				for resourceClass, amount := range allocation.Resources {
+					ch <- prometheus.MustNewConstMetric(
+						exporter.Metrics["resource_provider_allocations"].Metric,
+						prometheus.GaugeValue,
+						float64(amount),
+						data.name,
+						consumerID,
+						resourceClass,
+					)
+				}
+			}
 		}
 	}
 
 	return nil
+}
+
+func emitPlacementResourceMetric(
+	exporter *BaseOpenStackExporter,
+	ch chan<- prometheus.Metric,
+	metricName string,
+	value float64,
+	hostname string,
+	resourceType string,
+) {
+	ch <- prometheus.MustNewConstMetric(
+		exporter.Metrics[metricName].Metric,
+		prometheus.GaugeValue,
+		value,
+		hostname,
+		resourceType,
+	)
 }

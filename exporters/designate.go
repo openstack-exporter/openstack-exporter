@@ -5,8 +5,10 @@ import (
 	"log/slog"
 	"strings"
 
+	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/zones"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -61,8 +63,8 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 			logger:         logger,
 		},
 	}
+
 	// This header needed for colletiong zone of all projects
-	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 	exporter.ClientV2.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 
 	for _, metric := range defaultDesignateMetrics {
@@ -77,9 +79,21 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 	return &exporter, nil
 }
 
-func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	ctx := context.TODO()
+func listAllRecordsets(client *gophercloud.ServiceClient, opts recordsets.ListOptsBuilder) pagination.Pager {
+	url := client.ServiceURL("recordsets")
+	if opts != nil {
+		query, err := opts.ToRecordSetListQuery()
+		if err != nil {
+			return pagination.Pager{Err: err}
+		}
+		url += query
+	}
+	return pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
+		return recordsets.RecordSetPage{LinkedPageBase: pagination.LinkedPageBase{PageResult: r}}
+	})
+}
 
+func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	allPagesZones, err := zones.List(exporter.ClientV2, zones.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
@@ -93,8 +107,7 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
-	// Fetch all recordsets in one go (Designate API supports listing across all zones)
-	allPagesRecordsets, err := recordsets.ListAll(exporter.ClientV2, recordsets.ListOpts{Limit: exporter.DesignateRecordsetLimit}).AllPages(ctx)
+	allPagesRecordsets, err := listAllRecordsets(exporter.ClientV2, recordsets.ListOpts{Limit: exporter.DesignateRecordsetLimit}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -107,13 +120,12 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	zoneCounts := make(map[string]int)
 
 	for _, recordset := range allRecordsets {
-		zoneCounts[recordset.ZoneID] = zoneCounts[recordset.ZoneID] + 1
+		zoneCounts[recordset.ZoneID]++
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
 			prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
 			recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
 	}
 
-	// Emit zone related metrics
 	for _, zone := range allZones {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
 			prometheus.GaugeValue, float64(zoneCounts[zone.ID]), zone.ID, zone.Name, zone.ProjectID)

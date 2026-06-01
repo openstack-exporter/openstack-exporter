@@ -74,7 +74,7 @@ var fixtures map[string]string = map[string]string{
 	"/compute/os-simple-tenant-usage?detailed=1":                 "nova_os_simple_tenant_usage",
 	"/glance/":          "glance_api_discovery",
 	"/glance/v2/images": "glance_images",
-	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_metric",
+	"/gnocchi/v1/metric?marker=5e9b3ee0-aee1-4461-8849-3f4ae5e30d8d": "gnocchi_empty",
 	"/gnocchi/v1/metric":                         "gnocchi_metric",
 	"/gnocchi/v1/status":                         "gnocchi_status",
 	"/gnocchi/v1/status?details=true":            "gnocchi_status",
@@ -102,8 +102,8 @@ var fixtures map[string]string = map[string]string{
 	"/loadbalancer/v2.0/lbaas/pools":                 "loadbalancer_pools",
 	"/ironic/":                                       "ironic_api_discovery",
 	"/ironic/v1":                                     "ironic_v1",
-	"/ironic/nodes":                                  "ironic_nodes",
-	"/ironic/nodes/detail":                           "ironic_nodes",
+	"/ironic/v1/nodes":                               "ironic_nodes",
+	"/ironic/v1/nodes/detail":                        "ironic_nodes",
 	"/volumes":                                       "cinder_api_discovery",
 	"/volumes/":                                      "cinder_api_discovery",
 	"/volumes/volumes/detail?all_tenants=true":       "cinder_volumes",
@@ -139,6 +139,8 @@ var fixtures map[string]string = map[string]string{
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/usages":      "resource_provider_1_usage",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/usages":      "resource_provider_2_usage",
+	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/allocations": "resource_provider_1_allocations",
+	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/allocations": "resource_provider_2_allocations",
 	"/compute/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/0cbd49cbf76d405d9c86562e1d579bd3/detail":                 "nova_quotas_1_usage",
 	"/compute/os-quota-sets/2db68fed84324f29bb73130c6c2094fb/detail":                 "nova_quotas_1_usage",
@@ -156,6 +158,8 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":             "neutron_quotas_1_usage",
 	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":             "neutron_quotas_1_usage",
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
+	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
+	"/object-store/?marker=centos9-epel-next": "swift_empty",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -176,7 +180,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	}, 1000, logger)
 
 	if err != nil {
-		panic(err)
+		suite.Require().NoError(err)
 	}
 	suite.Exporter = &exporter
 }
@@ -228,4 +232,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &HeatTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "orchestration"}})
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
+	suite.Run(t, &ObjectStoreTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "object-store"}})
 }

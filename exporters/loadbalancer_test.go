@@ -11,7 +11,7 @@ type LoadbalancerTestSuite struct {
 	BaseOpenStackTestSuite
 }
 
-var loadbalancerExpectedUp = `                       
+var loadbalancerExpectedUp = `
 # HELP openstack_loadbalancer_pool_status pool_status
 # TYPE openstack_loadbalancer_pool_status gauge
 openstack_loadbalancer_pool_status{id="ca00ed86-94e3-440e-95c6-ffa35531081e",lb_algorithm="ROUND_ROBIN",loadbalancers="e7284bb2-f46a-42ca-8c9b-e08671255125",name="my_test_pool",operating_status="ERROR",project_id="8b1632d90bfe407787d9996b7f662fd7",protocol="TCP",provisioning_status="ACTIVE"} 0

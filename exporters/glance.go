@@ -1,11 +1,11 @@
 package exporters
 
 import (
+	"context"
+	"log/slog"
 	"strconv"
 
-	"log/slog"
-
-	"github.com/gophercloud/gophercloud/openstack/imageservice/v2/images"
+	"github.com/gophercloud/gophercloud/v2/openstack/image/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -40,23 +40,24 @@ func NewGlanceExporter(config *ExporterConfig, logger *slog.Logger) (*GlanceExpo
 	return &exporter, nil
 }
 
-func getAllImages(exporter *BaseOpenStackExporter) ([]images.Image, error) {
+func getAllImages(ctx context.Context, exporter *BaseOpenStackExporter) ([]images.Image, error) {
 	var allImages []images.Image
 
-	allPagesImage, err := images.List(exporter.Client, images.ListOpts{}).AllPages()
+	allPagesImage, err := images.List(exporter.ClientV2, images.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	if allImages, err = images.ExtractImages(allPagesImage); err != nil {
+	allImages, err = images.ExtractImages(allPagesImage)
+	if err != nil {
 		return nil, err
 	}
 
 	return allImages, nil
 }
 
-func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allImages, err := getAllImages(exporter)
+func ListImages(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allImages, err := getAllImages(ctx, exporter)
 	if err != nil {
 		return err
 	}
@@ -67,9 +68,9 @@ func ListImages(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	return nil
 }
 
-func ListImageProperties(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListImageProperties(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	// Image size and created at metrics
-	allImages, err := getAllImages(exporter)
+	allImages, err := getAllImages(ctx, exporter)
 	if err != nil {
 		return err
 	}

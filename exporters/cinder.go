@@ -1,23 +1,16 @@
 package exporters
 
 import (
+	"context"
+	"log/slog"
 	"strconv"
 	"strings"
 
-	"errors"
-	"log/slog"
-
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/quotasets"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/schedulerstats"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/services"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/extensions/volumetenants"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/snapshots"
-	"github.com/gophercloud/gophercloud/openstack/blockstorage/v3/volumes"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/tokens"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/quotasets"
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/schedulerstats"
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/services"
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/snapshots"
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/volumes"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -25,36 +18,31 @@ type CinderExporter struct {
 	BaseOpenStackExporter
 }
 
-var volume_status = []string{
-	"creating",
-	"available",
-	"reserved",
-	"attaching",
-	"detaching",
-	"in-use",
-	"maintenance",
-	"deleting",
-	"awaiting-transfer",
-	"error",
-	"error_deleting",
-	"backing-up",
-	"restoring-backup",
-	"error_backing-up",
-	"error_restoring",
-	"error_extending",
-	"downloading",
-	"uploading",
-	"retyping",
-	"extending",
+var knownVolumeStatuses = map[string]int{
+	"creating":          0,
+	"available":         1,
+	"reserved":          2,
+	"attaching":         3,
+	"detaching":         4,
+	"in-use":            5,
+	"maintenance":       6,
+	"deleting":          7,
+	"awaiting-transfer": 8,
+	"error":             9,
+	"error_deleting":    10,
+	"backing-up":        11,
+	"restoring-backup":  12,
+	"error_backing-up":  13,
+	"error_restoring":   14,
+	"error_extending":   15,
+	"downloading":       16,
+	"uploading":         17,
+	"retyping":          18,
+	"extending":         19,
 }
 
 func mapVolumeStatus(volStatus string) int {
-	for idx, status := range volume_status {
-		if status == strings.ToLower(volStatus) {
-			return idx
-		}
-	}
-	return -1
+	return mapStatus(knownVolumeStatuses, volStatus)
 }
 
 var defaultCinderMetrics = []Metric{
@@ -94,16 +82,13 @@ func NewCinderExporter(config *ExporterConfig, logger *slog.Logger) (*CinderExpo
 	return &exporter, nil
 }
 
-func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	type VolumeWithExt struct {
-		volumes.Volume
-		volumetenants.VolumeTenantExt
-	}
+func ListVolumesStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type VolumeWithExt = volumes.Volume
 
 	var allVolumes []VolumeWithExt
-	volumeListOptions := getVolumeListOptions(exporter.TenantID)
+	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -115,29 +100,26 @@ func ListVolumesStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Met
 
 	// Volume status metrics
 	for _, volume := range allVolumes {
+		serverID := ""
 		if len(volume.Attachments) > 0 {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, volume.Attachments[0].ServerID)
-		} else {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
-				prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-				volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, "")
+			serverID = volume.Attachments[0].ServerID
 		}
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
+			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
+			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, serverID)
 	}
+
 	return nil
 }
 
-func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	type VolumeWithExt struct {
-		volumes.Volume
-		volumetenants.VolumeTenantExt
-	}
+func ListVolumes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type VolumeWithExt = volumes.Volume
 
 	var allVolumes []VolumeWithExt
-	volumeListOptions := getVolumeListOptions(exporter.TenantID)
+	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
-	allPagesVolumes, err := volumes.List(exporter.Client, volumeListOptions).AllPages()
+	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -147,46 +129,26 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 		return err
 	}
 
+	volume_status_counter := make(map[string]int, len(knownVolumeStatuses))
+	for k := range knownVolumeStatuses {
+		volume_status_counter[k] = 0
+	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["volumes"].Metric,
 		prometheus.GaugeValue, float64(len(allVolumes)))
 
-	// Volume_gb metrics
 	for _, volume := range allVolumes {
+		serverID := ""
 		if len(volume.Attachments) > 0 {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
-				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, volume.Attachments[0].ServerID)
-		} else {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
-				prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
-				volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, "")
+			serverID = volume.Attachments[0].ServerID
 		}
-	}
 
-	volume_status_counter := map[string]int{
-		"creating":          0,
-		"available":         0,
-		"reserved":          0,
-		"attaching":         0,
-		"detaching":         0,
-		"in-use":            0,
-		"maintenance":       0,
-		"deleting":          0,
-		"awaiting-transfer": 0,
-		"error":             0,
-		"error_deleting":    0,
-		"backing-up":        0,
-		"restoring-backup":  0,
-		"error_backing-up":  0,
-		"error_restoring":   0,
-		"error_extending":   0,
-		"downloading":       0,
-		"uploading":         0,
-		"retyping":          0,
-		"extending":         0,
-	}
+		// Volume_gb metrics
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_gb"].Metric,
+			prometheus.GaugeValue, float64(volume.Size), volume.ID, volume.Name,
+			volume.Status, volume.AvailabilityZone, volume.Bootable, volume.TenantID, volume.UserID, volume.VolumeType, serverID)
 
-	for _, volume := range allVolumes {
+		// collect statuses
 		volume_status_counter[volume.Status]++
 	}
 
@@ -202,11 +164,11 @@ func ListVolumes(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	return nil
 }
 
-func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allSnapshots []snapshots.Snapshot
-	snapshotListOptions := getSnapshotListOptions(exporter.TenantID)
+	snapshotListOption := getSnapshotListOptions(exporter.TenantID)
 
-	allPagesSnapshot, err := snapshots.List(exporter.Client, snapshotListOptions).AllPages()
+	allPagesSnapshot, err := snapshots.List(exporter.ClientV2, snapshotListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -222,11 +184,10 @@ func ListSnapshots(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric)
 	return nil
 }
 
-func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
+func ListCinderAgentState(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allServices []services.Service
 
-	allPagesService, err := services.List(exporter.Client, services.ListOpts{}).AllPages()
+	allPagesService, err := services.List(exporter.ClientV2, services.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -255,12 +216,12 @@ func ListCinderAgentState(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 	return nil
 }
 
-func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListCinderPoolCapacityFree(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	listOpts := schedulerstats.ListOpts{
 		Detail: true,
 	}
 
-	allPages, err := schedulerstats.List(exporter.Client, listOpts).AllPages()
+	allPages, err := schedulerstats.List(exporter.ClientV2, listOpts).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -276,61 +237,25 @@ func ListCinderPoolCapacityFree(exporter *BaseOpenStackExporter, ch chan<- prome
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_capacity_total_gb"].Metric, prometheus.GaugeValue,
 			float64(stat.Capabilities.TotalCapacityGB), stat.Name, stat.Capabilities.VolumeBackendName, stat.Capabilities.VendorName)
 	}
+
 	return nil
 }
 
-func ListVolumeLimits(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-	var eo gophercloud.EndpointOpts
-
-	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
-	// to create an openstack client for the Identity/Keystone API.
-	// If possible, use the EndpointOpts spefic to the identity service.
-	if v, ok := endpointOpts["identity"]; ok {
-		eo = v
-	} else if v, ok := endpointOpts["volume"]; ok {
-		eo = v
-	} else {
-		return errors.New("no EndpointOpts available to create Identity client")
-	}
-
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
-	if err != nil {
-		return err
-	}
-
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-	if err != nil {
-		if _, ok := err.(gophercloud.ErrDefault403); !ok {
-			return err
-		}
-
-		user, err := tokens.Get(c, c.TokenID).ExtractUser()
-		if err != nil {
-			return err
-		}
-
-		allPagesProject, err = users.ListProjects(c, user.ID).AllPages()
-		if err != nil {
-			return err
-		}
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}
 
 	for _, p := range allProjects {
-		exporter.logger.Info("Findings limits for project", "project", p.Name, "exporter", exporter.Name)
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
-		limits, err := quotasets.GetUsage(exporter.Client, p.ID).Extract()
+		limits, err := quotasets.GetUsage(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}
 
 		// Quotas are obtained from the cinder API
-		quotas_p, err := quotasets.Get(exporter.Client, p.ID).Extract()
+		quotas_p, err := quotasets.Get(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
 			return err
 		}

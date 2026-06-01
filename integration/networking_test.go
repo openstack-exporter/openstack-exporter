@@ -1,316 +1,202 @@
 package integration
 
 import (
-	"log"
+	"context"
+	"fmt"
 	"testing"
+	"time"
 
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
 )
 
+type networkWithMTU struct {
+	networks.Network
+	mtu.NetworkMTUExt
+}
+
 func TestNetworkingIntegration(t *testing.T) {
 	clients.RequireLong(t)
 
-	cleanup := startNetworkExporter(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	metricFamilies, body := scrapeNetworkMetrics(t, "")
+	metrics := scrapeMetrics(t, "")
 
 	t.Run("openstack_neutron_up_metric", func(t *testing.T) {
-		sample, ok := findMetric(metricFamilies, "openstack_neutron_up", nil)
-		if !ok {
-			failNetworkingWithBody(t, body,
-				"Metric %q not found in metrics response",
-				"openstack_neutron_up",
-			)
-		}
-		if sample.value != 1 {
-			failNetworkingWithBody(t, body,
-				"openstack_neutron_up metric should have value 1 indicating service is up, got %v",
-				sample.value,
-			)
-		}
+		metrics.requireUp(t, "openstack_neutron_up")
 	})
 
 	t.Run("openstack_neutron_core_metrics_present", func(t *testing.T) {
-		expected := []string{
+		metrics.requireAnyFamily(t,
 			"openstack_neutron_networks",
 			"openstack_neutron_ports",
 			"openstack_neutron_subnets",
 			"openstack_neutron_router",
-		}
-		foundAny := false
-		for _, m := range expected {
-			if _, ok := metricFamilies[m]; ok {
-				foundAny = true
-				break
-			}
-		}
-		if !foundAny {
-			failNetworkingWithBody(t, body,
-				"Expected Neutron core metrics not found; Neutron may not be fully available",
-			)
-		}
+		)
 	})
 
 	t.Run("neutron_network_labels_present", func(t *testing.T) {
-		for _, sample := range metricFamilies["openstack_neutron_network"] {
-			if sample.labels["id"] != "" &&
-				sample.labels["name"] != "" &&
-				sample.labels["is_external"] != "" &&
-				sample.labels["is_shared"] != "" {
-				if _, ok := sample.labels["provider_network_type"]; ok {
-					return
-				}
-			}
-		}
-		failNetworkingWithBody(t, body,
-			"No 'openstack_neutron_network' metric contained required labels (id,name,is_external,is_shared,provider_network_type)",
-		)
+		metrics.requireSampleWithLabels(t, "openstack_neutron_network", "id", "name", "is_external", "is_shared", "provider_network_type")
 	})
 }
 
 func TestNetworkingNetworkCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 	clients.RequireLong(t)
 
-	networkClient, err := clients.NewNetworkV2Client()
-	if err != nil {
-		t.Fatalf("Failed to build network client: %v", err)
-	}
-
-	cleanup := startNetworkExporter(t)
+	networkClient := newNetworkClient(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	network, err := funcs.CreateNetwork(t, networkClient)
-	if err != nil {
-		t.Fatalf("Could not create test network: %v", err)
-	}
+	network, deleteNetwork := createNetwork(t, networkClient)
 
-	metricFamilies, body := scrapeNetworkMetrics(t, "after network create")
-
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_network", map[string]string{
+	metrics := scrapeMetrics(t, "after network create")
+	metrics.requireMetric(t, "openstack_neutron_network", labels{
 		"id":   network.ID,
 		"name": network.Name,
-	}); !ok {
-		funcs.DeleteNetwork(t, networkClient, network)
-		failNetworkingWithBody(t, body,
-			"Expected network metric for created network %s not found",
-			network.ID,
-		)
+	})
+
+	deleteNetwork()
+
+	scrapeMetrics(t, "after network delete").requireNoMetric(t, "openstack_neutron_network", labels{"id": network.ID})
+}
+
+func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing.T) {
+	clients.RequireLong(t)
+
+	networkClient := newNetworkClient(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if _, err := extensions.Get(ctx, networkClient, "net-mtu-writable").Extract(); err != nil {
+		t.Skipf("Neutron net-mtu-writable extension is not available: %v", err)
 	}
 
-	funcs.DeleteNetwork(t, networkClient, network)
+	cleanup := startExporter(t, "network")
+	defer cleanup()
 
-	metricFamilies, body = scrapeNetworkMetrics(t, "after network delete")
-
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_network", map[string]string{
-		"id": network.ID,
-	}); ok {
-		failNetworkingWithBody(t, body,
-			"Expected network metric for deleted network %s to disappear",
-			network.ID,
-		)
+	createOpts := mtu.CreateOptsExt{
+		CreateOptsBuilder: networks.CreateOpts{Name: fmt.Sprintf("openstack-exporter-mtu-%d", time.Now().UnixNano())},
+		MTU:               1440,
 	}
+	var createdNetwork networkWithMTU
+	if err := networks.Create(ctx, networkClient, createOpts).ExtractInto(&createdNetwork); err != nil {
+		t.Fatalf("Failed to create Neutron network with MTU: %v", err)
+	}
+	networkDeleted := false
+	t.Cleanup(func() {
+		if !networkDeleted {
+			_ = networks.Delete(context.Background(), networkClient, createdNetwork.ID).ExtractErr()
+		}
+	})
+
+	scrapeMetrics(t, "after MTU network create").requireLabelValue(t, "openstack_neutron_network", labels{"id": createdNetwork.ID}, "mtu", "1440")
+
+	updateOpts := mtu.UpdateOptsExt{UpdateOptsBuilder: networks.UpdateOpts{}, MTU: 1350}
+	var updatedNetwork networkWithMTU
+	if err := networks.Update(ctx, networkClient, createdNetwork.ID, updateOpts).ExtractInto(&updatedNetwork); err != nil {
+		t.Fatalf("Failed to update Neutron network MTU: %v", err)
+	}
+	scrapeMetrics(t, "after MTU network update").requireLabelValue(t, "openstack_neutron_network", labels{"id": createdNetwork.ID}, "mtu", "1350")
+
+	if err := networks.Delete(ctx, networkClient, createdNetwork.ID).ExtractErr(); err != nil {
+		t.Fatalf("Failed to delete Neutron network with MTU: %v", err)
+	}
+	networkDeleted = true
+
+	scrapeMetrics(t, "after MTU network delete").requireNoMetric(t, "openstack_neutron_network", labels{"id": createdNetwork.ID})
 }
 
 func TestNetworkingSubnetCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 	clients.RequireLong(t)
 
-	networkClient, err := clients.NewNetworkV2Client()
-	if err != nil {
-		t.Fatalf("Failed to build network client: %v", err)
-	}
-
-	cleanup := startNetworkExporter(t)
+	networkClient := newNetworkClient(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	network, err := funcs.CreateNetwork(t, networkClient)
-	if err != nil {
-		t.Fatalf("Could not create test network: %v", err)
-	}
-	networkDeleted := false
-	t.Cleanup(func() {
-		if !networkDeleted {
-			funcs.DeleteNetwork(t, networkClient, network)
-		}
-	})
+	network, deleteNetwork := createNetwork(t, networkClient)
+	subnet, deleteSubnet := createSubnet(t, networkClient, network)
 
-	subnet, err := funcs.CreateSubnet(t, networkClient, network)
-	if err != nil {
-		t.Fatalf("Could not create test subnet: %v", err)
-	}
-	subnetDeleted := false
-	t.Cleanup(func() {
-		if !subnetDeleted {
-			funcs.DeleteSubnet(t, networkClient, subnet)
-		}
-	})
-
-	metricFamilies, body := scrapeNetworkMetrics(t, "after subnet create")
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_subnet", map[string]string{
+	scrapeMetrics(t, "after subnet create").requireMetric(t, "openstack_neutron_subnet", labels{
 		"id":         subnet.ID,
 		"name":       subnet.Name,
 		"network_id": network.ID,
 		"cidr":       subnet.CIDR,
-	}); !ok {
-		failNetworkingWithBody(t, body,
-			"Expected subnet metric for created subnet %s not found",
-			subnet.ID,
-		)
-	}
+	})
 
-	funcs.DeleteSubnet(t, networkClient, subnet)
-	subnetDeleted = true
+	deleteSubnet()
 
-	metricFamilies, body = scrapeNetworkMetrics(t, "after subnet delete")
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_subnet", map[string]string{
-		"id": subnet.ID,
-	}); ok {
-		failNetworkingWithBody(t, body,
-			"Expected subnet metric for deleted subnet %s to disappear",
-			subnet.ID,
-		)
-	}
+	scrapeMetrics(t, "after subnet delete").requireNoMetric(t, "openstack_neutron_subnet", labels{"id": subnet.ID})
 
-	funcs.DeleteNetwork(t, networkClient, network)
-	networkDeleted = true
+	deleteNetwork()
 }
 
 func TestNetworkingPortCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 	clients.RequireLong(t)
 
-	networkClient, err := clients.NewNetworkV2Client()
-	if err != nil {
-		t.Fatalf("Failed to build network client: %v", err)
-	}
-
-	cleanup := startNetworkExporter(t)
+	networkClient := newNetworkClient(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	network, err := funcs.CreateNetwork(t, networkClient)
-	if err != nil {
-		t.Fatalf("Could not create test network: %v", err)
-	}
-	networkDeleted := false
-	t.Cleanup(func() {
-		if !networkDeleted {
-			funcs.DeleteNetwork(t, networkClient, network)
-		}
-	})
+	network, deleteNetwork := createNetwork(t, networkClient)
+	port, deletePort := createPort(t, networkClient, network)
 
-	port, err := funcs.CreatePort(t, networkClient, network)
-	if err != nil {
-		t.Fatalf("Could not create test port: %v", err)
-	}
-	portDeleted := false
-	t.Cleanup(func() {
-		if !portDeleted {
-			funcs.DeletePort(t, networkClient, port)
-		}
-	})
-
-	metricFamilies, body := scrapeNetworkMetrics(t, "after port create")
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_port", map[string]string{
+	scrapeMetrics(t, "after port create").requireMetric(t, "openstack_neutron_port", labels{
 		"uuid":        port.ID,
 		"network_id":  network.ID,
 		"mac_address": port.MACAddress,
-	}); !ok {
-		failNetworkingWithBody(t, body,
-			"Expected port metric for created port %s not found",
-			port.ID,
-		)
-	}
+	})
 
-	funcs.DeletePort(t, networkClient, port)
-	portDeleted = true
+	deletePort()
 
-	metricFamilies, body = scrapeNetworkMetrics(t, "after port delete")
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_port", map[string]string{
-		"uuid": port.ID,
-	}); ok {
-		failNetworkingWithBody(t, body,
-			"Expected port metric for deleted port %s to disappear",
-			port.ID,
-		)
-	}
+	scrapeMetrics(t, "after port delete").requireNoMetric(t, "openstack_neutron_port", labels{"uuid": port.ID})
 
-	funcs.DeleteNetwork(t, networkClient, network)
-	networkDeleted = true
+	deleteNetwork()
 }
 
 func TestNetworkingIPAvailabilityIncludesCreatedSubnet(t *testing.T) {
 	clients.RequireLong(t)
 
-	networkClient, err := clients.NewNetworkV2Client()
-	if err != nil {
-		t.Fatalf("Failed to build network client: %v", err)
-	}
-
-	cleanup := startNetworkExporter(t)
+	networkClient := newNetworkClient(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	network, err := funcs.CreateNetwork(t, networkClient)
-	if err != nil {
-		t.Fatalf("Could not create test network: %v", err)
-	}
-	networkDeleted := false
-	t.Cleanup(func() {
-		if !networkDeleted {
-			funcs.DeleteNetwork(t, networkClient, network)
-		}
-	})
+	network, deleteNetwork := createNetwork(t, networkClient)
+	subnet, deleteSubnet := createSubnet(t, networkClient, network)
 
-	subnet, err := funcs.CreateSubnet(t, networkClient, network)
-	if err != nil {
-		t.Fatalf("Could not create test subnet: %v", err)
-	}
-	subnetDeleted := false
-	t.Cleanup(func() {
-		if !subnetDeleted {
-			funcs.DeleteSubnet(t, networkClient, subnet)
-		}
-	})
-
-	metricFamilies, body := scrapeNetworkMetrics(t, "after subnet create")
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_network_ip_availabilities_total", map[string]string{
+	metrics := scrapeMetrics(t, "after subnet create")
+	availabilityLabels := labels{
 		"network_id":   network.ID,
 		"network_name": network.Name,
 		"subnet_name":  subnet.Name,
 		"cidr":         subnet.CIDR,
 		"ip_version":   "4",
-	}); !ok {
-		failNetworkingWithBody(t, body,
-			"Expected network IP availability total metric for subnet %s not found",
-			subnet.ID,
-		)
+	}
+	for _, name := range []string{
+		"openstack_neutron_network_ip_availabilities_total",
+		"openstack_neutron_network_ip_availabilities_used",
+	} {
+		metrics.requireMetric(t, name, availabilityLabels)
 	}
 
-	if _, ok := findMetric(metricFamilies, "openstack_neutron_network_ip_availabilities_used", map[string]string{
-		"network_id":   network.ID,
-		"network_name": network.Name,
-		"subnet_name":  subnet.Name,
-		"cidr":         subnet.CIDR,
-		"ip_version":   "4",
-	}); !ok {
-		failNetworkingWithBody(t, body,
-			"Expected network IP availability used metric for subnet %s not found",
-			subnet.ID,
-		)
-	}
-
-	funcs.DeleteSubnet(t, networkClient, subnet)
-	subnetDeleted = true
-	funcs.DeleteNetwork(t, networkClient, network)
-	networkDeleted = true
+	deleteSubnet()
+	deleteNetwork()
 }
 
 func TestNetworkingQuotaMetricsHaveExpectedLabels(t *testing.T) {
 	clients.RequireLong(t)
 
-	cleanup := startNetworkExporter(t)
+	cleanup := startExporter(t, "network")
 	defer cleanup()
 
-	metricFamilies, body := scrapeNetworkMetrics(t, "")
+	metrics := scrapeMetrics(t, "")
 	for _, metricName := range []string{
 		"openstack_neutron_quota_network",
 		"openstack_neutron_quota_subnet",
@@ -320,62 +206,70 @@ func TestNetworkingQuotaMetricsHaveExpectedLabels(t *testing.T) {
 		"openstack_neutron_quota_security_group",
 		"openstack_neutron_quota_security_group_rule",
 	} {
-		sample, ok := findMetric(metricFamilies, metricName, map[string]string{
-			"type": "limit",
-		})
-		if !ok {
-			failNetworkingWithBody(t, body,
-				"Expected %s metric with type=limit not found",
-				metricName,
-			)
-		}
-		for _, label := range []string{"tenant", "tenant_id", "type"} {
-			if sample.labels[label] == "" {
-				failNetworkingWithBody(t, body,
-					"Expected %s metric to include non-empty %s label",
-					metricName,
-					label,
-				)
-			}
-		}
+		metrics.requireLabels(t, metricName, labels{"type": "limit"}, "tenant", "tenant_id", "type")
 	}
 }
 
-func startNetworkExporter(t *testing.T) func() {
+func newNetworkClient(t *testing.T) *gophercloud.ServiceClient {
 	t.Helper()
 
-	_, cleanup, err := startOpenStackExporter([]string{"network"})
+	client, err := clients.NewNetworkV2Client()
 	if err != nil {
-		t.Fatalf("Failed to start exporter: %v", err)
+		t.Fatalf("Failed to build network client: %v", err)
 	}
-	return cleanup
+	return client
 }
 
-func scrapeNetworkMetrics(t *testing.T, context string) (map[string][]metricSample, string) {
+func createNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.Network, func()) {
 	t.Helper()
 
-	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
+	network, err := funcs.CreateNetwork(t, client)
 	if err != nil {
-		if context == "" {
-			t.Fatalf("Failed to fetch metrics: %v", err)
-		}
-		t.Fatalf("Failed to fetch metrics %s: %v", context, err)
+		t.Fatalf("Could not create test network: %v", err)
 	}
-
-	body := string(bodyBytes)
-	metricFamilies, err := parseMetrics(bodyBytes)
-	if err != nil {
-		if context == "" {
-			failNetworkingWithBody(t, body, "Failed to parse metrics response: %v", err)
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteNetwork(t, client, network)
+			deleted = true
 		}
-		failNetworkingWithBody(t, body, "Failed to parse metrics response %s: %v", context, err)
 	}
-
-	return metricFamilies, body
+	t.Cleanup(delete)
+	return network, delete
 }
 
-func failNetworkingWithBody(t *testing.T, body string, msg string, args ...interface{}) {
+func createSubnet(t *testing.T, client *gophercloud.ServiceClient, network *networks.Network) (*subnets.Subnet, func()) {
 	t.Helper()
-	log.Printf("Metrics body:\n%s\n", body)
-	t.Fatalf(msg, args...)
+
+	subnet, err := funcs.CreateSubnet(t, client, network)
+	if err != nil {
+		t.Fatalf("Could not create test subnet: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteSubnet(t, client, subnet)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return subnet, delete
+}
+
+func createPort(t *testing.T, client *gophercloud.ServiceClient, network *networks.Network) (*ports.Port, func()) {
+	t.Helper()
+
+	port, err := funcs.CreatePort(t, client, network)
+	if err != nil {
+		t.Fatalf("Could not create test port: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeletePort(t, client, port)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return port, delete
 }

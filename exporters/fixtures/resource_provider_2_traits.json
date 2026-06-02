@@ -1,0 +1,7 @@
+{
+  "resource_provider_generation": 12,
+  "traits": [
+    "STORAGE_DISK_SSD",
+    "CUSTOM_GPU"
+  ]
+}

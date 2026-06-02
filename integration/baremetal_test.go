@@ -61,8 +61,6 @@ func TestBaremetalIntegration(t *testing.T) {
 
 		expectedLabels := []string{
 			"console_enabled",
-			"deploy_kernel",
-			"deploy_ramdisk",
 			"id",
 			"maintenance",
 			"name",

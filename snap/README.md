@@ -120,6 +120,7 @@ If set to "true", the corresponding flag is passed to the openstack-exporter.
 - `collect-metric-time`
 - `disable-cinder-agent-uuid`
 - `disable-deprecated-metrics`
+- `enable-ironic-driver-info`
 - `disable-service.baremetal`
 - `disable-service.compute`
 - `disable-service.container-infra`

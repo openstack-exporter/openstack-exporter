@@ -10,6 +10,7 @@
 [ -z "$(snapctl get disable-cinder-agent-uuid)" ] && snapctl set disable-cinder-agent-uuid=false
 [ -z "$(snapctl get disable-deprecated-metrics)" ] && snapctl set disable-deprecated-metrics=false
 [ -z "$(snapctl get disable-metrics)" ] && snapctl set disable-metrics=
+[ -z "$(snapctl get enable-ironic-driver-info)" ] && snapctl set enable-ironic-driver-info=false
 [ -z "$(snapctl get disable-service.baremetal)" ] && snapctl set disable-service.baremetal=false
 [ -z "$(snapctl get disable-service.compute)" ] && snapctl set disable-service.compute=false
 [ -z "$(snapctl get disable-service.container-infra)" ] && snapctl set disable-service.container-infra=false
@@ -48,6 +49,7 @@ validate_bool() {
 validate_bool collect-metric-time
 validate_bool disable-cinder-agent-uuid
 validate_bool disable-deprecated-metrics
+validate_bool enable-ironic-driver-info
 validate_bool disable-service.baremetal
 validate_bool disable-service.compute
 validate_bool disable-service.container-infra

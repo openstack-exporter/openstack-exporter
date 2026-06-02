@@ -32,6 +32,7 @@ add_flag cache
 add_flag collect-metric-time
 add_flag disable-cinder-agent-uuid
 add_flag disable-deprecated-metrics
+add_flag enable-ironic-driver-info
 add_flag disable-service.baremetal
 add_flag disable-service.compute
 add_flag disable-service.container-infra

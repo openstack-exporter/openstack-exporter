@@ -113,6 +113,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			disableSlowMetrics,
 			disableDeprecatedMetrics,
 			disableCinderAgentUUID,
+			false,
 			domainID,
 			tenantID,
 			novaMetadataMapping, // non-nil here

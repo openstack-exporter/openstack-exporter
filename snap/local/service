@@ -51,6 +51,7 @@ add_flag multi-cloud
 add_option cache-ttl
 add_option endpoint-type
 add_option domain-id
+add_option tenant-id
 add_option log.format
 add_option log.level
 add_option os-client-config

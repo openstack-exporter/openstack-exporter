@@ -17,7 +17,7 @@
       "target_provision_state": null,
       "deploy_step": {},
       "storage_interface": "noop",
-      "conductor_group": "",
+      "conductor_group": "rack-a",
       "protected_reason": null,
       "maintenance_reason": "Firmware upgrade",
       "states": [
@@ -30,7 +30,10 @@
           "rel": "bookmark"
         }
       ],
-      "traits": [],
+      "traits": [
+        "CUSTOM_GPU",
+        "HW_CPU_X86_VMX"
+      ],
       "provision_state": "available",
       "clean_step": {},
       "vendor_interface": "ipmitool",
@@ -414,12 +417,16 @@
       "extra": {
         "hammer_error_resets": [
           "2018-05-10T12:38:40.803234+00:00"
-        ]
+        ],
+        "ironic_self_healing_state": "healed",
+        "system_vendor": {
+          "serial_number": "SN-1234567890"
+        }
       },
       "raid_config": {},
       "provision_updated_at": "2020-07-03T03:34:41+00:00",
       "power_state": "power on",
-      "last_error": null,
+      "last_error": "Provisioning failed\nReached timeout",
       "target_raid_config": {},
       "network_interface": "neutron",
       "inspection_started_at": null,

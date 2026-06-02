@@ -36,4 +36,3 @@ func TestIsMicroversionAtLeastInvalidVersion(t *testing.T) {
 	_, err = IsMicroversionAtLeast("2.46", "invalid")
 	require.Error(t, err)
 }
-

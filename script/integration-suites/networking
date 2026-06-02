@@ -9,6 +9,8 @@ set -eu
 
 # VPNaaS metrics require the Neutron VPNaaS DevStack plugin:
 #   enable_plugin neutron-vpnaas https://opendev.org/openstack/neutron-vpnaas
+# For OVN DevStack deployments, also enable the VPN agent:
+#   enable_service q-ovn-vpn-agent
 # DevStack uses strongSwan by default; set IPSEC_PACKAGE=libreswan where the
 # target distro needs libreswan instead.
 

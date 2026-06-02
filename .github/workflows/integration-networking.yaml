@@ -23,6 +23,8 @@ jobs:
         with:
           branch: ${{ matrix.openstack_version }}
           enabled_services: "${{ matrix.additional_services }}"
+          conf_overrides: |
+            enable_plugin neutron-vpnaas https://opendev.org/openstack/neutron-vpnaas ${{ matrix.openstack_version }}
       - name: Setup Go
         uses: actions/setup-go@v6
         with:

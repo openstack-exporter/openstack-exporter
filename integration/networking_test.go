@@ -8,7 +8,13 @@ import (
 
 	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/routers"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/endpointgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/ikepolicies"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/ipsecpolicies"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/services"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/siteconnections"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
@@ -210,6 +216,62 @@ func TestNetworkingQuotaMetricsHaveExpectedLabels(t *testing.T) {
 	}
 }
 
+func TestNetworkingVPNaaSCreateDeleteUpdatesExporterMetrics(t *testing.T) {
+	clients.RequireLong(t)
+
+	networkClient := newNetworkClient(t)
+	requireVPNaaSExtension(t, networkClient)
+
+	cleanup := startExporter(t, "network")
+	defer cleanup()
+
+	network, _ := createNetwork(t, networkClient)
+	subnet, _ := createSubnet(t, networkClient, network)
+	router, _ := createRouter(t, networkClient)
+	addRouterInterface(t, networkClient, router, subnet)
+
+	ikePolicy, deleteIKEPolicy := createVPNIKEPolicy(t, networkClient)
+	ipsecPolicy, deleteIPSecPolicy := createVPNIPSecPolicy(t, networkClient)
+	vpnService, deleteVPNService := createVPNService(t, networkClient, router)
+	localEndpointGroup, deleteLocalEndpointGroup := createVPNEndpointGroup(t, networkClient, endpointgroups.TypeSubnet, []string{subnet.ID})
+	peerEndpointGroup, deletePeerEndpointGroup := createVPNEndpointGroup(t, networkClient, endpointgroups.TypeCIDR, []string{"10.42.0.0/24"})
+	siteConnection, deleteSiteConnection := createVPNSiteConnection(t, networkClient, ikePolicy.ID, ipsecPolicy.ID, vpnService.ID, peerEndpointGroup.ID, localEndpointGroup.ID)
+
+	metrics := scrapeMetrics(t, "after VPNaaS resources create")
+	metrics.requireMinValue(t, "openstack_neutron_vpn_endpoint_groups", nil, 2)
+	metrics.requireMinValue(t, "openstack_neutron_vpn_ike_policies", nil, 1)
+	metrics.requireMinValue(t, "openstack_neutron_vpn_ipsec_policies", nil, 1)
+	metrics.requireMinValue(t, "openstack_neutron_vpn_services", nil, 1)
+	metrics.requireMetric(t, "openstack_neutron_vpn_service", labels{
+		"id":        vpnService.ID,
+		"router_id": router.ID,
+		"name":      vpnService.Name,
+	})
+	metrics.requireMinValue(t, "openstack_neutron_vpn_siteconnections", nil, 1)
+	metrics.requireMetric(t, "openstack_neutron_vpn_siteconnection", labels{
+		"id":                siteConnection.ID,
+		"name":              siteConnection.Name,
+		"vpn_service_id":    vpnService.ID,
+		"ike_policy_id":     ikePolicy.ID,
+		"ipsec_policy_id":   ipsecPolicy.ID,
+		"peer_ep_group_id":  peerEndpointGroup.ID,
+		"local_ep_group_id": localEndpointGroup.ID,
+		"peer_id":           siteConnection.PeerID,
+		"admin_state_up":    "true",
+	})
+
+	deleteSiteConnection()
+	deleteVPNService()
+	deletePeerEndpointGroup()
+	deleteLocalEndpointGroup()
+	deleteIPSecPolicy()
+	deleteIKEPolicy()
+
+	metrics = scrapeMetrics(t, "after VPNaaS resources delete")
+	metrics.requireNoMetric(t, "openstack_neutron_vpn_service", labels{"id": vpnService.ID})
+	metrics.requireNoMetric(t, "openstack_neutron_vpn_siteconnection", labels{"id": siteConnection.ID})
+}
+
 func newNetworkClient(t *testing.T) *gophercloud.ServiceClient {
 	t.Helper()
 
@@ -218,6 +280,17 @@ func newNetworkClient(t *testing.T) *gophercloud.ServiceClient {
 		t.Fatalf("Failed to build network client: %v", err)
 	}
 	return client
+}
+
+func requireVPNaaSExtension(t *testing.T, client *gophercloud.ServiceClient) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if _, err := extensions.Get(ctx, client, "vpnaas").Extract(); err != nil {
+		t.Skipf("Neutron VPNaaS extension is not available; enable neutron-vpnaas in DevStack: %v", err)
+	}
 }
 
 func createNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.Network, func()) {
@@ -236,6 +309,41 @@ func createNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.N
 	}
 	t.Cleanup(delete)
 	return network, delete
+}
+
+func createRouter(t *testing.T, client *gophercloud.ServiceClient) (*routers.Router, func()) {
+	t.Helper()
+
+	router, err := funcs.CreateRouter(t, client)
+	if err != nil {
+		t.Fatalf("Could not create test router: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteRouter(t, client, router)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return router, delete
+}
+
+func addRouterInterface(t *testing.T, client *gophercloud.ServiceClient, router *routers.Router, subnet *subnets.Subnet) func() {
+	t.Helper()
+
+	if err := funcs.AddRouterInterface(t, client, router, subnet); err != nil {
+		t.Fatalf("Could not add subnet %s to router %s: %v", subnet.ID, router.ID, err)
+	}
+	removed := false
+	remove := func() {
+		if !removed {
+			funcs.RemoveRouterInterface(t, client, router, subnet)
+			removed = true
+		}
+	}
+	t.Cleanup(remove)
+	return remove
 }
 
 func createSubnet(t *testing.T, client *gophercloud.ServiceClient, network *networks.Network) (*subnets.Subnet, func()) {
@@ -272,4 +380,94 @@ func createPort(t *testing.T, client *gophercloud.ServiceClient, network *networ
 	}
 	t.Cleanup(delete)
 	return port, delete
+}
+
+func createVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ikepolicies.Policy, func()) {
+	t.Helper()
+
+	policy, err := funcs.CreateVPNIKEPolicy(t, client)
+	if err != nil {
+		t.Fatalf("Could not create VPN IKE policy: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteVPNIKEPolicy(t, client, policy.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return policy, delete
+}
+
+func createVPNIPSecPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ipsecpolicies.Policy, func()) {
+	t.Helper()
+
+	policy, err := funcs.CreateVPNIPSecPolicy(t, client)
+	if err != nil {
+		t.Fatalf("Could not create VPN IPsec policy: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteVPNIPSecPolicy(t, client, policy.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return policy, delete
+}
+
+func createVPNEndpointGroup(t *testing.T, client *gophercloud.ServiceClient, endpointType endpointgroups.EndpointType, endpoints []string) (*endpointgroups.EndpointGroup, func()) {
+	t.Helper()
+
+	group, err := funcs.CreateVPNEndpointGroup(t, client, endpointType, endpoints)
+	if err != nil {
+		t.Fatalf("Could not create VPN endpoint group: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteVPNEndpointGroup(t, client, group.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return group, delete
+}
+
+func createVPNService(t *testing.T, client *gophercloud.ServiceClient, router *routers.Router) (*services.Service, func()) {
+	t.Helper()
+
+	service, err := funcs.CreateVPNService(t, client, router)
+	if err != nil {
+		t.Fatalf("Could not create VPN service: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteVPNService(t, client, service.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return service, delete
+}
+
+func createVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, ikePolicyID string, ipsecPolicyID string, serviceID string, peerEndpointGroupID string, localEndpointGroupID string) (*siteconnections.Connection, func()) {
+	t.Helper()
+
+	connection, err := funcs.CreateVPNSiteConnection(t, client, ikePolicyID, ipsecPolicyID, serviceID, peerEndpointGroupID, localEndpointGroupID)
+	if err != nil {
+		t.Fatalf("Could not create VPN site connection: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			funcs.DeleteVPNSiteConnection(t, client, connection.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return connection, delete
 }

@@ -7,6 +7,11 @@ source "$(dirname "$0")/../stackenv"
 
 set -eu
 
+# VPNaaS metrics require the Neutron VPNaaS DevStack plugin:
+#   enable_plugin neutron-vpnaas https://opendev.org/openstack/neutron-vpnaas
+# DevStack uses strongSwan by default; set IPSEC_PACKAGE=libreswan where the
+# target distro needs libreswan instead.
+
 timeout="60m"
 
 LOG_DIR=${LOG_DIR:-}

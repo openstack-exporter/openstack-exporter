@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"strconv"
+	"strings"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/image/v2/images"
 	"github.com/prometheus/client_golang/prometheus"
@@ -14,7 +15,7 @@ type GlanceExporter struct {
 }
 
 var defaultGlanceMetrics = []Metric{
-	{Name: "images", Fn: ListImages},
+	{Name: "images", Labels: []string{"id", "name", "image_stats", "disk_format", "tags", "project_id"}, Fn: ListImages},
 	{Name: "image_bytes", Labels: []string{"id", "name", "tenant_id"}, Fn: ListImageProperties, Slow: true},
 	{Name: "image_created_at", Labels: []string{"id", "name", "tenant_id", "visibility", "hidden", "status"}, Slow: true},
 }
@@ -62,8 +63,10 @@ func ListImages(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- 
 		return err
 	}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"].Metric,
-		prometheus.GaugeValue, float64(len(allImages)))
+	for _, image := range allImages {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["images"].Metric,
+			prometheus.GaugeValue, float64(len(allImages)), image.ID, image.Name, string(image.Status), image.DiskFormat, strings.Join(image.Tags, " "), image.Owner)
+	}
 
 	return nil
 }

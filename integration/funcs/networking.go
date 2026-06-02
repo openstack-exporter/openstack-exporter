@@ -3,10 +3,14 @@ package funcs
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/routers"
+	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/endpointgroups"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/ikepolicies"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/ipsecpolicies"
@@ -15,8 +19,49 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
+	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
+
+type NetworkWithMTU struct {
+	networks.Network
+	mtu.NetworkMTUExt
+}
+
+// NewNetworkClient returns a Networking v2 client or fails the test.
+func NewNetworkClient(t *testing.T) *gophercloud.ServiceClient {
+	t.Helper()
+
+	client, err := clients.NewNetworkV2Client()
+	if err != nil {
+		t.Fatalf("Failed to build network client: %v", err)
+	}
+	return client
+}
+
+// RequireVPNaaSExtension skips the test when the Neutron VPNaaS extension is
+// not available.
+func RequireVPNaaSExtension(t *testing.T, client *gophercloud.ServiceClient) {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if _, err := extensions.Get(ctx, client, "vpnaas").Extract(); err != nil {
+		t.Skipf("Neutron VPNaaS extension is not available; enable neutron-vpnaas in DevStack: %v", err)
+	}
+}
+
+// RequireExternalNetworkID returns OS_EXTGW_ID or fails the test.
+func RequireExternalNetworkID(t *testing.T) string {
+	t.Helper()
+
+	externalNetworkID := os.Getenv("OS_EXTGW_ID")
+	if externalNetworkID == "" {
+		t.Fatal("OS_EXTGW_ID must be set to create a VPNaaS router with an external gateway")
+	}
+	return externalNetworkID
+}
 
 // CreateNetwork creates a basic Neutron network with a random acceptance-test
 // name. An error is returned if the network could not be created.
@@ -38,6 +83,25 @@ func CreateNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.N
 
 	t.Logf("Successfully created network: %s", network.ID)
 	return network, nil
+}
+
+// MustCreateNetwork creates a Neutron network and registers cleanup.
+func MustCreateNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.Network, func()) {
+	t.Helper()
+
+	network, err := CreateNetwork(t, client)
+	if err != nil {
+		t.Fatalf("Could not create test network: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteNetwork(t, client, network)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return network, delete
 }
 
 // DeleteNetwork deletes a Neutron network. A fatal error occurs if the delete
@@ -83,6 +147,25 @@ func CreateSubnet(t *testing.T, client *gophercloud.ServiceClient, network *netw
 	return subnet, nil
 }
 
+// MustCreateSubnet creates a Neutron subnet and registers cleanup.
+func MustCreateSubnet(t *testing.T, client *gophercloud.ServiceClient, network *networks.Network) (*subnets.Subnet, func()) {
+	t.Helper()
+
+	subnet, err := CreateSubnet(t, client, network)
+	if err != nil {
+		t.Fatalf("Could not create test subnet: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteSubnet(t, client, subnet)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return subnet, delete
+}
+
 // DeleteSubnet deletes a Neutron subnet. A fatal error occurs if the delete
 // was not successful, which makes this suitable for deferred cleanup.
 func DeleteSubnet(t *testing.T, client *gophercloud.ServiceClient, subnet *subnets.Subnet) {
@@ -118,6 +201,25 @@ func CreatePort(t *testing.T, client *gophercloud.ServiceClient, network *networ
 
 	t.Logf("Successfully created port: %s", port.ID)
 	return port, nil
+}
+
+// MustCreatePort creates a Neutron port and registers cleanup.
+func MustCreatePort(t *testing.T, client *gophercloud.ServiceClient, network *networks.Network) (*ports.Port, func()) {
+	t.Helper()
+
+	port, err := CreatePort(t, client, network)
+	if err != nil {
+		t.Fatalf("Could not create test port: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeletePort(t, client, port)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return port, delete
 }
 
 // DeletePort deletes a Neutron port. A fatal error occurs if the delete was
@@ -164,6 +266,25 @@ func CreateRouter(t *testing.T, client *gophercloud.ServiceClient, externalNetwo
 	return router, nil
 }
 
+// MustCreateRouter creates a Neutron router and registers cleanup.
+func MustCreateRouter(t *testing.T, client *gophercloud.ServiceClient, externalNetworkID string) (*routers.Router, func()) {
+	t.Helper()
+
+	router, err := CreateRouter(t, client, externalNetworkID)
+	if err != nil {
+		t.Fatalf("Could not create test router: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteRouter(t, client, router)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return router, delete
+}
+
 // DeleteRouter deletes a Neutron router. A fatal error occurs if the delete
 // was not successful, which makes this suitable for deferred cleanup.
 func DeleteRouter(t *testing.T, client *gophercloud.ServiceClient, router *routers.Router) {
@@ -193,6 +314,24 @@ func AddRouterInterface(t *testing.T, client *gophercloud.ServiceClient, router 
 
 	t.Logf("Added subnet %s to router %s", subnet.ID, router.ID)
 	return nil
+}
+
+// MustAddRouterInterface attaches a subnet to a router and registers cleanup.
+func MustAddRouterInterface(t *testing.T, client *gophercloud.ServiceClient, router *routers.Router, subnet *subnets.Subnet) func() {
+	t.Helper()
+
+	if err := AddRouterInterface(t, client, router, subnet); err != nil {
+		t.Fatalf("Could not add subnet %s to router %s: %v", subnet.ID, router.ID, err)
+	}
+	removed := false
+	remove := func() {
+		if !removed {
+			RemoveRouterInterface(t, client, router, subnet)
+			removed = true
+		}
+	}
+	t.Cleanup(remove)
+	return remove
 }
 
 // RemoveRouterInterface detaches a subnet from a router. A fatal error occurs
@@ -236,6 +375,25 @@ func CreateVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ikepo
 	return policy, nil
 }
 
+// MustCreateVPNIKEPolicy creates a VPNaaS IKE policy and registers cleanup.
+func MustCreateVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ikepolicies.Policy, func()) {
+	t.Helper()
+
+	policy, err := CreateVPNIKEPolicy(t, client)
+	if err != nil {
+		t.Fatalf("Could not create VPN IKE policy: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteVPNIKEPolicy(t, client, policy.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return policy, delete
+}
+
 // DeleteVPNIKEPolicy deletes a VPNaaS IKE policy. A fatal error occurs if the
 // delete was not successful, which makes this suitable for deferred cleanup.
 func DeleteVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient, policyID string) {
@@ -277,6 +435,25 @@ func CreateVPNIPSecPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ips
 	return policy, nil
 }
 
+// MustCreateVPNIPSecPolicy creates a VPNaaS IPsec policy and registers cleanup.
+func MustCreateVPNIPSecPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ipsecpolicies.Policy, func()) {
+	t.Helper()
+
+	policy, err := CreateVPNIPSecPolicy(t, client)
+	if err != nil {
+		t.Fatalf("Could not create VPN IPsec policy: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteVPNIPSecPolicy(t, client, policy.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return policy, delete
+}
+
 // DeleteVPNIPSecPolicy deletes a VPNaaS IPsec policy. A fatal error occurs if
 // the delete was not successful, which makes this suitable for deferred
 // cleanup.
@@ -313,6 +490,26 @@ func CreateVPNEndpointGroup(t *testing.T, client *gophercloud.ServiceClient, end
 
 	t.Logf("Successfully created VPN endpoint group: %s", group.ID)
 	return group, nil
+}
+
+// MustCreateVPNEndpointGroup creates a VPNaaS endpoint group and registers
+// cleanup.
+func MustCreateVPNEndpointGroup(t *testing.T, client *gophercloud.ServiceClient, endpointType endpointgroups.EndpointType, endpoints []string) (*endpointgroups.EndpointGroup, func()) {
+	t.Helper()
+
+	group, err := CreateVPNEndpointGroup(t, client, endpointType, endpoints)
+	if err != nil {
+		t.Fatalf("Could not create VPN endpoint group: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteVPNEndpointGroup(t, client, group.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return group, delete
 }
 
 // DeleteVPNEndpointGroup deletes a VPNaaS endpoint group. A fatal error occurs
@@ -352,6 +549,25 @@ func CreateVPNService(t *testing.T, client *gophercloud.ServiceClient, router *r
 
 	t.Logf("Successfully created VPN service: %s", service.ID)
 	return service, nil
+}
+
+// MustCreateVPNService creates a VPNaaS service and registers cleanup.
+func MustCreateVPNService(t *testing.T, client *gophercloud.ServiceClient, router *routers.Router) (*services.Service, func()) {
+	t.Helper()
+
+	service, err := CreateVPNService(t, client, router)
+	if err != nil {
+		t.Fatalf("Could not create VPN service: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteVPNService(t, client, service.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return service, delete
 }
 
 // DeleteVPNService deletes a VPNaaS service. A fatal error occurs if the delete
@@ -399,6 +615,26 @@ func CreateVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, ik
 
 	t.Logf("Successfully created VPN site connection: %s", connection.ID)
 	return connection, nil
+}
+
+// MustCreateVPNSiteConnection creates a VPNaaS IPsec site connection and
+// registers cleanup.
+func MustCreateVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, ikePolicyID string, ipsecPolicyID string, serviceID string, peerEndpointGroupID string, localEndpointGroupID string) (*siteconnections.Connection, func()) {
+	t.Helper()
+
+	connection, err := CreateVPNSiteConnection(t, client, ikePolicyID, ipsecPolicyID, serviceID, peerEndpointGroupID, localEndpointGroupID)
+	if err != nil {
+		t.Fatalf("Could not create VPN site connection: %v", err)
+	}
+	deleted := false
+	delete := func() {
+		if !deleted {
+			DeleteVPNSiteConnection(t, client, connection.ID)
+			deleted = true
+		}
+	}
+	t.Cleanup(delete)
+	return connection, delete
 }
 
 // DeleteVPNSiteConnection deletes a VPNaaS IPsec site connection. A fatal

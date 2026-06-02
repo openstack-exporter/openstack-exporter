@@ -135,8 +135,10 @@ func DeletePort(t *testing.T, client *gophercloud.ServiceClient, port *ports.Por
 }
 
 // CreateRouter creates a basic Neutron router with a random acceptance-test
-// name. An error is returned if the router could not be created.
-func CreateRouter(t *testing.T, client *gophercloud.ServiceClient) (*routers.Router, error) {
+// name. If externalNetworkID is set, the router is created with that external
+// network as its gateway. An error is returned if the router could not be
+// created.
+func CreateRouter(t *testing.T, client *gophercloud.ServiceClient, externalNetworkID string) (*routers.Router, error) {
 	t.Helper()
 
 	routerName := tools.RandomString("ACPTTEST", 16)
@@ -144,6 +146,11 @@ func CreateRouter(t *testing.T, client *gophercloud.ServiceClient) (*routers.Rou
 	createOpts := routers.CreateOpts{
 		Name:         routerName,
 		AdminStateUp: &adminStateUp,
+	}
+	if externalNetworkID != "" {
+		createOpts.GatewayInfo = &routers.GatewayInfo{
+			NetworkID: externalNetworkID,
+		}
 	}
 
 	t.Logf("Attempting to create router: %s", routerName)

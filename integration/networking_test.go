@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
@@ -227,7 +228,7 @@ func TestNetworkingVPNaaSCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 
 	network, _ := createNetwork(t, networkClient)
 	subnet, _ := createSubnet(t, networkClient, network)
-	router, _ := createRouter(t, networkClient)
+	router, _ := createRouter(t, networkClient, requireExternalNetworkID(t))
 	addRouterInterface(t, networkClient, router, subnet)
 
 	ikePolicy, deleteIKEPolicy := createVPNIKEPolicy(t, networkClient)
@@ -293,6 +294,16 @@ func requireVPNaaSExtension(t *testing.T, client *gophercloud.ServiceClient) {
 	}
 }
 
+func requireExternalNetworkID(t *testing.T) string {
+	t.Helper()
+
+	externalNetworkID := os.Getenv("OS_EXTGW_ID")
+	if externalNetworkID == "" {
+		t.Fatal("OS_EXTGW_ID must be set to create a VPNaaS router with an external gateway")
+	}
+	return externalNetworkID
+}
+
 func createNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.Network, func()) {
 	t.Helper()
 
@@ -311,10 +322,10 @@ func createNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.N
 	return network, delete
 }
 
-func createRouter(t *testing.T, client *gophercloud.ServiceClient) (*routers.Router, func()) {
+func createRouter(t *testing.T, client *gophercloud.ServiceClient, externalNetworkID string) (*routers.Router, func()) {
 	t.Helper()
 
-	router, err := funcs.CreateRouter(t, client)
+	router, err := funcs.CreateRouter(t, client, externalNetworkID)
 	if err != nil {
 		t.Fatalf("Could not create test router: %v", err)
 	}

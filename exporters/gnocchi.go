@@ -1,10 +1,11 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 
-	"github.com/gophercloud/utils/gnocchi/metric/v1/metrics"
-	"github.com/gophercloud/utils/gnocchi/metric/v1/status"
+	"github.com/gophercloud/utils/v2/gnocchi/metric/v1/metrics"
+	"github.com/gophercloud/utils/v2/gnocchi/metric/v1/status"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -27,6 +28,7 @@ func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiEx
 			logger:         logger,
 		},
 	}
+
 	for _, metric := range defaultGnocchiMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -35,28 +37,32 @@ func NewGnocchiExporter(config *ExporterConfig, logger *slog.Logger) (*GnocchiEx
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
 	return &exporter, nil
 }
 
-func ListAllMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllMetrics(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allMetrics []metrics.Metric
-	allPagesMetrics, err := metrics.List(exporter.Client, metrics.ListOpts{}).AllPages()
+
+	allPagesMetrics, err := metrics.List(exporter.ClientV2, metrics.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	allMetrics, err = metrics.ExtractMetrics(allPagesMetrics)
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_metrics"].Metric,
 		prometheus.GaugeValue, float64(len(allMetrics)))
 
 	return nil
 }
 
-func getMetricStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func getMetricStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	details := true
-	metricStatus, err := status.Get(exporter.Client, status.GetOpts{Details: &details}).Extract()
+	metricStatus, err := status.Get(ctx, exporter.ClientV2, status.GetOpts{Details: &details}).Extract()
 	if err != nil {
 		return err
 	}

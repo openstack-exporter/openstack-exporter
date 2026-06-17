@@ -259,7 +259,7 @@ func ListNetworks(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["networks"].Metric,
 		prometheus.GaugeValue, float64(len(allNetworks)))
 
-	if !exporter.MetricIsDisabled("network") {
+	if exporter.IsMetricEnabled("network") {
 		for _, net := range allNetworks {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network"].Metric,
 				prometheus.GaugeValue, float64(mapNetworkStatus(net.Status)), net.ID, net.TenantID, net.Status, net.Name,
@@ -308,7 +308,7 @@ func ListSubnets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnets"].Metric,
 		prometheus.GaugeValue, float64(len(allSubnets)))
 
-	if !exporter.MetricIsDisabled("subnet") {
+	if exporter.IsMetricEnabled("subnet") {
 		for _, subnet := range allSubnets {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["subnet"].Metric,
 				prometheus.GaugeValue, 1.0, subnet.ID, subnet.TenantID, subnet.Name, subnet.NetworkID, subnet.CIDR,
@@ -350,7 +350,7 @@ func ListPorts(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 			lbaasPortsInactive++
 		}
 
-		if !exporter.MetricIsDisabled("port") {
+		if exporter.IsMetricEnabled("port") {
 			var fixedIPs = ""
 
 			portFixedIPsLen := len(port.FixedIPs)
@@ -541,7 +541,7 @@ func ListVpnServices(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_services"].Metric, prometheus.GaugeValue, float64(len(allVpnServices)))
-	if !exporter.MetricIsDisabled("vpn_service") {
+	if exporter.IsMetricEnabled("vpn_service") {
 		for _, service := range allVpnServices {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_service"].Metric,
 				prometheus.GaugeValue, float64(mapVpnServiceStatus(service.Status)), service.ID, service.ProjectID, service.SubnetID, service.RouterID, strconv.FormatBool(service.AdminStateUp), service.Name, service.ExternalV4IP, service.ExternalV6IP, service.FlavorID)
@@ -566,7 +566,7 @@ func ListVpnSiteConnections(ctx context.Context, exporter *BaseOpenStackExporter
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_siteconnections"].Metric, prometheus.GaugeValue, float64(len(allVpnSiteConnections)))
-	if !exporter.MetricIsDisabled("vpn_siteconnection") {
+	if exporter.IsMetricEnabled("vpn_siteconnection") {
 		for _, connection := range allVpnSiteConnections {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["vpn_siteconnection"].Metric, prometheus.GaugeValue, float64(mapVpnConnectionStatus(connection.Status)), connection.ID, connection.ProjectID, strconv.FormatBool(connection.AdminStateUp), connection.Name, connection.VPNServiceID, connection.IKEPolicyID, connection.IPSecPolicyID, connection.PeerID, connection.PeerEPGroupID, connection.LocalID, connection.LocalEPGroupID)
 		}
@@ -613,7 +613,7 @@ func ListRouters(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 			failedRouters++
 		}
 
-		if !exporter.MetricIsDisabled("router") {
+		if exporter.IsMetricEnabled("router") {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["router"].Metric,
 				prometheus.GaugeValue, 1, router.ID, router.Name, router.ProjectID,
 				strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
@@ -624,7 +624,7 @@ func ListRouters(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 			// Because ovn-backend doesn't have router l3-agent entity
 		}
 
-		if !exporter.MetricIsDisabled("l3_agent_of_router") {
+		if exporter.IsMetricEnabled("l3_agent_of_router") {
 			allPagesL3Agents, err := routers.ListL3Agents(exporter.ClientV2, router.ID).AllPages(ctx)
 			if err != nil {
 				return err

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/openstack-exporter/openstack-exporter/exporters"
-	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
@@ -18,20 +17,8 @@ import (
 )
 
 func mockEnableExporter(
-	service,
-	prefix,
-	cloud string,
-	disabledMetrics []string,
-	endpointType string,
-	collectTime bool,
-	disableSlowMetrics bool,
-	disableDeprecatedMetrics bool,
-	disableCinderAgentUUID bool,
-	domainID string,
-	tenantID string,
-	novaMetadataMapping *utils.LabelMappingFlag,
-	dnsConcurrentCount int,
-	uuidGenFunc func() (string, error),
+	service string,
+	opts exporters.ExporterOptions,
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
@@ -63,8 +50,8 @@ func (m *mockOpenStackExporter) GetName() string {
 func (m *mockOpenStackExporter) AddMetric(name string, fn exporters.ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
 }
 
-func (m *mockOpenStackExporter) MetricIsDisabled(name string) bool {
-	return false
+func (m *mockOpenStackExporter) IsMetricEnabled(name string) bool {
+	return true
 }
 
 func TestCollectCache(t *testing.T) {
@@ -75,42 +62,32 @@ func TestCollectCache(t *testing.T) {
 
 	multiCloud := false
 	services := []string{"service-a"}
-	prefix := "testPrefix"
-	cloud := "testCloud"
-	disabledMetrics := []string{}
-	endpointType := "public"
-	collectTime := true
-	disableSlowMetrics := false
-	disableDeprecatedMetrics := true
-	disableCinderAgentUUID := false
-	domainID := ""
-	tenantID := ""
-	novaMetadataMapping := new(utils.LabelMappingFlag)
-	dnsConcurrentCount := 10
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+
+	opts := exporters.ExporterOptions{
+		Cloud:                    "testCloud",
+		Prefix:                   "testPrefix",
+		DisabledMetrics:          []string{},
+		EndpointType:             "public",
+		CollectTime:              true,
+		DisableSlowMetrics:       false,
+		DisableDeprecatedMetrics: true,
+		DisableCinderAgentUUID:   false,
+		DomainID:                 "",
+		TenantID:                 "",
+		DnsConcurrentCount:       10,
+	}
 
 	err := CollectCache(
 		mockEnableExporter,
 		multiCloud,
 		services,
-		prefix,
-		cloud,
-		disabledMetrics,
-		endpointType,
-		collectTime,
-		disableSlowMetrics,
-		disableDeprecatedMetrics,
-		disableCinderAgentUUID,
-		domainID,
-		tenantID,
-		novaMetadataMapping,
-		dnsConcurrentCount,
-		nil,
+		opts,
 		logger,
 	)
 	assert.NoError(err, "Collect cache failed")
 
-	cloudCache, exists := cache.GetCloudCache(cloud)
+	cloudCache, exists := cache.GetCloudCache(opts.Cloud)
 	assert.True(exists, "Cloud cache was not set or retrieved properly")
 
 	includeServices := []string{}

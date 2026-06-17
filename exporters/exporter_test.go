@@ -180,9 +180,18 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
-		return DEFAULT_UUID, nil
-	}, logger)
+	opts := ExporterOptions{
+		Cloud:               cloudName,
+		Prefix:              suite.Prefix,
+		DisabledMetrics:     []string{},
+		EndpointType:        "public",
+		NovaMetadataMapping: novaMetadataMapping,
+		DnsConcurrentCount:  10,
+		UUIDGenFunc: func() (string, error) {
+			return DEFAULT_UUID, nil
+		},
+	}
+	exporter, err := NewExporter(suite.ServiceName, opts, logger)
 
 	if err != nil {
 		suite.Require().NoError(err)
@@ -220,6 +229,29 @@ func (suite *BaseOpenStackTestSuite) installFixtures() {
 
 func (suite *BaseOpenStackTestSuite) TearDownTest() {
 	defer httpmock.DeactivateAndReset()
+}
+
+func TestMetricOptionsUseExporterNames(t *testing.T) {
+	exporter := BaseOpenStackExporter{
+		Name: "nova",
+		ExporterConfig: ExporterConfig{
+			ServiceName: "compute",
+			ExporterOptions: ExporterOptions{
+				DisabledMetrics: []string{"nova-total_vms"},
+				EnabledMetrics:  []string{"nova-limits_vcpus_max"},
+			},
+		},
+	}
+
+	if got := exporter.qualifiedMetricName("total_vms"); got != "nova-total_vms" {
+		t.Fatalf("qualifiedMetricName() = %q, want %q", got, "nova-total_vms")
+	}
+	if exporter.IsMetricEnabled("total_vms") {
+		t.Fatal("legacy nova-* disable key did not disable the metric")
+	}
+	if !exporter.isExplicitlyEnabled("limits_vcpus_max") {
+		t.Fatal("legacy nova-* enable key did not enable the metric")
+	}
 }
 
 func TestOpenStackSuites(t *testing.T) {

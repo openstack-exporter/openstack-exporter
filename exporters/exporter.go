@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"log/slog"
+	"slices"
 
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	clientutilsv2 "github.com/gophercloud/utils/v2/client"
@@ -48,11 +49,11 @@ type OpenStackExporter interface {
 
 	GetName() string
 	AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels)
-	MetricIsDisabled(name string) bool
+	IsMetricEnabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+func EnableExporter(service string, opts ExporterOptions, logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, opts, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -64,20 +65,55 @@ type PrometheusMetric struct {
 	Fn     ListFunc
 }
 
-type ExporterConfig struct {
-	ClientV2                 *gophercloudv2.ServiceClient
-	ServiceName              string
-	Prefix                   string
-	DisabledMetrics          []string
-	CollectTime              bool
-	UUIDGenFunc              func() (string, error)
-	DisableSlowMetrics       bool
+// ExporterOptions holds all user-supplied configuration for an exporter.
+// It is passed directly to EnableExporter / NewExporter and is embedded in
+// ExporterConfig, which adds the resolved service client and service name.
+type ExporterOptions struct {
+	// Cloud is the name of the cloud entry in clouds.yaml to scrape.
+	Cloud string
+	// Prefix is the metric name prefix (default: "openstack").
+	Prefix string
+	// DisabledMetrics is a list of "exporter-metric" keys to suppress entirely
+	// (e.g. "cinder-snapshots"). Takes precedence over EnabledMetrics.
+	DisabledMetrics []string
+	// EnabledMetrics overrides DisableSlowMetrics / DisableDeprecatedMetrics for
+	// individual metrics, using the same "exporter-metric" format
+	// (e.g. "nova-limits_vcpus_max").
+	EnabledMetrics []string
+	// EndpointType selects the OpenStack endpoint to connect to
+	// ("public", "internal", or "admin").
+	EndpointType string
+	// CollectTime enables emission of per-metric collection duration.
+	CollectTime bool
+	// DisableSlowMetrics suppresses metrics marked Slow: true in their
+	// definition. Individual metrics can be re-enabled via EnabledMetrics.
+	DisableSlowMetrics bool
+	// DisableDeprecatedMetrics suppresses metrics that carry a DeprecatedVersion.
+	// Individual metrics can be re-enabled via EnabledMetrics.
 	DisableDeprecatedMetrics bool
-	DisableCinderAgentUUID   bool
-	DomainID                 string
-	TenantID                 string
-	NovaMetadataMapping      *utils.LabelMappingFlag
-	DnsConcurrentCount       int
+	// DisableCinderAgentUUID disables UUID generation for Cinder agent metrics.
+	DisableCinderAgentUUID bool
+	// DomainID restricts metric collection to a single Keystone domain.
+	// Empty string means all domains.
+	DomainID string
+	// TenantID restricts metric collection to a single project.
+	// Empty string means all projects.
+	TenantID string
+	// NovaMetadataMapping maps Nova server metadata keys to extra Prometheus labels
+	// on the openstack_nova_server_status metric.
+	NovaMetadataMapping *utils.LabelMappingFlag
+	// DnsConcurrentCount controls the number of concurrent requests used when
+	// collecting DNS recordsets.
+	DnsConcurrentCount int
+	// UUIDGenFunc is the function used to generate UUIDs for Cinder agents.
+	// Defaults to uuid.GenerateUUID when nil.
+	UUIDGenFunc func() (string, error)
+}
+
+type ExporterConfig struct {
+	ExporterOptions
+	ClientV2    *gophercloudv2.ServiceClient
+	ServiceName string
 }
 
 type BaseOpenStackExporter struct {
@@ -98,13 +134,24 @@ func (exporter *BaseOpenStackExporter) GetName() string {
 	return fmt.Sprintf("%s_%s", exporter.Prefix, exporter.Name)
 }
 
-func (exporter *BaseOpenStackExporter) MetricIsDisabled(name string) bool {
-	for _, metric := range exporter.DisabledMetrics {
-		if metric == fmt.Sprintf("%s-%s", exporter.Name, name) {
-			return true
-		}
-	}
-	return false
+// qualifiedMetricName returns the backward-compatible "exporter-metric" key
+// used in DisabledMetrics / EnabledMetrics lists (e.g. "nova-limits_vcpus_max").
+func (exporter *BaseOpenStackExporter) qualifiedMetricName(name string) string {
+	return exporter.Name + "-" + name
+}
+
+// isExplicitlyEnabled reports whether name appears in the EnabledMetrics list.
+// An explicitly-enabled metric overrides global DisableSlowMetrics /
+// DisableDeprecatedMetrics flags.
+func (exporter *BaseOpenStackExporter) isExplicitlyEnabled(name string) bool {
+	return slices.Contains(exporter.EnabledMetrics, exporter.qualifiedMetricName(name))
+}
+
+// IsMetricEnabled reports whether name should be collected and emitted.
+// A metric is disabled when it appears in DisabledMetrics; an explicit entry
+// in EnabledMetrics does NOT override a DisabledMetrics entry.
+func (exporter *BaseOpenStackExporter) IsMetricEnabled(name string) bool {
+	return !slices.Contains(exporter.DisabledMetrics, exporter.qualifiedMetricName(name))
 }
 
 func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
@@ -177,15 +224,15 @@ func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
-	return exporter.DisableSlowMetrics && metric.Slow
+	return exporter.DisableSlowMetrics && metric.Slow && !exporter.isExplicitlyEnabled(metric.Name)
 }
 
 func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
-	return exporter.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0
+	return exporter.DisableDeprecatedMetrics && len(metric.DeprecatedVersion) > 0 && !exporter.isExplicitlyEnabled(metric.Name)
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
-	if exporter.MetricIsDisabled(name) {
+	if !exporter.IsMetricEnabled(name) {
 		exporter.logger.Warn("metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
 	}
@@ -257,13 +304,13 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 	return []byte(poc), false, nil
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name string, opts ExporterOptions, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
-	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
+	optsv2 := clientconfigv2.ClientOpts{Cloud: opts.Cloud}
 
 	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
 	if err != nil {
@@ -317,29 +364,21 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		}
 	}
 
-	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
+	clientV2, err := NewServiceClientV2(name, &optsv2, transport, opts.EndpointType)
 	if err != nil {
 		return nil, err
 	}
 
+	uuidGenFunc := opts.UUIDGenFunc
 	if uuidGenFunc == nil {
 		uuidGenFunc = uuid.GenerateUUID
 	}
+	opts.UUIDGenFunc = uuidGenFunc
 
 	exporterConfig := ExporterConfig{
-		ClientV2:                 clientV2,
-		ServiceName:              name,
-		Prefix:                   prefix,
-		DisabledMetrics:          disabledMetrics,
-		CollectTime:              collectTime,
-		UUIDGenFunc:              uuidGenFunc,
-		DisableSlowMetrics:       disableSlowMetrics,
-		DisableDeprecatedMetrics: disableDeprecatedMetrics,
-		DisableCinderAgentUUID:   disableCinderAgentUUID,
-		DomainID:                 domainID,
-		TenantID:                 tenantID,
-		NovaMetadataMapping:      novaMetadataMapping,
-		DnsConcurrentCount:       dnsConcurrentCount,
+		ExporterOptions: opts,
+		ClientV2:        clientV2,
+		ServiceName:     name,
 	}
 
 	switch name {

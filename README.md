@@ -108,6 +108,7 @@ Flags:
       --[no-]collect-metric-time
                                  time spent collecting each metric
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+  -e, --enable-metric= ...       override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: service-metric (i.e: compute-limits_vcpus_max)
       --[no-]disable-slow-metrics
                                  Disable slow metrics for performance reasons
       --[no-]disable-deprecated-metrics
@@ -118,14 +119,12 @@ Flags:
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
       --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
-      --project-id=PROJECT-ID    Gather metrics only for the given Project ID
-                                 (defaults to all projects)
+      --project-id=PROJECT-ID    Gather metrics only for the given Project ID (defaults to all projects)
       --[no-]disable-service-autodetect
-                                 Disable single-cloud service autodetection and
-                                 use only explicit service flags
+                                 Disable single-cloud service autodetection and use only explicit service flags
       --nova.metadata-extra-labels=LABEL=KEY,KEY ...
-                                 Map provided server metadata keys to labels in
-                                 openstack_nova_server_status metric
+                                 Map provided server metadata keys to labels in openstack_nova_server_status metric
+      --dns-concurrent-count=10  Number of concurrent requests for DNS recordset collection
       --[no-]disable-service.network
                                  Disable the network service exporter in strict mode
       --[no-]disable-service.compute
@@ -158,10 +157,8 @@ Flags:
                                  Disable the sharev2 service exporter in strict mode
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...
-                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
-                                 Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
-      --web.config.file=""       Path to configuration file that can enable TLS or authentication. See:
-                                 https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses. Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
+      --web.config.file=""       Path to configuration file that can enable TLS or authentication. See: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
       --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
       --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
       --[no-]version             Show application version.

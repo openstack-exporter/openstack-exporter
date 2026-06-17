@@ -67,7 +67,7 @@ func ListDomains(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
 
-	if !exporter.MetricIsDisabled("domain_info") {
+	if exporter.IsMetricEnabled("domain_info") {
 		for _, d := range allDomains {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
 				prometheus.GaugeValue, 1.0,
@@ -87,7 +87,7 @@ func ListProjects(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
 
-	if !exporter.MetricIsDisabled("project_info") {
+	if exporter.IsMetricEnabled("project_info") {
 		for _, p := range allProjects {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
 				prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),

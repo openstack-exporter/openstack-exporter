@@ -104,6 +104,9 @@ jobs:
           mapfile -t packages < <(go list ./... | grep -v '/integration')
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
+      - name: Check generated metrics documentation
+        run: go run ./script/generate-metrics-doc.go -check
+
       - name: Extract metadata from ghcr image
         id: meta-github-image
         uses: docker/metadata-action@v6

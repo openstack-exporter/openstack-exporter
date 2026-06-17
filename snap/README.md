@@ -181,5 +181,6 @@ sudo snap unset golang-openstack-exporter log.format
 
 This option is similar to other options with a value,
 but it takes multiple values, separated by whitespace.
+Use exporter-metric keys such as `cinder-snapshots`.
 
 - `disable-metrics`

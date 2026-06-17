@@ -8,113 +8,176 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type PlacementExporter struct {
-	BaseOpenStackExporter
+func init() {
+	RegisterTypedExporter("placement", NewPlacementExporter)
 }
 
-var placementResourceLabels = []string{"hostname", "resourcetype"}
-var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
+type PlacementExporter struct {
+	BaseOpenStackExporter
+	sched Schedule
+	descs placementDescs
+}
 
-var defaultPlacementMetrics = []Metric{
-	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
-	{Name: "resource_allocation_ratio", Labels: placementResourceLabels},
-	{Name: "resource_generation", Labels: placementResourceLabels},
-	{Name: "resource_reserved", Labels: placementResourceLabels},
-	{Name: "resource_usage", Labels: placementResourceLabels},
-	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
+type placementDescs struct {
+	ResourceTotal               *prometheus.Desc `metric:"resource_total"                labels:"hostname,resourcetype"`
+	ResourceAllocationRatio     *prometheus.Desc `metric:"resource_allocation_ratio"     labels:"hostname,resourcetype"`
+	ResourceGeneration          *prometheus.Desc `metric:"resource_generation"           labels:"hostname,resourcetype"`
+	ResourceReserved            *prometheus.Desc `metric:"resource_reserved"             labels:"hostname,resourcetype"`
+	ResourceUsage               *prometheus.Desc `metric:"resource_usage"                labels:"hostname,resourcetype"`
+	ResourceProviderAllocations *prometheus.Desc `metric:"resource_provider_allocations" labels:"hostname,uuid,resourcetype"`
+}
+
+type placementProviderEntry struct {
+	provider    resourceproviders.ResourceProvider
+	inventories *resourceproviders.ResourceProviderInventories
+	usages      *resourceproviders.ResourceProviderUsage
+	allocations *resourceproviders.ResourceProviderAllocations
+}
+
+type placementScrape struct {
+	providers []placementProviderEntry
+}
+
+var placementGraph = Graph[*PlacementExporter, placementScrape]{
+	Sources: []Source[*PlacementExporter, placementScrape]{
+		{Name: "providers", Fetch: (*PlacementExporter).fetchProviders},
+		{Name: "inventories", DependsOn: []string{"providers"}, Fetch: (*PlacementExporter).fetchInventories},
+		{Name: "usages", DependsOn: []string{"providers"}, Fetch: (*PlacementExporter).fetchUsages},
+		{Name: "allocations", DependsOn: []string{"providers"}, Fetch: (*PlacementExporter).fetchAllocations},
+	},
+	Emitters: []Emitter[*PlacementExporter, placementScrape]{
+		{
+			Name:    "inventories",
+			Metrics: []string{"resource_total", "resource_allocation_ratio", "resource_generation", "resource_reserved"},
+			Sources: []string{"inventories"},
+			Emit:    (*PlacementExporter).emitInventories,
+		},
+		{
+			Name:    "usages",
+			Metrics: []string{"resource_usage"},
+			Sources: []string{"usages"},
+			Emit:    (*PlacementExporter).emitUsages,
+		},
+		{
+			Name:    "allocations",
+			Metrics: []string{"resource_provider_allocations"},
+			Sources: []string{"allocations"},
+			Emit:    (*PlacementExporter).emitAllocations,
+		},
+	},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
-	exporter := PlacementExporter{
-		BaseOpenStackExporter{
+	e := &PlacementExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "placement",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-	for _, metric := range defaultPlacementMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := placementGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-	return &exporter, nil
+	e.sched = sched
+	placementGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allResourceProviders []resourceproviders.ResourceProvider
+func (e *PlacementExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(placementScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &placementGraph, e.sched, s, ch)
+	})
+}
 
-	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
+func (e *PlacementExporter) fetchProviders(ctx context.Context, s *placementScrape) error {
+	allPages, err := resourceproviders.List(e.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
-
-	if allResourceProviders, err = resourceproviders.ExtractResourceProviders(allPagesResourceProviders); err != nil {
+	allProviders, err := resourceproviders.ExtractResourceProviders(allPages)
+	if err != nil {
 		return err
 	}
+	s.providers = make([]placementProviderEntry, len(allProviders))
+	for i, rp := range allProviders {
+		s.providers[i] = placementProviderEntry{provider: rp}
+	}
+	return nil
+}
 
-	for _, resourceprovider := range allResourceProviders {
-		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
+func (e *PlacementExporter) fetchInventories(ctx context.Context, s *placementScrape) error {
+	for i := range s.providers {
+		inv, err := resourceproviders.GetInventories(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
 		if err != nil {
 			return err
 		}
+		s.providers[i].inventories = inv
+	}
+	return nil
+}
 
-		for k, v := range inventoryResult.Inventories {
-			emitPlacementResourceMetric(exporter, ch, "resource_total", float64(v.Total), resourceprovider.Name, k)
-			emitPlacementResourceMetric(exporter, ch, "resource_allocation_ratio", float64(v.AllocationRatio), resourceprovider.Name, k)
-			emitPlacementResourceMetric(exporter, ch, "resource_generation", float64(inventoryResult.ResourceProviderGeneration), resourceprovider.Name, k)
-			emitPlacementResourceMetric(exporter, ch, "resource_reserved", float64(v.Reserved), resourceprovider.Name, k)
-		}
-
-		usagesResult, err := resourceproviders.GetUsages(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
+func (e *PlacementExporter) fetchUsages(ctx context.Context, s *placementScrape) error {
+	for i := range s.providers {
+		u, err := resourceproviders.GetUsages(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
 		if err != nil {
 			return err
 		}
+		s.providers[i].usages = u
+	}
+	return nil
+}
 
-		for k, v := range usagesResult.Usages {
-			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k)
+func (e *PlacementExporter) fetchAllocations(ctx context.Context, s *placementScrape) error {
+	for i := range s.providers {
+		a, err := resourceproviders.GetAllocations(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
+		if err != nil {
+			return err
 		}
+		s.providers[i].allocations = a
+	}
+	return nil
+}
 
-		if exporter.IsMetricEnabled("resource_provider_allocations") {
-			allocationsResult, err := resourceproviders.GetAllocations(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
-			if err != nil {
-				return err
-			}
+// Placement emitters index into s.providers instead of ranging by value:
+// copying placementProviderEntry would read sibling fields written by
+// independent sources under the parallel DAG scheduler.
+func (e *PlacementExporter) emitInventories(ctx context.Context, s *placementScrape, ch chan<- prometheus.Metric) error {
+	dTotal, dRatio, dGen, dReserved := e.descs.ResourceTotal, e.descs.ResourceAllocationRatio, e.descs.ResourceGeneration, e.descs.ResourceReserved
+	for i := range s.providers {
+		entry := &s.providers[i]
+		name := entry.provider.Name
+		gen := float64(entry.inventories.ResourceProviderGeneration)
+		for rt, inv := range entry.inventories.Inventories {
+			emitGauge(ch, dTotal, float64(inv.Total), name, rt)
+			emitGauge(ch, dRatio, float64(inv.AllocationRatio), name, rt)
+			emitGauge(ch, dGen, gen, name, rt)
+			emitGauge(ch, dReserved, float64(inv.Reserved), name, rt)
+		}
+	}
+	return nil
+}
 
-			for consumerID, allocation := range allocationsResult.Allocations {
-				for resourceClass, amount := range allocation.Resources {
-					ch <- prometheus.MustNewConstMetric(
-						exporter.Metrics["resource_provider_allocations"].Metric,
-						prometheus.GaugeValue,
-						float64(amount),
-						resourceprovider.Name,
-						consumerID,
-						resourceClass,
-					)
-				}
+func (e *PlacementExporter) emitUsages(ctx context.Context, s *placementScrape, ch chan<- prometheus.Metric) error {
+	for i := range s.providers {
+		entry := &s.providers[i]
+		for rt, v := range entry.usages.Usages {
+			emitGauge(ch, e.descs.ResourceUsage, float64(v), entry.provider.Name, rt)
+		}
+	}
+	return nil
+}
+
+func (e *PlacementExporter) emitAllocations(ctx context.Context, s *placementScrape, ch chan<- prometheus.Metric) error {
+	for i := range s.providers {
+		entry := &s.providers[i]
+		for consumerID, alloc := range entry.allocations.Allocations {
+			for rc, amount := range alloc.Resources {
+				emitGauge(ch, e.descs.ResourceProviderAllocations, float64(amount), entry.provider.Name, consumerID, rc)
 			}
 		}
 	}
-
 	return nil
-
-}
-
-func emitPlacementResourceMetric(
-	exporter *BaseOpenStackExporter,
-	ch chan<- prometheus.Metric,
-	metricName string,
-	value float64,
-	hostname string,
-	resourceType string,
-) {
-	ch <- prometheus.MustNewConstMetric(
-		exporter.Metrics[metricName].Metric,
-		prometheus.GaugeValue,
-		value,
-		hostname,
-		resourceType,
-	)
 }

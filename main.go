@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -47,7 +48,7 @@ var (
 	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
 	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
 	endpointType             = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
-	collectTime              = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
+	collectTime              = kingpin.Flag("collect-metric-time", "Emit per-source fetch duration metrics").Default("false").Bool()
 	disabledMetrics          = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: exporter-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
 	enabledMetrics           = kingpin.Flag("enable-metric", "override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: exporter-metric (i.e: nova-limits_vcpus_max)").Default("").Short('e').Strings()
 	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
@@ -237,7 +238,7 @@ func cacheBackgroundService(ctx context.Context, services []string, opts exporte
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, opts, logger); err != nil {
+	if err := cache.CollectCache(exporters.NewExporter, *multiCloud, services, opts, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		cancel(err)
 		return
@@ -246,7 +247,7 @@ func cacheBackgroundService(ctx context.Context, services []string, opts exporte
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, opts, logger); err != nil {
+			if err := cache.CollectCache(exporters.NewExporter, *multiCloud, services, opts, logger); err != nil {
 				cancel(err)
 				return
 			}
@@ -275,8 +276,14 @@ func startHTTPServer(ctx context.Context, services []string, opts exporters.Expo
 			Text:    "Probes",
 		})
 	} else {
-		logger.Info("openstack exporter started in legacy mode")
-		http.HandleFunc(*metrics, metricHandler(services, opts, logger))
+		logger.Info("openstack exporter started in standalone mode")
+		h, err := buildStandaloneHandler(services, opts, logger)
+		if err != nil {
+			logger.Error("Failed to build exporters", "error", err)
+			cancel(err)
+			return
+		}
+		http.Handle(*metrics, h)
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
 			Text:    "Metrics",
@@ -326,6 +333,31 @@ func startHTTPServer(ctx context.Context, services []string, opts exporters.Expo
 	}
 }
 
+// buildStandaloneHandler creates all exporters once and returns a handler that
+// serves the same registry on every request, preserving counter/histogram state.
+func buildStandaloneHandler(services []string, opts exporters.ExporterOptions, logger *slog.Logger) (http.Handler, error) {
+	registry := prometheus.NewPedanticRegistry()
+	enabledExporters := 0
+	for _, service := range services {
+		exp, err := exporters.NewExporter(service, opts, logger)
+		if err != nil {
+			logger.Error("enabling exporter for service failed", "service", service, "error", err)
+			continue
+		}
+		registry.MustRegister(exp)
+		logger.Info("Enabled exporter for service", "service", service)
+		enabledExporters++
+	}
+	if enabledExporters == 0 {
+		return nil, errors.New("no exporter has been enabled")
+	}
+	registry.MustRegister(pver.NewCollector("openstack_exporter"))
+	return promhttp.HandlerFor(registry, promhttp.HandlerOpts{}), nil
+}
+
+// cloudRegistry caches one registry per cloud name for multi-cloud mode.
+var cloudRegistries sync.Map // map[string]http.Handler
+
 func probeHandler(configuredServices []string, opts exporters.ExporterOptions, logger *slog.Logger) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithCancel(r.Context())
@@ -356,66 +388,29 @@ func probeHandler(configuredServices []string, opts exporters.ExporterOptions, l
 		cloudOpts := opts
 		cloudOpts.Cloud = cloud
 
-		registry := prometheus.NewPedanticRegistry()
-		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, cloudOpts, logger)
-			if err != nil {
-				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
-				continue
-			}
-			registry.MustRegister(*exp)
-			logger.Info("Enabled exporter for service", "service", service)
-		}
-
-		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
-	}
-}
-
-func metricHandler(configuredServices []string, opts exporters.ExporterOptions, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", opts.Cloud)
-		logger.Info("Build context", "build_context", version.BuildContext())
-
-		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
-			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
-		}
-
-		enabledServices := configuredServices
-
-		// Get data from cache
-		if *cacheEnable {
-			if err := cache.WriteCacheToResponse(w, r, opts.Cloud, enabledServices, logger); err != nil {
-				logger.Error("Write cache to response failed", "error", err)
-			}
+		// Cache key encodes both cloud and the requested service set so that
+		// per-request include/exclude filters still get their own registry.
+		cacheKey := cloud + "\x00" + strings.Join(enabledServices, ",")
+		if h, ok := cloudRegistries.Load(cacheKey); ok {
+			h.(http.Handler).ServeHTTP(w, r)
 			return
 		}
 
 		registry := prometheus.NewPedanticRegistry()
-		enabledExporters := 0
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, opts, logger)
+			exp, err := exporters.NewExporter(service, cloudOpts, logger)
 			if err != nil {
-				// Log error and continue with enabling other exporters
-				logger.Error("enabling exporter for service failed", "service", service, "error", err)
+				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
 			}
-			registry.MustRegister(*exp)
+			registry.MustRegister(exp)
 			logger.Info("Enabled exporter for service", "service", service)
-			enabledExporters++
 		}
-
-		if enabledExporters == 0 {
-			logger.Error("No exporter has been enabled, exiting")
-			os.Exit(-1)
-		}
-
-		// expose program version
-		registry.MustRegister(pver.NewCollector("openstack_exporter"))
 
 		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
+		// Store (first writer wins — if two requests race, both build but only one is cached)
+		actual, _ := cloudRegistries.LoadOrStore(cacheKey, h)
+		actual.(http.Handler).ServeHTTP(w, r)
 	}
 }
 

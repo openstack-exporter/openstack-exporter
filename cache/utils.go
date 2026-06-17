@@ -18,7 +18,7 @@ import (
 
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
-	enableExporterFunc func(string, exporters.ExporterOptions, *slog.Logger) (*exporters.OpenStackExporter, error),
+	newExporterFunc func(string, exporters.ExporterOptions, *slog.Logger) (exporters.OpenStackExporter, error),
 	multiCloud bool,
 	services []string,
 	opts exporters.ExporterOptions,
@@ -57,7 +57,7 @@ func CollectCache(
 			lg2 := lg.With("service", service)
 			lg2.Info("Start collect cache data")
 
-			exp, err := enableExporterFunc(service, cloudOpts, logger)
+			exp, err := newExporterFunc(service, cloudOpts, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				lg2.Error("enabling exporter for service failed", "error", err)
@@ -65,7 +65,7 @@ func CollectCache(
 			}
 
 			registry := prometheus.NewPedanticRegistry()
-			registry.MustRegister(*exp)
+			registry.MustRegister(exp)
 
 			metricFamilies, err := registry.Gather()
 			if err != nil {

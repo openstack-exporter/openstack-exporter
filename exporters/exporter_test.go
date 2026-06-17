@@ -1,19 +1,39 @@
 package exporters
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"path"
+	"reflect"
+	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"log/slog"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/openstack-exporter/openstack-exporter/utils"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/suite"
 )
+
+// metricNamesFrom extracts the unique metric family names from an expected
+// prometheus text-format string. Pass the result to testutil.CollectAndCompare
+// so only those families are compared, ignoring new instrumentation metrics.
+var metricNameRe = regexp.MustCompile(`(?m)^# HELP (\S+)`)
+
+func metricNamesFrom(expected string) []string {
+	var names []string
+	for _, m := range metricNameRe.FindAllStringSubmatch(expected, -1) {
+		names = append(names, m[1])
+	}
+	return names
+}
 
 const baseFixturePath = "./fixtures"
 const cloudName = "test.cloud"
@@ -22,7 +42,7 @@ type BaseOpenStackTestSuite struct {
 	suite.Suite
 	ServiceName string
 	Prefix      string
-	Exporter    *OpenStackExporter
+	Exporter    OpenStackExporter
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
@@ -96,6 +116,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/agents?binary=ovn-controller": "neutron_ovn_controller_agents",
 	"/neutron/v2.0/routers/f8a44de0-fc8e-45df-93c7-f79bf3b01c95/l3-agents": "neutron_routers_l3_agents",
 	"/neutron/v2.0/routers/9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f/l3-agents": "neutron_routers_l3_agents",
+	"/neutron/v2.0/extensions/vpnaas":                                      "neutron_vpnaas_extension",
 	"/neutron/v2.0/vpn/endpoint-groups":                                    "neutron_vpn_endpoint_groups",
 	"/neutron/v2.0/vpn/ipsecpolicies":                                      "neutron_ipsecpolicies",
 	"/neutron/v2.0/vpn/vpnservices":                                        "neutron_vpnservices",
@@ -196,7 +217,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	if err != nil {
 		suite.Require().NoError(err)
 	}
-	suite.Exporter = &exporter
+	suite.Exporter = exporter
 }
 
 func (suite *BaseOpenStackTestSuite) teardownFixtures() {
@@ -252,6 +273,222 @@ func TestMetricOptionsUseExporterNames(t *testing.T) {
 	if !exporter.isExplicitlyEnabled("limits_vcpus_max") {
 		t.Fatal("legacy nova-* enable key did not enable the metric")
 	}
+}
+
+func TestSourceFetchDurationMetricIsOptIn(t *testing.T) {
+	disabled := BaseOpenStackExporter{
+		Name: "nova",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{Prefix: "openstack"},
+		},
+	}
+	disabled.RegisterAndFillDescs(&struct{}{})
+	if disabled.sourceFetchDuration != nil {
+		t.Fatal("source fetch duration metric was created without CollectTime")
+	}
+
+	enabled := BaseOpenStackExporter{
+		Name: "nova",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{Prefix: "openstack", CollectTime: true},
+		},
+	}
+	enabled.RegisterAndFillDescs(&struct{}{})
+	enabled.observeSourceFetchDuration("servers", time.Second)
+
+	expected := `
+# HELP openstack_exporter_source_fetch_duration_seconds Duration of source fetches in seconds.
+# TYPE openstack_exporter_source_fetch_duration_seconds histogram
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="0.1"} 0
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="0.5"} 0
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="1"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="2"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="5"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="10"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="30"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="60"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="+Inf"} 1
+openstack_exporter_source_fetch_duration_seconds_sum{service="nova",source="servers"} 1
+openstack_exporter_source_fetch_duration_seconds_count{service="nova",source="servers"} 1
+`
+	if err := testutil.CollectAndCompare(enabled.sourceFetchDuration, strings.NewReader(expected)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSourceFetchDurationRegistersMultipleServices(t *testing.T) {
+	registry := prometheus.NewPedanticRegistry()
+	for _, service := range []string{"nova", "cinder"} {
+		exporter := BaseOpenStackExporter{
+			Name: service,
+			ExporterConfig: ExporterConfig{
+				ExporterOptions: ExporterOptions{Prefix: "openstack", CollectTime: true},
+			},
+		}
+		exporter.RegisterAndFillDescs(&struct{}{})
+		if err := registry.Register(exporter.sourceFetchDuration); err != nil {
+			t.Fatalf("Register(%s source duration) error = %v", service, err)
+		}
+		exporter.observeSourceFetchDuration("servers", time.Second)
+	}
+
+	mfs, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mf := range mfs {
+		if mf.GetName() == "openstack_exporter_source_fetch_duration_seconds" {
+			if got := len(mf.Metric); got != 2 {
+				t.Fatalf("source duration series = %d, want 2", got)
+			}
+			return
+		}
+	}
+	t.Fatal("source duration metric family was not gathered")
+}
+
+func TestComputeScheduleBuildsMixedDependencyWaves(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{Name: "a"},
+			{Name: "b"},
+			{Name: "c", DependsOn: []string{"a"}},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{Name: "emitA", Metrics: []string{"a_metric"}, Sources: []string{"a"}},
+			{Name: "emitC", Metrics: []string{"c_metric"}, Sources: []string{"c"}},
+		},
+	}
+
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+
+	got := scheduleWaveNames(&graph, sched)
+	want := [][]string{
+		{"source:a", "source:b"},
+		{"source:c[deps:a]", "emitter:emitA[sources:a]"},
+		{"emitter:emitC[sources:c]"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+}
+
+func TestPruneScheduleRecomputesDependencyGraph(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{Name: "a"},
+			{Name: "b"},
+			{Name: "c", DependsOn: []string{"b"}},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{Name: "emitA", Metrics: []string{"a_metric"}, Sources: []string{"a"}},
+			{Name: "emitC", Metrics: []string{"c_metric"}, Sources: []string{"c"}},
+		},
+	}
+	base := &BaseOpenStackExporter{
+		Name: "test",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{
+				DisabledMetrics: []string{"test-c_metric"},
+			},
+		},
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	pruned, err := graph.PruneSchedule(base)
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	got := scheduleWaveNames(&graph, pruned)
+	want := [][]string{
+		{"source:a"},
+		{"emitter:emitA[sources:a]"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("pruned waves = %#v, want %#v", got, want)
+	}
+	if gotSources := pruned.TotalSources(); gotSources != 1 {
+		t.Fatalf("TotalSources() = %d, want 1", gotSources)
+	}
+}
+
+func TestRunScheduleStartsReadyNodesWithoutWaveBarrier(t *testing.T) {
+	type scrape struct{}
+	fastDone := make(chan struct{})
+	allowSlow := make(chan struct{})
+	emitted := make(chan struct{})
+
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{
+				Name: "fast",
+				Fetch: func(struct{}, context.Context, *scrape) error {
+					close(fastDone)
+					return nil
+				},
+			},
+			{
+				Name: "slow",
+				Fetch: func(struct{}, context.Context, *scrape) error {
+					<-allowSlow
+					return nil
+				},
+			},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{
+				Name:    "fastEmitter",
+				Metrics: []string{"fast_metric"},
+				Sources: []string{"fast"},
+				Emit: func(struct{}, context.Context, *scrape, chan<- prometheus.Metric) error {
+					close(emitted)
+					return nil
+				},
+			},
+		},
+	}
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+	base := &BaseOpenStackExporter{
+		Name:   "test",
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	done := make(chan int, 1)
+	go func() {
+		done <- runSchedule(struct{}{}, base, &graph, sched, new(scrape), make(chan prometheus.Metric))
+	}()
+
+	<-fastDone
+	select {
+	case <-emitted:
+	case <-time.After(200 * time.Millisecond):
+		close(allowSlow)
+		t.Fatal("emitter did not start while unrelated source was still running")
+	}
+
+	close(allowSlow)
+	if failures := <-done; failures != 0 {
+		t.Fatalf("runSchedule() failures = %d, want 0", failures)
+	}
+}
+
+func scheduleWaveNames[E, S any](graph *Graph[E, S], sched Schedule) [][]string {
+	out := make([][]string, len(sched.waves))
+	for i, wave := range sched.waves {
+		out[i] = make([]string, len(wave))
+		for j, nodeIdx := range wave {
+			out[i][j] = graph.nodeLogName(sched.nodes[nodeIdx])
+		}
+	}
+	return out
 }
 
 func TestOpenStackSuites(t *testing.T) {

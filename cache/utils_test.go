@@ -16,16 +16,15 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mockEnableExporter(
+func mockNewExporter(
 	service string,
 	opts exporters.ExporterOptions,
 	logger *slog.Logger,
-) (*exporters.OpenStackExporter, error) {
-	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
+) (exporters.OpenStackExporter, error) {
+	return &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
-	}
-	return &exporter, nil
+	}, nil
 }
 
 // MockOpenStackExporter is a mock of OpenStackExporter interface
@@ -47,10 +46,7 @@ func (m *mockOpenStackExporter) GetName() string {
 	return "MockOpenStackExporter"
 }
 
-func (m *mockOpenStackExporter) AddMetric(name string, fn exporters.ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
-}
-
-func (m *mockOpenStackExporter) IsMetricEnabled(name string) bool {
+func (m *mockOpenStackExporter) IsMetricEnabled(names ...string) bool {
 	return true
 }
 
@@ -79,7 +75,7 @@ func TestCollectCache(t *testing.T) {
 	}
 
 	err := CollectCache(
-		mockEnableExporter,
+		mockNewExporter,
 		multiCloud,
 		services,
 		opts,

@@ -48,6 +48,6 @@ openstack_sharev2_up 1
 `
 
 func (suite *ManilaTestSuite) TestManilaExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(manilaExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(manilaExpectedUp), metricNamesFrom(manilaExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

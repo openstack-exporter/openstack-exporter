@@ -106,7 +106,7 @@ Flags:
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --[no-]collect-metric-time
-                                 time spent collecting each metric
+                                 Emit per-source fetch duration metrics
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
   -e, --enable-metric= ...       override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: service-metric (i.e: compute-limits_vcpus_max)
       --[no-]disable-slow-metrics

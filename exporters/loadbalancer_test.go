@@ -37,6 +37,6 @@ openstack_loadbalancer_up 1
 `
 
 func (suite *LoadbalancerTestSuite) TestLoadbalancerExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(loadbalancerExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(loadbalancerExpectedUp), metricNamesFrom(loadbalancerExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

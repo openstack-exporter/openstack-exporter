@@ -30,6 +30,6 @@ openstack_trove_up 1
 `
 
 func (suite *TroveTestSuite) TestTroveExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(troveExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(troveExpectedUp), metricNamesFrom(troveExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

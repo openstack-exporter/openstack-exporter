@@ -118,7 +118,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			NovaMetadataMapping:      novaMetadataMapping,
 			DnsConcurrentCount:       dnsConcurrentCount,
 		}
-		exp, err := exporters.EnableExporter(service, opts, logger)
+		exp, err := exporters.NewExporter(service, opts, logger)
 		if err != nil {
 			slog.Error(
 				"enabling exporter for service failed",
@@ -135,7 +135,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			continue
 		}
 
-		registry.MustRegister(*exp)
+		registry.MustRegister(exp)
 		slog.Info(
 			"Enabled exporter for service",
 			"service", service,

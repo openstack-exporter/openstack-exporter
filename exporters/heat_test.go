@@ -58,6 +58,6 @@ openstack_heat_up 1
 `
 
 func (suite *HeatTestSuite) TestHeatExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(heatExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(heatExpectedUp), metricNamesFrom(heatExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

@@ -9,6 +9,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	RegisterTypedExporter("orchestration", NewHeatExporter)
+}
+
 var knownStackStatuses = map[string]int{
 	"INIT_IN_PROGRESS":     0,
 	"INIT_FAILED":          1,
@@ -53,8 +57,6 @@ type listedStack struct {
 	Project string
 }
 
-// extractStacks extracts and returns a slice of listedStack. It is used while iterating
-// over a stacks.List call.
 func extractStacks(r pagination.Page) ([]listedStack, error) {
 	var s struct {
 		ListedStacks []listedStack `json:"stacks"`
@@ -65,60 +67,78 @@ func extractStacks(r pagination.Page) ([]listedStack, error) {
 
 type HeatExporter struct {
 	BaseOpenStackExporter
+	sched Schedule
+	descs heatDescs
 }
 
-var defaultHeatMetrics = []Metric{
-	{Name: "stack_status", Labels: []string{"id", "name", "project_id", "status"}, Fn: ListAllStacks},
-	{Name: "stack_status_counter", Labels: []string{"status"}, Fn: nil},
+type heatDescs struct {
+	StackStatus        *prometheus.Desc `metric:"stack_status"         labels:"id,name,project_id,status"`
+	StackStatusCounter *prometheus.Desc `metric:"stack_status_counter" labels:"status"`
+}
+
+type heatScrape struct {
+	stacks []listedStack
+}
+
+var heatGraph = Graph[*HeatExporter, heatScrape]{
+	Sources: []Source[*HeatExporter, heatScrape]{
+		{Name: "stacks", Fetch: (*HeatExporter).fetchStacks},
+	},
+	Emitters: []Emitter[*HeatExporter, heatScrape]{
+		{
+			Name:    "stacks",
+			Metrics: []string{"stack_status", "stack_status_counter"},
+			Sources: []string{"stacks"},
+			Emit:    (*HeatExporter).emitStacks,
+		},
+	},
 }
 
 func NewHeatExporter(config *ExporterConfig, logger *slog.Logger) (*HeatExporter, error) {
-	exporter := HeatExporter{
-		BaseOpenStackExporter{
+	e := &HeatExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "heat",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultHeatMetrics {
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := heatGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	heatGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListAllStacks(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allStacks []listedStack
-	allPagesStacks, err := stacks.List(exporter.ClientV2, stacks.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-	allStacks, err = extractStacks(allPagesStacks)
-	if err != nil {
-		return err
-	}
+func (e *HeatExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(heatScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &heatGraph, e.sched, s, ch)
+	})
+}
 
-	var stackStatusCounter = make(map[string]int, len(knownStackStatuses))
+func (e *HeatExporter) fetchStacks(ctx context.Context, s *heatScrape) error {
+	allPages, err := stacks.List(e.ClientV2, stacks.ListOpts{}).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+	s.stacks, err = extractStacks(allPages)
+	return err
+}
+
+func (e *HeatExporter) emitStacks(ctx context.Context, s *heatScrape, ch chan<- prometheus.Metric) error {
+	counter := make(map[string]int, len(knownStackStatuses))
 	for k := range knownStackStatuses {
-		stackStatusCounter[k] = 0
+		counter[k] = 0
 	}
-
-	for _, stack := range allStacks {
-		stackStatusCounter[stack.Status]++
-
-		// Stack status metrics
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["stack_status"].Metric,
-			prometheus.GaugeValue, float64(mapHeatStatus(stack.Status)), stack.ID, stack.Name, stack.Project, stack.Status)
+	for _, stack := range s.stacks {
+		emitGauge(ch, e.descs.StackStatus, float64(mapHeatStatus(stack.Status)), stack.ID, stack.Name, stack.Project, stack.Status)
+		counter[stack.Status]++
 	}
-
-	// Stack status counter metrics
-	for status, count := range stackStatusCounter {
-		ch <- prometheus.MustNewConstMetric(
-			exporter.Metrics["stack_status_counter"].Metric, prometheus.GaugeValue, float64(count), status)
+	for status, count := range counter {
+		emitGauge(ch, e.descs.StackStatusCounter, float64(count), status)
 	}
-
 	return nil
 }

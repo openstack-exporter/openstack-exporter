@@ -394,7 +394,7 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		prometheus.GaugeValue, float64(len(allServers)))
 
 	// Server status metrics
-	if !exporter.MetricIsDisabled("server_status") {
+	if exporter.IsMetricEnabled("server_status") {
 		for _, server := range allServers {
 			labelValues := func() []string {
 				if flavorIDMapper == nil {

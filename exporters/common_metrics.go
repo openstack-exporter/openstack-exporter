@@ -68,8 +68,8 @@ func (e *CommonMetricsExporter) Collect(ch chan<- prometheus.Metric) {
 	ch <- e.buildInfo
 }
 
-func (e *CommonMetricsExporter) MetricIsDisabled(name string) bool {
-	return false
+func (e *CommonMetricsExporter) IsMetricEnabled(name string) bool {
+	return true
 }
 
 func (e *CommonMetricsExporter) TotalScrapes() prometheus.Counter {

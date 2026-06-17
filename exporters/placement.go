@@ -77,7 +77,7 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k)
 		}
 
-		if _, ok := exporter.Metrics["resource_provider_allocations"]; ok {
+		if exporter.IsMetricEnabled("resource_provider_allocations") {
 			allocationsResult, err := resourceproviders.GetAllocations(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 			if err != nil {
 				return err

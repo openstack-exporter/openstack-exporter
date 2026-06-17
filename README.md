@@ -107,8 +107,8 @@ Flags:
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --[no-]collect-metric-time
                                  Emit per-source fetch duration metrics
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
-  -e, --enable-metric= ...       override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: service-metric (i.e: compute-limits_vcpus_max)
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: exporter-metric (i.e: cinder-snapshots)
+  -e, --enable-metric= ...       override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: exporter-metric (i.e: nova-limits_vcpus_max)
       --[no-]disable-slow-metrics
                                  Disable slow metrics for performance reasons
       --[no-]disable-deprecated-metrics
@@ -243,6 +243,26 @@ clouds:
     verify: true | false  // disable || enable SSL certificate verification
 ```
 
+#### Vault password lookup
+
+If the same configuration file contains `use_vault: true`, the exporter logs
+in to Vault with AppRole, reads a KV v2 secret, and sets `OS_PASSWORD` from one
+field in that secret before creating OpenStack clients. The Vault settings are
+top-level YAML keys, not entries under `clouds`.
+
+```yaml
+use_vault: true
+vault_address: https://vault.example.org:8200
+vault_role_id: {{ vault_role_id }}
+vault_secret_id: {{ vault_secret_id }}
+vault_secret_mount_path: secret
+vault_secret_path: openstack/exporter
+credential_name_in_vault_secret: password
+```
+
+The selected cloud should omit the inline password or otherwise allow the
+OpenStack client config to use `OS_PASSWORD`.
+
 ### OpenStack Domain filtering
 
 The exporter provides the flag `--domain-id`, this restricts some metrics to a specific domain.
@@ -291,6 +311,9 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
+
+Exporter internals, DAG execution, and the new-exporter checklist are documented
+in [docs/exporter.md](docs/exporter.md).
 
 ### Operational Concerns
 
@@ -397,7 +420,6 @@ openstack_loadbalancer_total_amphorae|                                          
 openstack_loadbalancer_total_loadbalancers|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of load balancers
 openstack_loadbalancer_total_pools|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of pools
 openstack_loadbalancer_up |                                                                                                                                                                                                                                                                                                                       | 1 (float)| Load balancer service status
-openstack_metric_collect_seconds| openstack_metric="agent_state",openstack_service="openstack_cinder"                                                                                                                                                                                                                                                  |1.27843913| Metric collection time (only if --collect-metric-time is passed)
 openstack_neutron_agent_state| adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"                                                                                                                                                                                                        |1 or 0 (bool)| Agent state (1=up, 0=down)
 openstack_neutron_floating_ips_associated_not_active| region="RegionOne"                                                                                                                                                                                                                                                                             |1.0 (float)| Number of associated floating IPs not active
 openstack_neutron_floating_ips| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of floating IPs

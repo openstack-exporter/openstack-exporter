@@ -1,7 +1,10 @@
 package exporters
 
 import (
+	"io"
+	"log/slog"
 	"strings"
+	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -115,6 +118,53 @@ openstack_cinder_volumes 2
 `
 
 func (suite *CinderTestSuite) TestCinderExporter() {
-	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(cinderExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(cinderExpectedUp), metricNamesFrom(cinderExpectedUp)...)
 	assert.NoError(suite.T(), err)
+}
+
+// TestCinderSlowMetricsPruneProjectFetches is the end-to-end form of the
+// pruning fix, asserted against a real exporter graph rather than a synthetic
+// one. Every cinder limits metric is slow, and fetching them requires listing
+// all projects first, so --disable-slow-metrics must remove both API calls.
+func TestCinderSlowMetricsPruneProjectFetches(t *testing.T) {
+	newBase := func(opts ExporterOptions) *BaseOpenStackExporter {
+		opts.Prefix = "openstack"
+		base := &BaseOpenStackExporter{
+			Name:           "cinder",
+			ExporterConfig: ExporterConfig{ExporterOptions: opts},
+			logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+		}
+		base.resolveMetrics(parseMetricDefs(&cinderDescs{}))
+		return base
+	}
+
+	sourcesOf := func(t *testing.T, base *BaseOpenStackExporter) map[string]bool {
+		t.Helper()
+		sched, err := cinderGraph.PruneSchedule(base)
+		if err != nil {
+			t.Fatalf("PruneSchedule() error = %v", err)
+		}
+		got := map[string]bool{}
+		for _, node := range sched.nodes {
+			if node.kind == scheduleSource {
+				got[cinderGraph.Sources[node.index].Name] = true
+			}
+		}
+		return got
+	}
+
+	if got := sourcesOf(t, newBase(ExporterOptions{})); !got["limits"] || !got["projects"] {
+		t.Fatalf("default configuration lost the limits/projects sources: %v", got)
+	}
+
+	got := sourcesOf(t, newBase(ExporterOptions{DisableSlowMetrics: true}))
+	if got["limits"] {
+		t.Error("--disable-slow-metrics still fetches per-project cinder limits")
+	}
+	if got["projects"] {
+		t.Error("--disable-slow-metrics still lists projects, which only the slow limits needed")
+	}
+	if !got["volumes"] {
+		t.Error("--disable-slow-metrics wrongly pruned the volumes source")
+	}
 }

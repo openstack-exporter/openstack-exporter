@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"strings"
+	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +31,28 @@ openstack_designate_zones 1
 `
 
 func (suite *DesignateTestSuite) TestDesignateExporter() {
-	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(designateExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(designateExpectedUp), metricNamesFrom(designateExpectedUp)...)
 	assert.NoError(suite.T(), err)
+}
+
+func TestDesignateStatusMapping(t *testing.T) {
+	tests := []struct {
+		status string
+		want   int
+	}{
+		{"PENDING", 0},
+		{"active", 1},
+		{"Deleted", 2},
+		{"ERROR", 3},
+		{"unknown", -1},
+	}
+
+	for _, tt := range tests {
+		if got := mapZoneStatus(tt.status); got != tt.want {
+			t.Errorf("mapZoneStatus(%q) = %d, want %d", tt.status, got, tt.want)
+		}
+		if got := mapRecordsetStatus(tt.status); got != tt.want {
+			t.Errorf("mapRecordsetStatus(%q) = %d, want %d", tt.status, got, tt.want)
+		}
+	}
 }

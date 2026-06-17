@@ -1,19 +1,40 @@
 package exporters
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path"
+	"reflect"
+	"regexp"
+	"strings"
 	"testing"
+	"time"
 
 	"log/slog"
 
 	"github.com/jarcoal/httpmock"
 	"github.com/openstack-exporter/openstack-exporter/utils"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/suite"
 )
+
+// metricNamesFrom extracts the unique metric family names from an expected
+// prometheus text-format string. Pass the result to testutil.CollectAndCompare
+// so only those families are compared, ignoring new instrumentation metrics.
+var metricNameRe = regexp.MustCompile(`(?m)^# HELP (\S+)`)
+
+func metricNamesFrom(expected string) []string {
+	var names []string
+	for _, m := range metricNameRe.FindAllStringSubmatch(expected, -1) {
+		names = append(names, m[1])
+	}
+	return names
+}
 
 const baseFixturePath = "./fixtures"
 const cloudName = "test.cloud"
@@ -22,7 +43,7 @@ type BaseOpenStackTestSuite struct {
 	suite.Suite
 	ServiceName string
 	Prefix      string
-	Exporter    *OpenStackExporter
+	Exporter    OpenStackExporter
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
@@ -96,6 +117,7 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/agents?binary=ovn-controller": "neutron_ovn_controller_agents",
 	"/neutron/v2.0/routers/f8a44de0-fc8e-45df-93c7-f79bf3b01c95/l3-agents": "neutron_routers_l3_agents",
 	"/neutron/v2.0/routers/9daeb7dd-7e3f-4e44-8c42-c7a0e8c8a42f/l3-agents": "neutron_routers_l3_agents",
+	"/neutron/v2.0/extensions/vpnaas":                                      "neutron_vpnaas_extension",
 	"/neutron/v2.0/vpn/endpoint-groups":                                    "neutron_vpn_endpoint_groups",
 	"/neutron/v2.0/vpn/ipsecpolicies":                                      "neutron_ipsecpolicies",
 	"/neutron/v2.0/vpn/vpnservices":                                        "neutron_vpnservices",
@@ -198,7 +220,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	if err != nil {
 		suite.Require().NoError(err)
 	}
-	suite.Exporter = &exporter
+	suite.Exporter = exporter
 }
 
 func (suite *BaseOpenStackTestSuite) teardownFixtures() {
@@ -244,6 +266,7 @@ func TestMetricOptionsUseExporterNames(t *testing.T) {
 			},
 		},
 	}
+	exporter.resolveMetrics([]metricDef{{name: "total_vms"}, {name: "limits_vcpus_max"}})
 
 	if got := exporter.qualifiedMetricName("total_vms"); got != "nova-total_vms" {
 		t.Fatalf("qualifiedMetricName() = %q, want %q", got, "nova-total_vms")
@@ -254,6 +277,411 @@ func TestMetricOptionsUseExporterNames(t *testing.T) {
 	if !exporter.isExplicitlyEnabled("limits_vcpus_max") {
 		t.Fatal("legacy nova-* enable key did not enable the metric")
 	}
+}
+
+// descs used by the metric policy tests below. The tags mirror how real
+// exporters declare slow and deprecated metrics.
+type policyTestDescs struct {
+	Plain      *prometheus.Desc `metric:"plain"`
+	Slow       *prometheus.Desc `metric:"slow_metric" slow:"true"`
+	Deprecated *prometheus.Desc `metric:"deprecated_metric" deprecated:"1.4"`
+}
+
+func newPolicyTestExporter(t *testing.T, opts ExporterOptions) (*BaseOpenStackExporter, *policyTestDescs) {
+	t.Helper()
+	opts.Prefix = "openstack"
+	base := &BaseOpenStackExporter{
+		Name:           "test",
+		ExporterConfig: ExporterConfig{ExporterOptions: opts},
+		logger:         slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}
+	return base, &policyTestDescs{}
+}
+
+// TestResolveMetricsPrecedence pins the documented precedence order so the
+// policy cannot drift between descriptor creation and schedule pruning.
+func TestResolveMetricsPrecedence(t *testing.T) {
+	tests := []struct {
+		name string
+		opts ExporterOptions
+		want map[string]bool
+	}{
+		{
+			name: "defaults enable everything",
+			opts: ExporterOptions{},
+			want: map[string]bool{"plain": true, "slow_metric": true, "deprecated_metric": true},
+		},
+		{
+			name: "disable-slow-metrics drops only slow",
+			opts: ExporterOptions{DisableSlowMetrics: true},
+			want: map[string]bool{"plain": true, "slow_metric": false, "deprecated_metric": true},
+		},
+		{
+			name: "disable-deprecated-metrics drops only deprecated",
+			opts: ExporterOptions{DisableDeprecatedMetrics: true},
+			want: map[string]bool{"plain": true, "slow_metric": true, "deprecated_metric": false},
+		},
+		{
+			name: "enable-metric overrides slow and deprecated policy",
+			opts: ExporterOptions{
+				DisableSlowMetrics:       true,
+				DisableDeprecatedMetrics: true,
+				EnabledMetrics:           []string{"test-slow_metric", "test-deprecated_metric"},
+			},
+			want: map[string]bool{"plain": true, "slow_metric": true, "deprecated_metric": true},
+		},
+		{
+			name: "disable-metric wins over enable-metric",
+			opts: ExporterOptions{
+				DisabledMetrics: []string{"test-slow_metric"},
+				EnabledMetrics:  []string{"test-slow_metric"},
+			},
+			want: map[string]bool{"plain": true, "slow_metric": false, "deprecated_metric": true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base, descs := newPolicyTestExporter(t, tt.opts)
+			base.resolveMetrics(parseMetricDefs(descs))
+			for metric, want := range tt.want {
+				if got := base.IsMetricEnabled(metric); got != want {
+					t.Errorf("IsMetricEnabled(%q) = %v, want %v", metric, got, want)
+				}
+			}
+		})
+	}
+}
+
+// TestRegisterAndFillDescsFollowsResolvedPolicy checks that descriptor creation
+// consumes the same resolved policy that pruning does.
+func TestRegisterAndFillDescsFollowsResolvedPolicy(t *testing.T) {
+	base, descs := newPolicyTestExporter(t, ExporterOptions{DisableSlowMetrics: true})
+	base.resolveMetrics(parseMetricDefs(descs))
+	base.RegisterAndFillDescs(descs)
+
+	if descs.Plain == nil {
+		t.Error("enabled metric got no descriptor")
+	}
+	if descs.Slow != nil {
+		t.Error("slow metric got a descriptor despite --disable-slow-metrics")
+	}
+	if descs.Deprecated == nil {
+		t.Error("deprecated metric got no descriptor")
+	}
+}
+
+// TestPruneScheduleDropsSlowAndDeprecatedSources is the regression test for
+// slow and deprecated metrics being fetched and then discarded: their emitters
+// and any sources only they needed must disappear from the schedule.
+func TestPruneScheduleDropsSlowAndDeprecatedSources(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{Name: "projects"},
+			{Name: "limits", DependsOn: []string{"projects"}},
+			{Name: "plain"},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{Name: "emitPlain", Metrics: []string{"plain"}, Sources: []string{"plain"}},
+			{Name: "emitSlow", Metrics: []string{"slow_metric"}, Sources: []string{"limits"}},
+			{Name: "emitDeprecated", Metrics: []string{"deprecated_metric"}, Sources: []string{"limits"}},
+		},
+	}
+
+	tests := []struct {
+		name string
+		opts ExporterOptions
+		want [][]string
+	}{
+		{
+			name: "slow pruning drops the limits source and its projects dependency",
+			opts: ExporterOptions{DisableSlowMetrics: true, DisableDeprecatedMetrics: true},
+			want: [][]string{{"source:plain"}, {"emitter:emitPlain[sources:plain]"}},
+		},
+		{
+			name: "explicitly enabling a slow metric keeps its sources alive",
+			opts: ExporterOptions{
+				DisableSlowMetrics:       true,
+				DisableDeprecatedMetrics: true,
+				EnabledMetrics:           []string{"test-slow_metric"},
+			},
+			want: [][]string{
+				{"source:projects", "source:plain"},
+				{"source:limits[deps:projects]", "emitter:emitPlain[sources:plain]"},
+				{"emitter:emitSlow[sources:limits]"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			base, descs := newPolicyTestExporter(t, tt.opts)
+			base.resolveMetrics(parseMetricDefs(descs))
+
+			pruned, err := graph.PruneSchedule(base)
+			if err != nil {
+				t.Fatalf("PruneSchedule() error = %v", err)
+			}
+			if got := scheduleWaveNames(&graph, pruned); !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("pruned waves = %#v, want %#v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestPruneScheduleRejectsUnknownMetric guards against a misspelled or stale
+// Emitter.Metrics entry, which would otherwise keep its emitter and sources
+// alive on every scrape without anyone noticing.
+func TestPruneScheduleRejectsUnknownMetric(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources:  []Source[struct{}, scrape]{{Name: "a"}},
+		Emitters: []Emitter[struct{}, scrape]{{Name: "emitA", Metrics: []string{"typo"}, Sources: []string{"a"}}},
+	}
+
+	base, descs := newPolicyTestExporter(t, ExporterOptions{})
+	base.resolveMetrics(parseMetricDefs(descs))
+
+	if _, err := graph.PruneSchedule(base); err == nil {
+		t.Fatal("PruneSchedule() accepted an emitter declaring an undeclared metric")
+	}
+}
+
+// TestDeclareDynamicMetricParticipatesInPruning covers metrics whose labels are
+// built at runtime, such as nova server_status.
+func TestDeclareDynamicMetricParticipatesInPruning(t *testing.T) {
+	base, descs := newPolicyTestExporter(t, ExporterOptions{DisabledMetrics: []string{"test-dynamic"}})
+	base.resolveMetrics(parseMetricDefs(descs))
+	base.declareDynamicMetric("dynamic")
+
+	if base.IsMetricEnabled("dynamic") {
+		t.Fatal("dynamic metric ignored --disable-metric")
+	}
+
+	base2, descs2 := newPolicyTestExporter(t, ExporterOptions{})
+	base2.resolveMetrics(parseMetricDefs(descs2))
+	base2.declareDynamicMetric("dynamic")
+	if !base2.IsMetricEnabled("dynamic") {
+		t.Fatal("dynamic metric was not enabled by default")
+	}
+}
+
+func TestSourceFetchDurationMetricIsOptIn(t *testing.T) {
+	disabled := BaseOpenStackExporter{
+		Name: "nova",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{Prefix: "openstack"},
+		},
+	}
+	disabled.RegisterAndFillDescs(&struct{}{})
+	if disabled.sourceFetchDuration != nil {
+		t.Fatal("source fetch duration metric was created without CollectTime")
+	}
+
+	enabled := BaseOpenStackExporter{
+		Name: "nova",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{Prefix: "openstack", CollectTime: true},
+		},
+	}
+	enabled.RegisterAndFillDescs(&struct{}{})
+	enabled.observeSourceFetchDuration("servers", time.Second)
+
+	expected := `
+# HELP openstack_exporter_source_fetch_duration_seconds Duration of source fetches in seconds.
+# TYPE openstack_exporter_source_fetch_duration_seconds histogram
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="0.1"} 0
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="0.5"} 0
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="1"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="2"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="5"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="10"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="30"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="60"} 1
+openstack_exporter_source_fetch_duration_seconds_bucket{service="nova",source="servers",le="+Inf"} 1
+openstack_exporter_source_fetch_duration_seconds_sum{service="nova",source="servers"} 1
+openstack_exporter_source_fetch_duration_seconds_count{service="nova",source="servers"} 1
+`
+	if err := testutil.CollectAndCompare(enabled.sourceFetchDuration, strings.NewReader(expected)); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestSourceFetchDurationRegistersMultipleServices(t *testing.T) {
+	registry := prometheus.NewPedanticRegistry()
+	for _, service := range []string{"nova", "cinder"} {
+		exporter := BaseOpenStackExporter{
+			Name: service,
+			ExporterConfig: ExporterConfig{
+				ExporterOptions: ExporterOptions{Prefix: "openstack", CollectTime: true},
+			},
+		}
+		exporter.RegisterAndFillDescs(&struct{}{})
+		if err := registry.Register(exporter.sourceFetchDuration); err != nil {
+			t.Fatalf("Register(%s source duration) error = %v", service, err)
+		}
+		exporter.observeSourceFetchDuration("servers", time.Second)
+	}
+
+	mfs, err := registry.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mf := range mfs {
+		if mf.GetName() == "openstack_exporter_source_fetch_duration_seconds" {
+			if got := len(mf.Metric); got != 2 {
+				t.Fatalf("source duration series = %d, want 2", got)
+			}
+			return
+		}
+	}
+	t.Fatal("source duration metric family was not gathered")
+}
+
+func TestComputeScheduleBuildsMixedDependencyWaves(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{Name: "a"},
+			{Name: "b"},
+			{Name: "c", DependsOn: []string{"a"}},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{Name: "emitA", Metrics: []string{"a_metric"}, Sources: []string{"a"}},
+			{Name: "emitC", Metrics: []string{"c_metric"}, Sources: []string{"c"}},
+		},
+	}
+
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+
+	got := scheduleWaveNames(&graph, sched)
+	want := [][]string{
+		{"source:a", "source:b"},
+		{"source:c[deps:a]", "emitter:emitA[sources:a]"},
+		{"emitter:emitC[sources:c]"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+}
+
+func TestPruneScheduleRecomputesDependencyGraph(t *testing.T) {
+	type scrape struct{}
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{Name: "a"},
+			{Name: "b"},
+			{Name: "c", DependsOn: []string{"b"}},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{Name: "emitA", Metrics: []string{"a_metric"}, Sources: []string{"a"}},
+			{Name: "emitC", Metrics: []string{"c_metric"}, Sources: []string{"c"}},
+		},
+	}
+	base := &BaseOpenStackExporter{
+		Name: "test",
+		ExporterConfig: ExporterConfig{
+			ExporterOptions: ExporterOptions{
+				DisabledMetrics: []string{"test-c_metric"},
+			},
+		},
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+	base.resolveMetrics([]metricDef{{name: "a_metric"}, {name: "c_metric"}})
+
+	pruned, err := graph.PruneSchedule(base)
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	got := scheduleWaveNames(&graph, pruned)
+	want := [][]string{
+		{"source:a"},
+		{"emitter:emitA[sources:a]"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("pruned waves = %#v, want %#v", got, want)
+	}
+	if gotSources := pruned.TotalSources(); gotSources != 1 {
+		t.Fatalf("TotalSources() = %d, want 1", gotSources)
+	}
+}
+
+func TestRunScheduleStartsReadyNodesWithoutWaveBarrier(t *testing.T) {
+	type scrape struct{}
+	fastDone := make(chan struct{})
+	allowSlow := make(chan struct{})
+	emitted := make(chan struct{})
+
+	graph := Graph[struct{}, scrape]{
+		Sources: []Source[struct{}, scrape]{
+			{
+				Name: "fast",
+				Fetch: func(struct{}, context.Context, *scrape) error {
+					close(fastDone)
+					return nil
+				},
+			},
+			{
+				Name: "slow",
+				Fetch: func(struct{}, context.Context, *scrape) error {
+					<-allowSlow
+					return nil
+				},
+			},
+		},
+		Emitters: []Emitter[struct{}, scrape]{
+			{
+				Name:    "fastEmitter",
+				Metrics: []string{"fast_metric"},
+				Sources: []string{"fast"},
+				Emit: func(struct{}, context.Context, *scrape, chan<- prometheus.Metric) error {
+					close(emitted)
+					return nil
+				},
+			},
+		},
+	}
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+	base := &BaseOpenStackExporter{
+		Name:   "test",
+		logger: slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	}
+
+	done := make(chan int, 1)
+	go func() {
+		done <- runSchedule(struct{}{}, base, &graph, sched, new(scrape), make(chan prometheus.Metric))
+	}()
+
+	<-fastDone
+	select {
+	case <-emitted:
+	case <-time.After(200 * time.Millisecond):
+		close(allowSlow)
+		t.Fatal("emitter did not start while unrelated source was still running")
+	}
+
+	close(allowSlow)
+	if failures := <-done; failures != 0 {
+		t.Fatalf("runSchedule() failures = %d, want 0", failures)
+	}
+}
+
+func scheduleWaveNames[E, S any](graph *Graph[E, S], sched Schedule) [][]string {
+	out := make([][]string, len(sched.waves))
+	for i, wave := range sched.waves {
+		out[i] = make([]string, len(wave))
+		for j, nodeIdx := range wave {
+			out[i][j] = graph.nodeLogName(sched.nodes[nodeIdx])
+		}
+	}
+	return out
 }
 
 func TestOpenStackSuites(t *testing.T) {

@@ -36,6 +36,8 @@ const (
 	TERABYTE
 )
 
+const defaultAPIDetailRequestConcurrency = 10
+
 // SupportedExporters contains all registered exporters.
 var SupportedExporters = []string{}
 
@@ -635,6 +637,9 @@ type ExporterOptions struct {
 	// DnsConcurrentCount controls the number of concurrent requests used when
 	// collecting DNS recordsets.
 	DnsConcurrentCount int
+	// APIDetailConcurrentCount controls bounded fan-out for per-resource detail
+	// API requests.
+	APIDetailConcurrentCount int
 	// PlacementConcurrentCount controls the number of concurrent requests used
 	// when collecting Placement provider details.
 	PlacementConcurrentCount int
@@ -772,6 +777,13 @@ func emitGauge(ch chan<- prometheus.Metric, desc *prometheus.Desc, value float64
 
 func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
 	return exporter.DnsConcurrentCount
+}
+
+func (exporter *BaseOpenStackExporter) GetAPIDetailConcurrencyCount() int {
+	if exporter.APIDetailConcurrentCount <= 0 {
+		return defaultAPIDetailRequestConcurrency
+	}
+	return exporter.APIDetailConcurrentCount
 }
 
 func (exporter *BaseOpenStackExporter) GetPlacementConcurrencyCount() int {

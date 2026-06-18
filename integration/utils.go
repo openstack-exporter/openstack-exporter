@@ -86,6 +86,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	domainID := ""
 	tenantID := ""
 	dnsConcurrentCount := 10
+	apiDetailConcurrentCount := 10
 	placementConcurrentCount := 10
 
 	// Logger similar to main.go
@@ -118,6 +119,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			TenantID:                 tenantID,
 			NovaMetadataMapping:      novaMetadataMapping,
 			DnsConcurrentCount:       dnsConcurrentCount,
+			APIDetailConcurrentCount: apiDetailConcurrentCount,
 			PlacementConcurrentCount: placementConcurrentCount,
 		}
 		exp, err := exporters.NewExporter(service, opts, logger)

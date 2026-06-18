@@ -125,6 +125,8 @@ Flags:
       --nova.metadata-extra-labels=LABEL=KEY,KEY ...
                                  Map provided server metadata keys to labels in openstack_nova_server_status metric
       --dns-concurrent-count=10  Number of concurrent requests for DNS recordset collection
+      --api-detail-concurrent-count=10
+                                 Number of concurrent requests for per-resource API detail collection
       --placement-concurrent-count=10
                                  Number of concurrent requests for Placement provider detail collection
       --[no-]disable-service.network

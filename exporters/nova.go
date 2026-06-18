@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/aggregates"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/availabilityzones"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/flavors"
@@ -22,6 +21,7 @@ import (
 	identityprojects "github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -112,7 +112,6 @@ type novaScrape struct {
 	allAZs         []availabilityzones.AvailabilityZone
 	securityGroups []secgroups.SecurityGroup
 	allServers     []servers.Server
-	flavorMapper   flavorIDMapper
 	allServices    []services.Service
 	allHypervisors []hypervisors.Hypervisor
 	allAggregates  []aggregates.Aggregate
@@ -142,6 +141,7 @@ var novaGraph = Graph[*NovaExporter, novaScrape]{
 		{Name: "servers", Fetch: (*NovaExporter).fetchServers},
 		{Name: "services", Fetch: (*NovaExporter).fetchServices},
 		{Name: "hypervisors", Fetch: (*NovaExporter).fetchHypervisors},
+		{Name: "aggregates", Fetch: (*NovaExporter).fetchAggregates},
 		{Name: "projects", Fetch: (*NovaExporter).fetchProjects},
 		{Name: "limits", DependsOn: []string{"projects"}, Fetch: (*NovaExporter).fetchLimits},
 		{Name: "usage", Fetch: (*NovaExporter).fetchUsage},
@@ -151,9 +151,10 @@ var novaGraph = Graph[*NovaExporter, novaScrape]{
 		{Name: "flavors", Metrics: []string{"flavors", "flavor"}, Sources: []string{"flavors"}, Emit: (*NovaExporter).emitFlavors},
 		{Name: "azs", Metrics: []string{"availability_zones"}, Sources: []string{"azs"}, Emit: (*NovaExporter).emitAZs},
 		{Name: "secgroups", Metrics: []string{"security_groups"}, Sources: []string{"secgroups"}, Emit: (*NovaExporter).emitSecGroups},
-		{Name: "servers", Metrics: []string{"total_vms", "server_status"}, Sources: []string{"servers"}, Emit: (*NovaExporter).emitServers},
+		{Name: "server_count", Metrics: []string{"total_vms"}, Sources: []string{"servers"}, Emit: (*NovaExporter).emitServerCount},
+		{Name: "server_status", Metrics: []string{"server_status"}, Sources: []string{"servers", "flavors"}, Emit: (*NovaExporter).emitServerStatus},
 		{Name: "services", Metrics: []string{"agent_state"}, Sources: []string{"services"}, Emit: (*NovaExporter).emitServices},
-		{Name: "hypervisors", Metrics: []string{"running_vms", "current_workload", "vcpus_available", "vcpus_used", "memory_available_bytes", "memory_used_bytes", "local_storage_available_bytes", "local_storage_used_bytes", "free_disk_bytes"}, Sources: []string{"hypervisors"}, Emit: (*NovaExporter).emitHypervisors},
+		{Name: "hypervisors", Metrics: []string{"running_vms", "current_workload", "vcpus_available", "vcpus_used", "memory_available_bytes", "memory_used_bytes", "local_storage_available_bytes", "local_storage_used_bytes", "free_disk_bytes"}, Sources: []string{"hypervisors", "aggregates"}, Emit: (*NovaExporter).emitHypervisors},
 		{Name: "limits", Metrics: []string{"limits_vcpus_max", "limits_vcpus_used", "limits_memory_max", "limits_memory_used", "limits_instances_used", "limits_instances_max"}, Sources: []string{"limits"}, Emit: (*NovaExporter).emitLimits},
 		{Name: "usage", Metrics: []string{"server_local_gb"}, Sources: []string{"usage"}, Emit: (*NovaExporter).emitUsage},
 		{Name: "quotas", Metrics: []string{"quota_cores", "quota_instances", "quota_key_pairs", "quota_metadata_items", "quota_ram", "quota_server_groups", "quota_server_group_members", "quota_fixed_ips", "quota_floating_ips", "quota_security_group_rules", "quota_security_groups", "quota_injected_file_content_bytes", "quota_injected_file_path_bytes", "quota_injected_files"}, Sources: []string{"quotas"}, Emit: (*NovaExporter).emitQuotas},
@@ -238,22 +239,6 @@ func (e *NovaExporter) fetchServers(ctx context.Context, s *novaScrape) error {
 	if err := servers.ExtractServersInto(allPages, &s.allServers); err != nil {
 		return err
 	}
-	// Check if flavor ID mapper is needed
-	var needMapper bool
-	for _, srv := range s.allServers {
-		if _, ok := srv.Flavor["id"]; !ok {
-			needMapper = true
-			break
-		}
-	}
-	mvAtLeast246, _ := utils.IsMicroversionAtLeast(e.ClientV2.Microversion, "2.46")
-	if mvAtLeast246 || needMapper {
-		var err error
-		s.flavorMapper, err = newFlavorIDMapper(ctx, e.ClientV2)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -281,6 +266,10 @@ func (e *NovaExporter) fetchHypervisors(ctx context.Context, s *novaScrape) erro
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (e *NovaExporter) fetchAggregates(ctx context.Context, s *novaScrape) error {
 	allPagesAggr, err := aggregates.List(e.ClientV2).AllPages(ctx)
 	if err != nil {
 		return err
@@ -296,22 +285,29 @@ func (e *NovaExporter) fetchProjects(ctx context.Context, s *novaScrape) error {
 }
 
 func (e *NovaExporter) fetchLimits(ctx context.Context, s *novaScrape) error {
-	for _, p := range s.projects {
+	s.limits = make([]novaProjectLimits, len(s.projects))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetAPIDetailConcurrencyCount())
+	for i, p := range s.projects {
+		i, p := i, p
 		opts := limits.GetOpts{TenantID: p.ID}
 		if p.ID == e.TenantID {
 			opts = limits.GetOpts{}
 		}
-		lim, err := limits.Get(ctx, e.ClientV2, opts).Extract()
-		if err != nil {
-			return err
-		}
-		s.limits = append(s.limits, novaProjectLimits{
-			projectName: p.Name,
-			projectID:   p.ID,
-			limits:      *lim,
+		g.Go(func() error {
+			lim, err := limits.Get(gCtx, e.ClientV2, opts).Extract()
+			if err != nil {
+				return err
+			}
+			s.limits[i] = novaProjectLimits{
+				projectName: p.Name,
+				projectID:   p.ID,
+				limits:      *lim,
+			}
+			return nil
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (e *NovaExporter) fetchUsage(ctx context.Context, s *novaScrape) error {
@@ -327,18 +323,25 @@ func (e *NovaExporter) fetchUsage(ctx context.Context, s *novaScrape) error {
 }
 
 func (e *NovaExporter) fetchQuotas(ctx context.Context, s *novaScrape) error {
-	for _, p := range s.projects {
-		quotaSet, err := quotasets.GetDetail(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		s.quotas = append(s.quotas, novaProjectQuotas{
-			projectName: p.Name,
-			projectID:   p.ID,
-			quota:       quotaSet,
+	s.quotas = make([]novaProjectQuotas, len(s.projects))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetAPIDetailConcurrencyCount())
+	for i, p := range s.projects {
+		i, p := i, p
+		g.Go(func() error {
+			quotaSet, err := quotasets.GetDetail(gCtx, e.ClientV2, p.ID).Extract()
+			if err != nil {
+				return err
+			}
+			s.quotas[i] = novaProjectQuotas{
+				projectName: p.Name,
+				projectID:   p.ID,
+				quota:       quotaSet,
+			}
+			return nil
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 // --- Emitters ---
@@ -362,16 +365,25 @@ func (e *NovaExporter) emitSecGroups(ctx context.Context, s *novaScrape, ch chan
 	return nil
 }
 
-func (e *NovaExporter) emitServers(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
+func (e *NovaExporter) emitServerCount(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
 	emitGauge(ch, e.descs.TotalVMs, float64(len(s.allServers)))
+	return nil
+}
+
+func (e *NovaExporter) emitServerStatus(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
 	serverStatusDesc := e.serverStatusDesc
 	if serverStatusDesc != nil {
+		var flavorMapper flavorIDMapper
+		mvAtLeast246, _ := utils.IsMicroversionAtLeast(e.ClientV2.Microversion, "2.46")
+		if mvAtLeast246 || serversNeedFlavorMapper(s.allServers) {
+			flavorMapper = newFlavorIDMapper(s.allFlavors)
+		}
 		for _, server := range s.allServers {
 			var flavorID string
-			if s.flavorMapper == nil {
+			if flavorMapper == nil {
 				flavorID = fmt.Sprintf("%v", server.Flavor["id"])
 			} else {
-				flavorID = s.flavorMapper.Search(server.Flavor["original_name"])
+				flavorID = flavorMapper.Search(server.Flavor["original_name"])
 			}
 			labelValues := []string{
 				server.ID, server.Status, server.Name, server.TenantID,
@@ -517,20 +529,21 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 
 type flavorIDMapper map[string]string
 
-func newFlavorIDMapper(ctx context.Context, cli *gophercloud.ServiceClient) (flavorIDMapper, error) {
-	allPages, err := flavors.ListDetail(cli, flavors.ListOpts{AccessType: "None"}).AllPages(ctx)
-	if err != nil {
-		return nil, err
-	}
-	allFlavors, err := flavors.ExtractFlavors(allPages)
-	if err != nil {
-		return nil, err
-	}
+func newFlavorIDMapper(allFlavors []flavors.Flavor) flavorIDMapper {
 	m := make(flavorIDMapper, len(allFlavors))
 	for _, f := range allFlavors {
 		m[f.Name] = f.ID
 	}
-	return m, nil
+	return m
+}
+
+func serversNeedFlavorMapper(allServers []servers.Server) bool {
+	for _, srv := range allServers {
+		if _, ok := srv.Flavor["id"]; !ok {
+			return true
+		}
+	}
+	return false
 }
 
 func (s flavorIDMapper) Search(flavorName any) string {

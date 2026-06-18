@@ -635,6 +635,9 @@ type ExporterOptions struct {
 	// DnsConcurrentCount controls the number of concurrent requests used when
 	// collecting DNS recordsets.
 	DnsConcurrentCount int
+	// PlacementConcurrentCount controls the number of concurrent requests used
+	// when collecting Placement provider details.
+	PlacementConcurrentCount int
 	// UUIDGenFunc is the function used to generate UUIDs for Cinder agents.
 	// Defaults to uuid.GenerateUUID when nil.
 	UUIDGenFunc func() (string, error)
@@ -769,6 +772,13 @@ func emitGauge(ch chan<- prometheus.Metric, desc *prometheus.Desc, value float64
 
 func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
 	return exporter.DnsConcurrentCount
+}
+
+func (exporter *BaseOpenStackExporter) GetPlacementConcurrencyCount() int {
+	if exporter.PlacementConcurrentCount <= 0 {
+		return defaultPlacementProviderRequestConcurrency
+	}
+	return exporter.PlacementConcurrentCount
 }
 
 // took from here:

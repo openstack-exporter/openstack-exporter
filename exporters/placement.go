@@ -6,6 +6,7 @@ import (
 
 	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -26,6 +27,8 @@ type placementDescs struct {
 	ResourceUsage               *prometheus.Desc `metric:"resource_usage"                labels:"hostname,resourcetype"`
 	ResourceProviderAllocations *prometheus.Desc `metric:"resource_provider_allocations" labels:"hostname,uuid,resourcetype"`
 }
+
+const defaultPlacementProviderRequestConcurrency = 10
 
 type placementProviderEntry struct {
 	provider    resourceproviders.ResourceProvider
@@ -109,52 +112,69 @@ func (e *PlacementExporter) fetchProviders(ctx context.Context, s *placementScra
 }
 
 func (e *PlacementExporter) fetchInventories(ctx context.Context, s *placementScrape) error {
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetPlacementConcurrencyCount())
 	for i := range s.providers {
-		inv, err := resourceproviders.GetInventories(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-		s.providers[i].inventories = inv
+		providerUUID := s.providers[i].provider.UUID
+		g.Go(func() error {
+			inv, err := resourceproviders.GetInventories(gCtx, e.ClientV2, providerUUID).Extract()
+			if err != nil {
+				return err
+			}
+			s.providers[i].inventories = inv
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (e *PlacementExporter) fetchUsages(ctx context.Context, s *placementScrape) error {
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetPlacementConcurrencyCount())
 	for i := range s.providers {
-		u, err := resourceproviders.GetUsages(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-		s.providers[i].usages = u
+		providerUUID := s.providers[i].provider.UUID
+		g.Go(func() error {
+			u, err := resourceproviders.GetUsages(gCtx, e.ClientV2, providerUUID).Extract()
+			if err != nil {
+				return err
+			}
+			s.providers[i].usages = u
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 func (e *PlacementExporter) fetchAllocations(ctx context.Context, s *placementScrape) error {
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetPlacementConcurrencyCount())
 	for i := range s.providers {
-		a, err := resourceproviders.GetAllocations(ctx, e.ClientV2, s.providers[i].provider.UUID).Extract()
-		if err != nil {
-			return err
-		}
-		s.providers[i].allocations = a
+		providerUUID := s.providers[i].provider.UUID
+		g.Go(func() error {
+			a, err := resourceproviders.GetAllocations(gCtx, e.ClientV2, providerUUID).Extract()
+			if err != nil {
+				return err
+			}
+			s.providers[i].allocations = a
+			return nil
+		})
 	}
-	return nil
+	return g.Wait()
 }
 
 // Placement emitters index into s.providers instead of ranging by value:
 // copying placementProviderEntry would read sibling fields written by
 // independent sources under the parallel DAG scheduler.
 func (e *PlacementExporter) emitInventories(ctx context.Context, s *placementScrape, ch chan<- prometheus.Metric) error {
-	dTotal, dRatio, dGen, dReserved := e.descs.ResourceTotal, e.descs.ResourceAllocationRatio, e.descs.ResourceGeneration, e.descs.ResourceReserved
 	for i := range s.providers {
 		entry := &s.providers[i]
 		name := entry.provider.Name
 		gen := float64(entry.inventories.ResourceProviderGeneration)
 		for rt, inv := range entry.inventories.Inventories {
-			emitGauge(ch, dTotal, float64(inv.Total), name, rt)
-			emitGauge(ch, dRatio, float64(inv.AllocationRatio), name, rt)
-			emitGauge(ch, dGen, gen, name, rt)
-			emitGauge(ch, dReserved, float64(inv.Reserved), name, rt)
+			emitGauge(ch, e.descs.ResourceTotal, float64(inv.Total), name, rt)
+			emitGauge(ch, e.descs.ResourceAllocationRatio, float64(inv.AllocationRatio), name, rt)
+			emitGauge(ch, e.descs.ResourceGeneration, gen, name, rt)
+			emitGauge(ch, e.descs.ResourceReserved, float64(inv.Reserved), name, rt)
 		}
 	}
 	return nil

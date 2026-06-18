@@ -72,6 +72,7 @@ func TestCollectCache(t *testing.T) {
 		DomainID:                 "",
 		TenantID:                 "",
 		DnsConcurrentCount:       10,
+		PlacementConcurrentCount: 10,
 	}
 
 	err := CollectCache(

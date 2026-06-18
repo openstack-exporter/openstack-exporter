@@ -63,6 +63,7 @@ var (
 	disableServiceAutodetect = kingpin.Flag("disable-service-autodetect", "Disable single-cloud service autodetection and use only explicit service flags").Default("false").Bool()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
 	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
+	placementConcurrentCount = kingpin.Flag("placement-concurrent-count", "Number of concurrent requests for Placement provider detail collection").Default("10").Int()
 )
 
 func main() {
@@ -130,6 +131,7 @@ func main() {
 		TenantID:                 *tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
 		DnsConcurrentCount:       *dnsConcurrentCount,
+		PlacementConcurrentCount: *placementConcurrentCount,
 	}
 
 	ctx1, cancel1 := context.WithCancelCause(context.Background())

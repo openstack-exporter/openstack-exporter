@@ -202,12 +202,13 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	opts := ExporterOptions{
-		Cloud:               cloudName,
-		Prefix:              suite.Prefix,
-		DisabledMetrics:     []string{},
-		EndpointType:        "public",
-		NovaMetadataMapping: novaMetadataMapping,
-		DnsConcurrentCount:  10,
+		Cloud:                    cloudName,
+		Prefix:                   suite.Prefix,
+		DisabledMetrics:          []string{},
+		EndpointType:             "public",
+		NovaMetadataMapping:      novaMetadataMapping,
+		DnsConcurrentCount:       10,
+		PlacementConcurrentCount: 10,
 		UUIDGenFunc: func() (string, error) {
 			return DEFAULT_UUID, nil
 		},

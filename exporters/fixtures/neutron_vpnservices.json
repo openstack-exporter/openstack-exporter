@@ -1,0 +1,15 @@
+{
+  "vpnservices":[
+    {
+      "id": "5c561d9d-eaea-45f6-ae3e-08d1a7080828",
+      "router_id": "66e3b16c-8ce5-40fb-bb49-ab6d8dc3f2aa",
+      "status": "PENDING_CREATE",
+      "name": "vpnservice1",
+      "admin_state_up": true,
+      "subnet_id": null,
+      "project_id": "10039663455a446d8ba2cbb058b0f578",
+      "tenant_id": "10039663455a446d8ba2cbb058b0f578",
+      "description": "Test VPN service"
+    }
+  ]
+}

@@ -11,7 +11,9 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/volumes"
+	identityprojects "github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -53,6 +55,7 @@ type cinderScrape struct {
 	snapshots []snapshots.Snapshot
 	pools     []schedulerstats.StoragePool
 	agents    []services.Service
+	projects  []identityprojects.Project
 	limits    []cinderProjectLimits
 }
 
@@ -71,7 +74,8 @@ var cinderGraph = Graph[*CinderExporter, cinderScrape]{
 		{Name: "snapshots", Fetch: (*CinderExporter).fetchSnapshots},
 		{Name: "pools", Fetch: (*CinderExporter).fetchPools},
 		{Name: "agents", Fetch: (*CinderExporter).fetchAgents},
-		{Name: "limits", Fetch: (*CinderExporter).fetchLimits},
+		{Name: "projects", Fetch: (*CinderExporter).fetchProjects},
+		{Name: "limits", DependsOn: []string{"projects"}, Fetch: (*CinderExporter).fetchLimits},
 	},
 	Emitters: []Emitter[*CinderExporter, cinderScrape]{
 		{
@@ -220,32 +224,37 @@ func (e *CinderExporter) fetchAgents(ctx context.Context, s *cinderScrape) error
 	return err2
 }
 
+func (e *CinderExporter) fetchProjects(ctx context.Context, s *cinderScrape) error {
+	var err error
+	s.projects, err = GetProjects(ctx, &e.BaseOpenStackExporter)
+	return err
+}
+
 func (e *CinderExporter) fetchLimits(ctx context.Context, s *cinderScrape) error {
-	if !e.IsMetricEnabled("limits_volume_max_gb", "limits_volume_used_gb",
-		"limits_backup_max_gb", "limits_backup_used_gb", "volume_type_quota_gigabytes") {
-		return nil
-	}
-	allProjects, err := GetProjects(ctx, &e.BaseOpenStackExporter)
-	if err != nil {
-		return err
-	}
-	for _, p := range allProjects {
-		usage, err := quotasets.GetUsage(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		quotasPtr, err := quotasets.Get(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		s.limits = append(s.limits, cinderProjectLimits{
-			projectName: p.Name,
-			projectID:   p.ID,
-			usage:       usage,
-			quotas:      *quotasPtr,
+	s.limits = make([]cinderProjectLimits, len(s.projects))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetAPIDetailConcurrencyCount())
+	for i, p := range s.projects {
+		i, p := i, p
+		g.Go(func() error {
+			usage, err := quotasets.GetUsage(gCtx, e.ClientV2, p.ID).Extract()
+			if err != nil {
+				return err
+			}
+			quotasPtr, err := quotasets.Get(gCtx, e.ClientV2, p.ID).Extract()
+			if err != nil {
+				return err
+			}
+			s.limits[i] = cinderProjectLimits{
+				projectName: p.Name,
+				projectID:   p.ID,
+				usage:       usage,
+				quotas:      *quotasPtr,
+			}
+			return nil
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 // ---------------------------------------------------------------------------

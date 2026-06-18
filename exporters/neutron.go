@@ -14,6 +14,7 @@ import (
 	"go4.org/netipx"
 
 	gophercloud "github.com/gophercloud/gophercloud/v2"
+	identityprojects "github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	neutronexts "github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/external"
@@ -137,6 +138,7 @@ type neutronScrape struct {
 	allSubnets          []subnets.Subnet
 	allPorts            []neutronPortExt
 	allRouters          []routers.Router
+	routerL3Agents      map[string][]routers.L3Agent
 	ovnBackend          bool
 	vpnEndpointGroups   []endpointgroups.EndpointGroup
 	vpnIKEPolicies      []ikepolicies.Policy
@@ -146,6 +148,8 @@ type neutronScrape struct {
 	allAgents           []agents.Agent
 	netIPAvailabilities []neutronNetIPAvail
 	subnetPools         []subnetpoolWithSubnets
+	projects            []identityprojects.Project
+	quotas              []neutronProjectQuota
 }
 
 type neutronNetIPAvail struct {
@@ -163,6 +167,12 @@ type neutronSubnetIPAvail struct {
 	UsedIPs    float64
 }
 
+type neutronProjectQuota struct {
+	projectName string
+	projectID   string
+	quota       quotas.QuotaDetailSet
+}
+
 var neutronGraph = Graph[*NeutronExporter, neutronScrape]{
 	Sources: []Source[*NeutronExporter, neutronScrape]{
 		{Name: "floatingips", Fetch: (*NeutronExporter).fetchFloatingIPs},
@@ -171,6 +181,7 @@ var neutronGraph = Graph[*NeutronExporter, neutronScrape]{
 		{Name: "subnets", Fetch: (*NeutronExporter).fetchSubnets},
 		{Name: "ports", Fetch: (*NeutronExporter).fetchPorts},
 		{Name: "routers", Fetch: (*NeutronExporter).fetchRouters},
+		{Name: "router_l3_agents", DependsOn: []string{"routers"}, Fetch: (*NeutronExporter).fetchRouterL3Agents},
 		{Name: "vpn_endpoint_groups", Fetch: (*NeutronExporter).fetchVpnEndpointGroups},
 		{Name: "vpn_ike_policies", Fetch: (*NeutronExporter).fetchVpnIKEPolicies},
 		{Name: "vpn_ipsec_policies", Fetch: (*NeutronExporter).fetchVpnIPsecPolicies},
@@ -179,6 +190,8 @@ var neutronGraph = Graph[*NeutronExporter, neutronScrape]{
 		{Name: "agents", Fetch: (*NeutronExporter).fetchAgents},
 		{Name: "net_ip_avail", Fetch: (*NeutronExporter).fetchNetIPAvail},
 		{Name: "subnet_pools", DependsOn: []string{"subnets"}, Fetch: (*NeutronExporter).fetchSubnetPools},
+		{Name: "projects", Fetch: (*NeutronExporter).fetchProjects},
+		{Name: "quotas", DependsOn: []string{"projects"}, Fetch: (*NeutronExporter).fetchQuotas},
 	},
 	Emitters: []Emitter[*NeutronExporter, neutronScrape]{
 		{Name: "floatingips", Metrics: []string{"floating_ips", "floating_ips_associated_not_active", "floating_ip"}, Sources: []string{"floatingips"}, Emit: (*NeutronExporter).emitFloatingIPs},
@@ -186,7 +199,8 @@ var neutronGraph = Graph[*NeutronExporter, neutronScrape]{
 		{Name: "secgroups", Metrics: []string{"security_groups"}, Sources: []string{"secgroups"}, Emit: (*NeutronExporter).emitSecGroups},
 		{Name: "subnets", Metrics: []string{"subnets", "subnet"}, Sources: []string{"subnets"}, Emit: (*NeutronExporter).emitSubnets},
 		{Name: "ports", Metrics: []string{"port", "ports", "ports_no_ips", "ports_lb_not_active"}, Sources: []string{"ports"}, Emit: (*NeutronExporter).emitPorts},
-		{Name: "routers", Metrics: []string{"router", "routers", "routers_not_active", "l3_agent_of_router"}, Sources: []string{"routers"}, Emit: (*NeutronExporter).emitRouters},
+		{Name: "routers", Metrics: []string{"router", "routers", "routers_not_active"}, Sources: []string{"routers"}, Emit: (*NeutronExporter).emitRouters},
+		{Name: "router_l3_agents", Metrics: []string{"l3_agent_of_router"}, Sources: []string{"router_l3_agents"}, Emit: (*NeutronExporter).emitRouterL3Agents},
 		{Name: "vpn_endpoint_groups", Metrics: []string{"vpn_endpoint_groups"}, Sources: []string{"vpn_endpoint_groups"}, Emit: (*NeutronExporter).emitVpnEndpointGroups},
 		{Name: "vpn_ike_policies", Metrics: []string{"vpn_ike_policies"}, Sources: []string{"vpn_ike_policies"}, Emit: (*NeutronExporter).emitVpnIKEPolicies},
 		{Name: "vpn_ipsec_policies", Metrics: []string{"vpn_ipsec_policies"}, Sources: []string{"vpn_ipsec_policies"}, Emit: (*NeutronExporter).emitVpnIPsecPolicies},
@@ -195,7 +209,7 @@ var neutronGraph = Graph[*NeutronExporter, neutronScrape]{
 		{Name: "agents", Metrics: []string{"agent_state"}, Sources: []string{"agents"}, Emit: (*NeutronExporter).emitAgents},
 		{Name: "net_ip_avail", Metrics: []string{"network_ip_availabilities_total", "network_ip_availabilities_used"}, Sources: []string{"net_ip_avail"}, Emit: (*NeutronExporter).emitNetIPAvail},
 		{Name: "subnet_pools", Metrics: []string{"subnets_total", "subnets_used", "subnets_free"}, Sources: []string{"subnet_pools", "subnets"}, Emit: (*NeutronExporter).emitSubnetPools},
-		{Name: "quotas", Metrics: []string{"quota_network", "quota_subnet", "quota_subnetpool", "quota_port", "quota_router", "quota_floatingip", "quota_security_group", "quota_security_group_rule", "quota_rbac_policy"}, Sources: []string{}, Emit: (*NeutronExporter).emitQuotas},
+		{Name: "quotas", Metrics: []string{"quota_network", "quota_subnet", "quota_subnetpool", "quota_port", "quota_router", "quota_floatingip", "quota_security_group", "quota_security_group_rule", "quota_rbac_policy"}, Sources: []string{"quotas"}, Emit: (*NeutronExporter).emitQuotas},
 	},
 }
 
@@ -303,15 +317,37 @@ func (e *NeutronExporter) fetchRouters(ctx context.Context, s *neutronScrape) er
 	if err2 != nil {
 		return err2
 	}
-	ovnPages, err2 := agents.List(e.ClientV2, agents.ListOpts{Binary: "ovn-controller"}).AllPages(ctx)
-	if err2 != nil {
-		return err2
+	return nil
+}
+
+func (e *NeutronExporter) fetchRouterL3Agents(ctx context.Context, s *neutronScrape) error {
+	if e.descs.L3AgentOfRouter == nil {
+		return nil
 	}
-	ovnAgents, err2 := agents.ExtractAgents(ovnPages)
-	if err2 != nil {
-		return err2
+	ovnPages, err := agents.List(e.ClientV2, agents.ListOpts{Binary: "ovn-controller"}).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+	ovnAgents, err := agents.ExtractAgents(ovnPages)
+	if err != nil {
+		return err
 	}
 	s.ovnBackend = len(ovnAgents) > 0
+	if s.ovnBackend {
+		return nil
+	}
+	s.routerL3Agents = make(map[string][]routers.L3Agent, len(s.allRouters))
+	for _, router := range s.allRouters {
+		allPagesL3Agents, err := routers.ListL3Agents(e.ClientV2, router.ID).AllPages(ctx)
+		if err != nil {
+			return err
+		}
+		l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
+		if err != nil {
+			return err
+		}
+		s.routerL3Agents[router.ID] = l3Agents
+	}
 	return nil
 }
 
@@ -448,6 +484,27 @@ func (e *NeutronExporter) fetchSubnetPools(ctx context.Context, s *neutronScrape
 	return err
 }
 
+func (e *NeutronExporter) fetchProjects(ctx context.Context, s *neutronScrape) error {
+	var err error
+	s.projects, err = GetProjects(ctx, &e.BaseOpenStackExporter)
+	return err
+}
+
+func (e *NeutronExporter) fetchQuotas(ctx context.Context, s *neutronScrape) error {
+	for _, p := range s.projects {
+		quota, err := quotas.GetDetail(ctx, e.ClientV2, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+		s.quotas = append(s.quotas, neutronProjectQuota{
+			projectName: p.Name,
+			projectID:   p.ID,
+			quota:       *quota,
+		})
+	}
+	return nil
+}
+
 // --- Emitters ---
 
 func (e *NeutronExporter) emitFloatingIPs(ctx context.Context, s *neutronScrape, ch chan<- prometheus.Metric) error {
@@ -531,31 +588,27 @@ func (e *NeutronExporter) emitRouters(ctx context.Context, s *neutronScrape, ch 
 		}
 		emitGauge(ch, e.descs.Router, 1, router.ID, router.Name, router.ProjectID,
 			strconv.FormatBool(router.AdminStateUp), router.Status, router.GatewayInfo.NetworkID)
-		if s.ovnBackend {
-			continue
-		}
-		if e.descs.L3AgentOfRouter != nil {
-			allPagesL3Agents, err := routers.ListL3Agents(e.ClientV2, router.ID).AllPages(ctx)
-			if err != nil {
-				return err
-			}
-			l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
-			if err != nil {
-				return err
-			}
-			for _, agent := range l3Agents {
-				state := 0
-				if agent.Alive {
-					state = 1
-				}
-				emitGauge(ch, e.descs.L3AgentOfRouter,
-					float64(state), router.ID, agent.ID,
-					agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
-			}
-		}
 	}
 	emitGauge(ch, e.descs.Routers, float64(len(s.allRouters)))
 	emitGauge(ch, e.descs.RoutersNotActive, float64(failedRouters))
+	return nil
+}
+
+func (e *NeutronExporter) emitRouterL3Agents(ctx context.Context, s *neutronScrape, ch chan<- prometheus.Metric) error {
+	if s.ovnBackend {
+		return nil
+	}
+	for _, router := range s.allRouters {
+		for _, agent := range s.routerL3Agents[router.ID] {
+			state := 0
+			if agent.Alive {
+				state = 1
+			}
+			emitGauge(ch, e.descs.L3AgentOfRouter,
+				float64(state), router.ID, agent.ID,
+				agent.HAState, strconv.FormatBool(agent.Alive), strconv.FormatBool(agent.AdminStateUp), agent.Host)
+		}
+	}
 	return nil
 }
 
@@ -662,24 +715,17 @@ func (e *NeutronExporter) emitSubnetPools(ctx context.Context, s *neutronScrape,
 }
 
 func (e *NeutronExporter) emitQuotas(ctx context.Context, s *neutronScrape, ch chan<- prometheus.Metric) error {
-	allProjects, err := GetProjects(ctx, &e.BaseOpenStackExporter)
-	if err != nil {
-		return err
-	}
-	for _, p := range allProjects {
-		quota, err := quotas.GetDetail(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaNetwork, quota.Network, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSubnet, quota.Subnet, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSubnetPool, quota.SubnetPool, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaPort, quota.Port, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaRouter, quota.Router, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaFloatingIP, quota.FloatingIP, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSecurityGroup, quota.SecurityGroup, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSecurityGroupRule, quota.SecurityGroupRule, p.Name, p.ID)
-		e.emitNeutronQuotaDetail(ch, e.descs.QuotaRBACPolicy, quota.RBACPolicy, p.Name, p.ID)
+	for _, entry := range s.quotas {
+		quota := entry.quota
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaNetwork, quota.Network, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSubnet, quota.Subnet, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSubnetPool, quota.SubnetPool, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaPort, quota.Port, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaRouter, quota.Router, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaFloatingIP, quota.FloatingIP, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSecurityGroup, quota.SecurityGroup, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaSecurityGroupRule, quota.SecurityGroupRule, entry.projectName, entry.projectID)
+		e.emitNeutronQuotaDetail(ch, e.descs.QuotaRBACPolicy, quota.RBACPolicy, entry.projectName, entry.projectID)
 	}
 	return nil
 }

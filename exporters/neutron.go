@@ -36,6 +36,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 func init() {
@@ -321,9 +322,6 @@ func (e *NeutronExporter) fetchRouters(ctx context.Context, s *neutronScrape) er
 }
 
 func (e *NeutronExporter) fetchRouterL3Agents(ctx context.Context, s *neutronScrape) error {
-	if e.descs.L3AgentOfRouter == nil {
-		return nil
-	}
 	ovnPages, err := agents.List(e.ClientV2, agents.ListOpts{Binary: "ovn-controller"}).AllPages(ctx)
 	if err != nil {
 		return err
@@ -336,17 +334,30 @@ func (e *NeutronExporter) fetchRouterL3Agents(ctx context.Context, s *neutronScr
 	if s.ovnBackend {
 		return nil
 	}
+	routerL3Agents := make([][]routers.L3Agent, len(s.allRouters))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetAPIDetailConcurrencyCount())
+	for i, router := range s.allRouters {
+		i, router := i, router
+		g.Go(func() error {
+			allPagesL3Agents, err := routers.ListL3Agents(e.ClientV2, router.ID).AllPages(gCtx)
+			if err != nil {
+				return err
+			}
+			l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
+			if err != nil {
+				return err
+			}
+			routerL3Agents[i] = l3Agents
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return err
+	}
 	s.routerL3Agents = make(map[string][]routers.L3Agent, len(s.allRouters))
-	for _, router := range s.allRouters {
-		allPagesL3Agents, err := routers.ListL3Agents(e.ClientV2, router.ID).AllPages(ctx)
-		if err != nil {
-			return err
-		}
-		l3Agents, err := routers.ExtractL3Agents(allPagesL3Agents)
-		if err != nil {
-			return err
-		}
-		s.routerL3Agents[router.ID] = l3Agents
+	for i, router := range s.allRouters {
+		s.routerL3Agents[router.ID] = routerL3Agents[i]
 	}
 	return nil
 }
@@ -491,18 +502,25 @@ func (e *NeutronExporter) fetchProjects(ctx context.Context, s *neutronScrape) e
 }
 
 func (e *NeutronExporter) fetchQuotas(ctx context.Context, s *neutronScrape) error {
-	for _, p := range s.projects {
-		quota, err := quotas.GetDetail(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		s.quotas = append(s.quotas, neutronProjectQuota{
-			projectName: p.Name,
-			projectID:   p.ID,
-			quota:       *quota,
+	s.quotas = make([]neutronProjectQuota, len(s.projects))
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(e.GetAPIDetailConcurrencyCount())
+	for i, p := range s.projects {
+		i, p := i, p
+		g.Go(func() error {
+			quota, err := quotas.GetDetail(gCtx, e.ClientV2, p.ID).Extract()
+			if err != nil {
+				return err
+			}
+			s.quotas[i] = neutronProjectQuota{
+				projectName: p.Name,
+				projectID:   p.ID,
+				quota:       *quota,
+			}
+			return nil
 		})
 	}
-	return nil
+	return g.Wait()
 }
 
 // --- Emitters ---

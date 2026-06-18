@@ -61,6 +61,7 @@ var (
 	disableServiceAutodetect    = kingpin.Flag("disable-service-autodetect", "Disable single-cloud service autodetection and use only explicit service flags").Default("false").Bool()
 	novaMetadataMapping         = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
 	completePlacementInParallel = kingpin.Flag("complete-placement-in-parallel", "Enable parallel collection of placement resource provider data").Default("false").Bool()
+	collectPlacementTraits      = kingpin.Flag("collect-placement-traits", "Collect custom traits for placement resource provider metrics").Default("false").Bool()
 	dnsConcurrentCount          = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
 )
 
@@ -262,6 +263,7 @@ func cacheOptions(services []string) cache.CollectCacheOptions {
 		NovaMetadataMapping:         novaMetadataMapping,
 		DnsConcurrentCount:          *dnsConcurrentCount,
 		CompletePlacementInParallel: *completePlacementInParallel,
+		CollectPlacementTraits:      *collectPlacementTraits,
 	}
 }
 
@@ -281,6 +283,7 @@ func exporterOptions(service, cloud string) exporters.ExporterOptions {
 		NovaMetadataMapping:         novaMetadataMapping,
 		DnsConcurrentCount:          *dnsConcurrentCount,
 		CompletePlacementInParallel: *completePlacementInParallel,
+		CollectPlacementTraits:      *collectPlacementTraits,
 	}
 }
 

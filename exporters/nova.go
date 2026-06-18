@@ -19,6 +19,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	identityprojects "github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -115,6 +116,22 @@ type novaScrape struct {
 	allServices    []services.Service
 	allHypervisors []hypervisors.Hypervisor
 	allAggregates  []aggregates.Aggregate
+	projects       []identityprojects.Project
+	limits         []novaProjectLimits
+	tenantUsages   []usage.TenantUsage
+	quotas         []novaProjectQuotas
+}
+
+type novaProjectLimits struct {
+	projectName string
+	projectID   string
+	limits      limits.Limits
+}
+
+type novaProjectQuotas struct {
+	projectName string
+	projectID   string
+	quota       quotasets.QuotaDetailSet
 }
 
 var novaGraph = Graph[*NovaExporter, novaScrape]{
@@ -125,6 +142,10 @@ var novaGraph = Graph[*NovaExporter, novaScrape]{
 		{Name: "servers", Fetch: (*NovaExporter).fetchServers},
 		{Name: "services", Fetch: (*NovaExporter).fetchServices},
 		{Name: "hypervisors", Fetch: (*NovaExporter).fetchHypervisors},
+		{Name: "projects", Fetch: (*NovaExporter).fetchProjects},
+		{Name: "limits", DependsOn: []string{"projects"}, Fetch: (*NovaExporter).fetchLimits},
+		{Name: "usage", Fetch: (*NovaExporter).fetchUsage},
+		{Name: "quotas", DependsOn: []string{"projects"}, Fetch: (*NovaExporter).fetchQuotas},
 	},
 	Emitters: []Emitter[*NovaExporter, novaScrape]{
 		{Name: "flavors", Metrics: []string{"flavors", "flavor"}, Sources: []string{"flavors"}, Emit: (*NovaExporter).emitFlavors},
@@ -133,9 +154,9 @@ var novaGraph = Graph[*NovaExporter, novaScrape]{
 		{Name: "servers", Metrics: []string{"total_vms", "server_status"}, Sources: []string{"servers"}, Emit: (*NovaExporter).emitServers},
 		{Name: "services", Metrics: []string{"agent_state"}, Sources: []string{"services"}, Emit: (*NovaExporter).emitServices},
 		{Name: "hypervisors", Metrics: []string{"running_vms", "current_workload", "vcpus_available", "vcpus_used", "memory_available_bytes", "memory_used_bytes", "local_storage_available_bytes", "local_storage_used_bytes", "free_disk_bytes"}, Sources: []string{"hypervisors"}, Emit: (*NovaExporter).emitHypervisors},
-		{Name: "limits", Metrics: []string{"limits_vcpus_max", "limits_vcpus_used", "limits_memory_max", "limits_memory_used", "limits_instances_used", "limits_instances_max"}, Sources: []string{}, Emit: (*NovaExporter).emitLimits},
-		{Name: "usage", Metrics: []string{"server_local_gb"}, Sources: []string{}, Emit: (*NovaExporter).emitUsage},
-		{Name: "quotas", Metrics: []string{"quota_cores", "quota_instances", "quota_key_pairs", "quota_metadata_items", "quota_ram", "quota_server_groups", "quota_server_group_members", "quota_fixed_ips", "quota_floating_ips", "quota_security_group_rules", "quota_security_groups", "quota_injected_file_content_bytes", "quota_injected_file_path_bytes", "quota_injected_files"}, Sources: []string{}, Emit: (*NovaExporter).emitQuotas},
+		{Name: "limits", Metrics: []string{"limits_vcpus_max", "limits_vcpus_used", "limits_memory_max", "limits_memory_used", "limits_instances_used", "limits_instances_max"}, Sources: []string{"limits"}, Emit: (*NovaExporter).emitLimits},
+		{Name: "usage", Metrics: []string{"server_local_gb"}, Sources: []string{"usage"}, Emit: (*NovaExporter).emitUsage},
+		{Name: "quotas", Metrics: []string{"quota_cores", "quota_instances", "quota_key_pairs", "quota_metadata_items", "quota_ram", "quota_server_groups", "quota_server_group_members", "quota_fixed_ips", "quota_floating_ips", "quota_security_group_rules", "quota_security_groups", "quota_injected_file_content_bytes", "quota_injected_file_path_bytes", "quota_injected_files"}, Sources: []string{"quotas"}, Emit: (*NovaExporter).emitQuotas},
 	},
 }
 
@@ -268,6 +289,58 @@ func (e *NovaExporter) fetchHypervisors(ctx context.Context, s *novaScrape) erro
 	return err
 }
 
+func (e *NovaExporter) fetchProjects(ctx context.Context, s *novaScrape) error {
+	var err error
+	s.projects, err = GetProjects(ctx, &e.BaseOpenStackExporter)
+	return err
+}
+
+func (e *NovaExporter) fetchLimits(ctx context.Context, s *novaScrape) error {
+	for _, p := range s.projects {
+		opts := limits.GetOpts{TenantID: p.ID}
+		if p.ID == e.TenantID {
+			opts = limits.GetOpts{}
+		}
+		lim, err := limits.Get(ctx, e.ClientV2, opts).Extract()
+		if err != nil {
+			return err
+		}
+		s.limits = append(s.limits, novaProjectLimits{
+			projectName: p.Name,
+			projectID:   p.ID,
+			limits:      *lim,
+		})
+	}
+	return nil
+}
+
+func (e *NovaExporter) fetchUsage(ctx context.Context, s *novaScrape) error {
+	if e.descs.ServerLocalGB == nil {
+		return nil
+	}
+	allPages, err := usage.AllTenants(e.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+	s.tenantUsages, err = usage.ExtractAllTenants(allPages)
+	return err
+}
+
+func (e *NovaExporter) fetchQuotas(ctx context.Context, s *novaScrape) error {
+	for _, p := range s.projects {
+		quotaSet, err := quotasets.GetDetail(ctx, e.ClientV2, p.ID).Extract()
+		if err != nil {
+			return err
+		}
+		s.quotas = append(s.quotas, novaProjectQuotas{
+			projectName: p.Name,
+			projectID:   p.ID,
+			quota:       quotaSet,
+		})
+	}
+	return nil
+}
+
 // --- Emitters ---
 
 func (e *NovaExporter) emitFlavors(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
@@ -366,45 +439,23 @@ func (e *NovaExporter) emitHypervisors(ctx context.Context, s *novaScrape, ch ch
 }
 
 func (e *NovaExporter) emitLimits(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
-	allProjects, err := GetProjects(ctx, &e.BaseOpenStackExporter)
-	if err != nil {
-		return err
-	}
-	for _, p := range allProjects {
-		opts := limits.GetOpts{TenantID: p.ID}
-		if p.ID == e.TenantID {
-			opts = limits.GetOpts{}
-		}
-		lim, err := limits.Get(ctx, e.ClientV2, opts).Extract()
-		if err != nil {
-			return err
-		}
+	for _, lim := range s.limits {
+		absolute := lim.limits.Absolute
 		emit := func(d *prometheus.Desc, v float64) {
-			emitGauge(ch, d, v, p.Name, p.ID)
+			emitGauge(ch, d, v, lim.projectName, lim.projectID)
 		}
-		emit(e.descs.LimitsVcpusMax, float64(lim.Absolute.MaxTotalCores))
-		emit(e.descs.LimitsVcpusUsed, float64(lim.Absolute.TotalCoresUsed))
-		emit(e.descs.LimitsMemoryMax, float64(lim.Absolute.MaxTotalRAMSize))
-		emit(e.descs.LimitsMemoryUsed, float64(lim.Absolute.TotalRAMUsed))
-		emit(e.descs.LimitsInstancesUsed, float64(lim.Absolute.TotalInstancesUsed))
-		emit(e.descs.LimitsInstancesMax, float64(lim.Absolute.MaxTotalInstances))
+		emit(e.descs.LimitsVcpusMax, float64(absolute.MaxTotalCores))
+		emit(e.descs.LimitsVcpusUsed, float64(absolute.TotalCoresUsed))
+		emit(e.descs.LimitsMemoryMax, float64(absolute.MaxTotalRAMSize))
+		emit(e.descs.LimitsMemoryUsed, float64(absolute.TotalRAMUsed))
+		emit(e.descs.LimitsInstancesUsed, float64(absolute.TotalInstancesUsed))
+		emit(e.descs.LimitsInstancesMax, float64(absolute.MaxTotalInstances))
 	}
 	return nil
 }
 
 func (e *NovaExporter) emitUsage(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
-	if e.descs.ServerLocalGB == nil {
-		return nil
-	}
-	allPages, err := usage.AllTenants(e.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-	allTenantsUsage, err := usage.ExtractAllTenants(allPages)
-	if err != nil {
-		return err
-	}
-	for _, tenant := range allTenantsUsage {
+	for _, tenant := range s.tenantUsages {
 		for _, server := range tenant.ServerUsages {
 			emitGauge(ch, e.descs.ServerLocalGB,
 				float64(server.LocalGB), server.Name, server.InstanceID, tenant.TenantID)
@@ -414,29 +465,22 @@ func (e *NovaExporter) emitUsage(ctx context.Context, s *novaScrape, ch chan<- p
 }
 
 func (e *NovaExporter) emitQuotas(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
-	allProjects, err := GetProjects(ctx, &e.BaseOpenStackExporter)
-	if err != nil {
-		return err
-	}
-	for _, p := range allProjects {
-		quotaSet, err := quotasets.GetDetail(ctx, e.ClientV2, p.ID).Extract()
-		if err != nil {
-			return err
-		}
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaCores, quotaSet.Cores, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaInstances, quotaSet.Instances, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaKeyPairs, quotaSet.KeyPairs, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaMetadataItems, quotaSet.MetadataItems, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaRAM, quotaSet.RAM, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaServerGroups, quotaSet.ServerGroups, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaServerGroupMembers, quotaSet.ServerGroupMembers, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaFixedIPs, quotaSet.FixedIPs, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaFloatingIPs, quotaSet.FloatingIPs, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaSecurityGroupRules, quotaSet.SecurityGroupRules, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaSecurityGroups, quotaSet.SecurityGroups, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFileContentBytes, quotaSet.InjectedFileContentBytes, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFilePathBytes, quotaSet.InjectedFilePathBytes, p.Name, p.ID)
-		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFiles, quotaSet.InjectedFiles, p.Name, p.ID)
+	for _, entry := range s.quotas {
+		quotaSet := entry.quota
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaCores, quotaSet.Cores, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaInstances, quotaSet.Instances, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaKeyPairs, quotaSet.KeyPairs, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaMetadataItems, quotaSet.MetadataItems, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaRAM, quotaSet.RAM, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaServerGroups, quotaSet.ServerGroups, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaServerGroupMembers, quotaSet.ServerGroupMembers, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaFixedIPs, quotaSet.FixedIPs, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaFloatingIPs, quotaSet.FloatingIPs, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaSecurityGroupRules, quotaSet.SecurityGroupRules, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaSecurityGroups, quotaSet.SecurityGroups, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFileContentBytes, quotaSet.InjectedFileContentBytes, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFilePathBytes, quotaSet.InjectedFilePathBytes, entry.projectName, entry.projectID)
+		e.emitNovaQuotaDetail(ch, e.descs.QuotaInjectedFiles, quotaSet.InjectedFiles, entry.projectName, entry.projectID)
 	}
 	return nil
 }

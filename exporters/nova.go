@@ -371,30 +371,27 @@ func (e *NovaExporter) emitServerCount(ctx context.Context, s *novaScrape, ch ch
 }
 
 func (e *NovaExporter) emitServerStatus(ctx context.Context, s *novaScrape, ch chan<- prometheus.Metric) error {
-	serverStatusDesc := e.serverStatusDesc
-	if serverStatusDesc != nil {
-		var flavorMapper flavorIDMapper
-		mvAtLeast246, _ := utils.IsMicroversionAtLeast(e.ClientV2.Microversion, "2.46")
-		if mvAtLeast246 || serversNeedFlavorMapper(s.allServers) {
-			flavorMapper = newFlavorIDMapper(s.allFlavors)
+	var flavorMapper flavorIDMapper
+	mvAtLeast246, _ := utils.IsMicroversionAtLeast(e.ClientV2.Microversion, "2.46")
+	if mvAtLeast246 || serversNeedFlavorMapper(s.allServers) {
+		flavorMapper = newFlavorIDMapper(s.allFlavors)
+	}
+	for _, server := range s.allServers {
+		var flavorID string
+		if flavorMapper == nil {
+			flavorID = fmt.Sprintf("%v", server.Flavor["id"])
+		} else {
+			flavorID = flavorMapper.Search(server.Flavor["original_name"])
 		}
-		for _, server := range s.allServers {
-			var flavorID string
-			if flavorMapper == nil {
-				flavorID = fmt.Sprintf("%v", server.Flavor["id"])
-			} else {
-				flavorID = flavorMapper.Search(server.Flavor["original_name"])
-			}
-			labelValues := []string{
-				server.ID, server.Status, server.Name, server.TenantID,
-				server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID,
-				server.HypervisorHostname, server.ID,
-				server.AvailabilityZone, flavorID, server.InstanceName,
-			}
-			metadataValues := e.NovaMetadataMapping.Extract(server.Metadata)
-			emitGauge(ch, serverStatusDesc,
-				float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
+		labelValues := []string{
+			server.ID, server.Status, server.Name, server.TenantID,
+			server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID,
+			server.HypervisorHostname, server.ID,
+			server.AvailabilityZone, flavorID, server.InstanceName,
 		}
+		metadataValues := e.NovaMetadataMapping.Extract(server.Metadata)
+		emitGauge(ch, e.serverStatusDesc,
+			float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
 	}
 	return nil
 }

@@ -1,8 +1,10 @@
 package exporters
 
 import (
+	"net/http"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -507,5 +509,74 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
+	assert.NoError(suite.T(), err)
+}
+
+// TestNovaHypervisorsFallbackToVCPUsOnIncompleteTopology verifies that when
+// cpu_info is present but has a zero topology field (e.g. cores=0), the
+// exporter falls back to hypervisor.VCPUs instead of reporting 0 vCPUs.
+//
+// This test fails against the original reflect.ValueOf(...).IsZero() implementation
+// because a CPUInfo with arch/model/vendor populated is not zero-valued, so the old
+// code enters the topology multiplication branch and computes max(1,1)*2*0*2 = 0.
+// The corrected per-field check detects cores=0 and falls back to hypervisor.VCPUs.
+func (suite *NovaTestSuite) TestNovaHypervisorsFallbackToVCPUsOnIncompleteTopology() {
+	response := &http.Response{
+		Body: httpmock.NewRespBodyFromBytes([]byte(`{
+		"hypervisors": [
+			{
+				"id": 3,
+				"hypervisor_hostname": "host-with-incomplete-topology",
+				"state": "up",
+				"status": "enabled",
+				"hypervisor_type": "fake",
+				"hypervisor_version": 1000,
+				"host_ip": "1.1.1.1",
+				"service": {
+					"id": 9,
+					"host": "host-with-incomplete-topology",
+					"disabled_reason": null
+				},
+				"vcpus": 8,
+				"memory_mb": 8192,
+				"local_gb": 1028,
+				"vcpus_used": 0,
+				"memory_mb_used": 512,
+				"local_gb_used": 0,
+				"free_ram_mb": 7680,
+				"free_disk_gb": 1028,
+				"current_workload": 0,
+				"running_vms": 0,
+				"disk_available_least": 0,
+				"cpu_info": {
+					"arch": "x86_64",
+					"model": "Skylake-Server",
+					"vendor": "Intel",
+					"topology": {
+						"cells": 1,
+						"sockets": 2,
+						"cores": 0,
+						"threads": 2
+					}
+				}
+			}
+		]
+	}`)),
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+		},
+		StatusCode: http.StatusOK,
+	}
+	httpmock.RegisterResponder("GET", suite.MakeURL("/compute/os-hypervisors/detail", ""), httpmock.ResponderFromResponse(response).Times(2))
+
+	err := testutil.CollectAndCompare(
+		*suite.Exporter,
+		strings.NewReader(`
+# HELP openstack_nova_vcpus_available vcpus_available
+# TYPE openstack_nova_vcpus_available gauge
+openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host-with-incomplete-topology"} 8
+`),
+		"openstack_nova_vcpus_available",
+	)
 	assert.NoError(suite.T(), err)
 }

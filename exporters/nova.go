@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"reflect"
 	"slices"
 	"strings"
 
@@ -224,8 +223,13 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		var vcpus int
-		if !reflect.ValueOf(hypervisor.CPUInfo).IsZero() {
-			vcpus = max(hypervisor.CPUInfo.Topology.Cells, 1) * hypervisor.CPUInfo.Topology.Sockets * hypervisor.CPUInfo.Topology.Cores * hypervisor.CPUInfo.Topology.Threads
+		cpuInfo := hypervisor.CPUInfo
+		// Check the values of the Topology fields instead of checking the struct for nil
+		if cpuInfo.Topology.Cores > 0 && cpuInfo.Topology.Threads > 0 && cpuInfo.Topology.Sockets > 0 {
+			vcpus = max(cpuInfo.Topology.Cells, 1) *
+				cpuInfo.Topology.Sockets *
+				cpuInfo.Topology.Cores *
+				cpuInfo.Topology.Threads
 		} else {
 			vcpus = hypervisor.VCPUs
 		}

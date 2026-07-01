@@ -286,6 +286,35 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 * Returns no data if the cache is empty or expired.
 * Retrieves and returns cached data from the backend.
 
+### Ironic 1000-node benchmarks
+
+The Ironic benchmark suite measures scrape performance for 1000 bare metal
+nodes without creating 1000 DevStack virtual machines. It uses a local mock of
+Ironic's paginated `/v1/nodes/detail` API and runs both single-page and
+multi-page cases:
+
+```bash
+mkdir -p ./env/go-build-cache
+GOCACHE="$(pwd)/env/go-build-cache" go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$'
+```
+
+Use the benchmark before and after exporter performance changes to compare
+direct scrape time against cached response time. To model server-side latency
+per Ironic page, set `IRONIC_BENCH_PAGE_DELAY_MS`:
+
+```bash
+mkdir -p ./env/go-build-cache
+GOCACHE="$(pwd)/env/go-build-cache" IRONIC_BENCH_PAGE_DELAY_MS=25 go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$'
+```
+
+For real Ironic calibration, keep `IRONIC_VM_COUNT` low in DevStack and create
+additional `fake-hardware` nodes through the Bare Metal API instead of backing
+every node with libvirt. Ironic localdev is also useful for this: run
+`ironic-api` and `ironic-conductor`, create fake nodes locally, and scrape the
+exporter against that endpoint. Ironic's `tools/benchmark/generate-statistics.py`
+can help separate DB query, object conversion, policy/sanitization, JSON
+serialization, and pagination costs on the server side.
+
 ## Contributing
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics

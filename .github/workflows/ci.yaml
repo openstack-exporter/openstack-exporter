@@ -62,6 +62,8 @@ jobs:
       contents: write
       packages: write
     runs-on: ubuntu-latest
+    env:
+      GOCACHE: ${{ github.workspace }}/env/go-build-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -87,6 +89,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Prepare Go build cache
+        run: mkdir -p "$GOCACHE"
+
       - name: Read Go version
         id: go-version
         run: echo "version=$(go list -m -f '{{.GoVersion}}')" >> "$GITHUB_OUTPUT"
@@ -103,6 +108,9 @@ jobs:
         run: |
           mapfile -t packages < <(go list ./... | grep -v '/integration')
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
+
+      - name: Ironic 1000-node benchmark smoke test
+        run: go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$' -benchtime=1x
 
       - name: Extract metadata from ghcr image
         id: meta-github-image

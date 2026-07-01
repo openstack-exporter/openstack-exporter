@@ -286,16 +286,16 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 * Returns no data if the cache is empty or expired.
 * Retrieves and returns cached data from the backend.
 
-### Ironic 1000-node benchmarks
+### Ironic 10000-node benchmarks
 
-The Ironic benchmark suite measures scrape performance for 1000 bare metal
-nodes without creating 1000 DevStack virtual machines. It uses a local mock of
+The Ironic benchmark suite measures scrape performance for 10000 bare metal
+nodes without creating 10000 DevStack virtual machines. It uses a local mock of
 Ironic's paginated `/v1/nodes/detail` API and runs both single-page and
 multi-page cases:
 
 ```bash
 mkdir -p ./env/go-build-cache
-GOCACHE="$(pwd)/env/go-build-cache" go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$'
+GOCACHE="$(pwd)/env/go-build-cache" go test ./exporters -bench 'BenchmarkIronic.*10000' -benchmem -run '^$'
 ```
 
 Use the benchmark before and after exporter performance changes to compare
@@ -304,7 +304,7 @@ per Ironic page, set `IRONIC_BENCH_PAGE_DELAY_MS`:
 
 ```bash
 mkdir -p ./env/go-build-cache
-GOCACHE="$(pwd)/env/go-build-cache" IRONIC_BENCH_PAGE_DELAY_MS=25 go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$'
+GOCACHE="$(pwd)/env/go-build-cache" IRONIC_BENCH_PAGE_DELAY_MS=25 go test ./exporters -bench 'BenchmarkIronic.*10000' -benchmem -run '^$'
 ```
 
 For real Ironic calibration, keep `IRONIC_VM_COUNT` low in DevStack and create

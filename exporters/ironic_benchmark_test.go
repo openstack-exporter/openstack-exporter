@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	ironicBenchmarkNodeCount = 1000
+	ironicBenchmarkNodeCount = 10000
 	ironicBenchmarkCloud     = "ironic-benchmark"
 	ironicBenchmarkService   = "baremetal"
 )
@@ -79,7 +79,7 @@ type ironicBenchmarkFixture struct {
 	requestCount int
 }
 
-func BenchmarkIronicListNodes1000(b *testing.B) {
+func BenchmarkIronicListNodes10000(b *testing.B) {
 	for _, pageSize := range []int{1000, 100} {
 		b.Run(fmt.Sprintf("page_size_%d", pageSize), func(b *testing.B) {
 			fixture := newIronicBenchmarkFixture(b, pageSize)
@@ -102,7 +102,7 @@ func BenchmarkIronicListNodes1000(b *testing.B) {
 	}
 }
 
-func BenchmarkIronicCollect1000(b *testing.B) {
+func BenchmarkIronicCollect10000(b *testing.B) {
 	for _, pageSize := range []int{1000, 100} {
 		b.Run(fmt.Sprintf("page_size_%d", pageSize), func(b *testing.B) {
 			fixture := newIronicBenchmarkFixture(b, pageSize)
@@ -121,7 +121,7 @@ func BenchmarkIronicCollect1000(b *testing.B) {
 	}
 }
 
-func BenchmarkIronicCacheWrite1000(b *testing.B) {
+func BenchmarkIronicCacheWrite10000(b *testing.B) {
 	for _, pageSize := range []int{1000, 100} {
 		b.Run(fmt.Sprintf("page_size_%d", pageSize), func(b *testing.B) {
 			fixture := newIronicBenchmarkFixture(b, pageSize)

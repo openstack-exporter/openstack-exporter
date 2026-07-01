@@ -170,5 +170,5 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Ironic 1000-node benchmark smoke test
-        run: go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$' -benchtime=1x
+      - name: Ironic 10000-node benchmark smoke test
+        run: go test ./exporters -bench 'BenchmarkIronic.*10000' -benchmem -run '^$' -benchtime=1x

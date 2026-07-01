@@ -62,8 +62,6 @@ jobs:
       contents: write
       packages: write
     runs-on: ubuntu-latest
-    env:
-      GOCACHE: ${{ github.workspace }}/env/go-build-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -89,9 +87,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Prepare Go build cache
-        run: mkdir -p "$GOCACHE"
-
       - name: Read Go version
         id: go-version
         run: echo "version=$(go list -m -f '{{.GoVersion}}')" >> "$GITHUB_OUTPUT"
@@ -108,9 +103,6 @@ jobs:
         run: |
           mapfile -t packages < <(go list ./... | grep -v '/integration')
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
-
-      - name: Ironic 1000-node benchmark smoke test
-        run: go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$' -benchtime=1x
 
       - name: Extract metadata from ghcr image
         id: meta-github-image
@@ -152,3 +144,31 @@ jobs:
           args: release --snapshot --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  benchmark:
+    name: Ironic benchmark
+    runs-on: ubuntu-latest
+    env:
+      GOCACHE: ${{ github.workspace }}/env/go-build-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare Go build cache
+        run: mkdir -p "$GOCACHE"
+
+      - name: Cache Go modules
+        uses: actions/cache@v5
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Ironic 1000-node benchmark smoke test
+        run: go test ./exporters -bench 'BenchmarkIronic.*1000' -benchmem -run '^$' -benchtime=1x

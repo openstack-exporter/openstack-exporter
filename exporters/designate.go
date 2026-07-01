@@ -11,124 +11,155 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+func init() {
+	RegisterTypedExporter("dns", NewDesignateExporter)
+}
+
+var zoneStatuses = []string{"pending", "active", "deleted", "error"}
+var recordsetStatuses = []string{"pending", "active", "deleted", "error"}
+
+func mapZoneStatus(s string) int {
+	for i, st := range zoneStatuses {
+		if st == strings.ToLower(s) {
+			return i
+		}
+	}
+	return -1
+}
+
+func mapRecordsetStatus(s string) int {
+	for i, st := range recordsetStatuses {
+		if st == strings.ToLower(s) {
+			return i
+		}
+	}
+	return -1
+}
+
 type DesignateExporter struct {
 	BaseOpenStackExporter
+	sched Schedule
+	descs designateDescs
 }
 
-var zone_status = []string{
-	"pending",
-	"active",
-	"deleted",
-	"error",
+type designateDescs struct {
+	Zones            *prometheus.Desc `metric:"zones"`
+	ZoneStatus       *prometheus.Desc `metric:"zone_status"       labels:"id,name,status,tenant_id,type"`
+	Recordsets       *prometheus.Desc `metric:"recordsets"        labels:"zone_id,zone_name,tenant_id"`
+	RecordsetsStatus *prometheus.Desc `metric:"recordsets_status" labels:"id,name,status,zone_id,zone_name,type"`
 }
 
-var recordset_status = []string{
-	"pending",
-	"active",
-	"deleted",
-	"error",
+type designateScrape struct {
+	zones      []zones.Zone
+	recordsets []designateZoneRecordsets
 }
 
-func mapZoneStatus(zoneStatus string) int {
-	for idx, status := range zone_status {
-		if status == strings.ToLower(zoneStatus) {
-			return idx
-		}
-	}
-	return -1
+type designateZoneRecordsets struct {
+	zone       zones.Zone
+	recordsets []recordsets.RecordSet
+	ok         bool
 }
 
-func mapRecordsetStatus(recordsetStatus string) int {
-	for idx, status := range recordset_status {
-		if status == strings.ToLower(recordsetStatus) {
-			return idx
-		}
-	}
-	return -1
-}
-
-var defaultDesignateMetrics = []Metric{
-	{Name: "zones", Fn: ListZonesAndRecordsets},
-	{Name: "zone_status", Labels: []string{"id", "name", "status", "tenant_id", "type"}, Fn: nil},
-	{Name: "recordsets", Labels: []string{"zone_id", "zone_name", "tenant_id"}, Fn: nil},
-	{Name: "recordsets_status", Labels: []string{"id", "name", "status", "zone_id", "zone_name", "type"}, Fn: nil},
+var designateGraph = Graph[*DesignateExporter, designateScrape]{
+	Sources: []Source[*DesignateExporter, designateScrape]{
+		{Name: "zones", Fetch: (*DesignateExporter).fetchZones},
+		{Name: "recordsets", DependsOn: []string{"zones"}, Fetch: (*DesignateExporter).fetchRecordsets},
+	},
+	Emitters: []Emitter[*DesignateExporter, designateScrape]{
+		{
+			Name:    "zones",
+			Metrics: []string{"zones", "zone_status"},
+			Sources: []string{"zones"},
+			Emit:    (*DesignateExporter).emitZones,
+		},
+		{
+			Name:    "recordsets",
+			Metrics: []string{"recordsets", "recordsets_status"},
+			Sources: []string{"recordsets"},
+			Emit:    (*DesignateExporter).emitRecordsets,
+		},
+	},
 }
 
 func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*DesignateExporter, error) {
-	exporter := DesignateExporter{
-		BaseOpenStackExporter{
-			ExporterConfig: *config,
+	e := &DesignateExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "designate",
+			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
+	// Required header for all-projects zone collection.
+	e.ClientV2.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 
-	// This header needed for colletiong zone of all projects
-	exporter.ClientV2.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
-
-	for _, metric := range defaultDesignateMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := designateGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	designateGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesZones, err := zones.List(exporter.ClientV2, zones.ListOpts{}).AllPages(ctx)
+func (e *DesignateExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(designateScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &designateGraph, e.sched, s, ch)
+	})
+}
+
+func (e *DesignateExporter) fetchZones(ctx context.Context, s *designateScrape) error {
+	allPages, err := zones.List(e.ClientV2, zones.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+	s.zones, err = zones.ExtractZones(allPages)
+	return err
+}
 
-	allZones, err := zones.ExtractZones(allPagesZones)
-	if err != nil {
-		return err
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
-		prometheus.GaugeValue, float64(len(allZones)))
-
+func (e *DesignateExporter) fetchRecordsets(ctx context.Context, s *designateScrape) error {
+	s.recordsets = make([]designateZoneRecordsets, len(s.zones))
 	g, gCtx := errgroup.WithContext(ctx)
-	g.SetLimit(exporter.GetDnsConcurrencyCount())
+	g.SetLimit(e.GetDnsConcurrencyCount())
 
-	// Collect recordsets for zone and write metrics for zones and recordsets
-	for _, zone := range allZones {
-		zone := zone
+	for i, zone := range s.zones {
+		i, zone := i, zone
 		g.Go(func() error {
-			allPagesRecordsets, err := recordsets.ListByZone(exporter.ClientV2, zone.ID, recordsets.ListOpts{}).AllPages(gCtx)
+			allPages, err := recordsets.ListByZone(e.ClientV2, zone.ID, recordsets.ListOpts{}).AllPages(gCtx)
 			if err != nil {
 				return err
 			}
-
-			allRecordsets, err := recordsets.ExtractRecordSets(allPagesRecordsets)
+			rsets, err := recordsets.ExtractRecordSets(allPages)
 			if err != nil {
 				return err
 			}
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
-				prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
-
-			for _, recordset := range allRecordsets {
-				ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
-					prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
-					recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
-			}
-
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
-				prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
-				zone.Status, zone.ProjectID, zone.Type)
-
+			s.recordsets[i] = designateZoneRecordsets{zone: zone, recordsets: rsets, ok: true}
 			return nil
 		})
 	}
+	return g.Wait()
+}
 
-	if err := g.Wait(); err != nil {
-		return err
+func (e *DesignateExporter) emitZones(ctx context.Context, s *designateScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.Zones, float64(len(s.zones)))
+	for _, zone := range s.zones {
+		emitGauge(ch, e.descs.ZoneStatus, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name, zone.Status, zone.ProjectID, zone.Type)
 	}
+	return nil
+}
 
+func (e *DesignateExporter) emitRecordsets(ctx context.Context, s *designateScrape, ch chan<- prometheus.Metric) error {
+	for _, entry := range s.recordsets {
+		if !entry.ok {
+			continue
+		}
+		zone := entry.zone
+		emitGauge(ch, e.descs.Recordsets, float64(len(entry.recordsets)), zone.ID, zone.Name, zone.ProjectID)
+		for _, rs := range entry.recordsets {
+			emitGauge(ch, e.descs.RecordsetsStatus,
+				float64(mapRecordsetStatus(rs.Status)), rs.ID, rs.Name, rs.Status, rs.ZoneID, rs.ZoneName, rs.Type)
+		}
+	}
 	return nil
 }

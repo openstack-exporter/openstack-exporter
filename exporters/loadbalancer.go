@@ -11,6 +11,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	RegisterTypedExporter("load-balancer", NewLoadbalancerExporter)
+}
+
 // Octavia API v2 entities have two status codes present in the response body.
 // The provisioning_status describes the lifecycle status of the entity while the operating_status provides the observed status of the entity.
 // Here we put operating_status in metrics value and provisioning_status in metrics label
@@ -57,104 +61,134 @@ func mapPoolStatus(current string) int {
 
 type LoadbalancerExporter struct {
 	BaseOpenStackExporter
+	sched Schedule
+	descs loadbalancerDescs
 }
 
-var defaultLoadbalancerMetrics = []Metric{
-	{Name: "total_loadbalancers", Fn: ListAllLoadbalancers},
-	{Name: "loadbalancer_status", Labels: []string{"id", "name", "project_id", "operating_status", "provisioning_status", "provider", "vip_address"}},
-	{Name: "total_amphorae", Fn: ListAllAmphorae},
-	{Name: "amphora_status", Labels: []string{"id", "loadbalancer_id", "compute_id", "status", "role", "lb_network_ip", "ha_ip", "cert_expiration"}},
-	{Name: "total_pools", Fn: ListAllPools},
-	{Name: "pool_status", Labels: []string{"id", "provisioning_status", "name", "loadbalancers", "protocol", "lb_algorithm", "operating_status", "project_id"}},
+type loadbalancerDescs struct {
+	TotalLoadbalancers *prometheus.Desc `metric:"total_loadbalancers"`
+	LoadbalancerStatus *prometheus.Desc `metric:"loadbalancer_status" labels:"id,name,project_id,operating_status,provisioning_status,provider,vip_address"`
+	TotalAmphorae      *prometheus.Desc `metric:"total_amphorae"`
+	AmphoraStatus      *prometheus.Desc `metric:"amphora_status"      labels:"id,loadbalancer_id,compute_id,status,role,lb_network_ip,ha_ip,cert_expiration"`
+	TotalPools         *prometheus.Desc `metric:"total_pools"`
+	PoolStatus         *prometheus.Desc `metric:"pool_status"         labels:"id,provisioning_status,name,loadbalancers,protocol,lb_algorithm,operating_status,project_id"`
+}
+
+type loadbalancerScrape struct {
+	loadbalancers []loadbalancers.LoadBalancer
+	amphorae      []amphorae.Amphora
+	pools         []pools.Pool
+}
+
+var loadbalancerGraph = Graph[*LoadbalancerExporter, loadbalancerScrape]{
+	Sources: []Source[*LoadbalancerExporter, loadbalancerScrape]{
+		{Name: "loadbalancers", Fetch: (*LoadbalancerExporter).fetchLoadbalancers},
+		{Name: "amphorae", Fetch: (*LoadbalancerExporter).fetchAmphorae},
+		{Name: "pools", Fetch: (*LoadbalancerExporter).fetchPools},
+	},
+	Emitters: []Emitter[*LoadbalancerExporter, loadbalancerScrape]{
+		{
+			Name:    "loadbalancers",
+			Metrics: []string{"total_loadbalancers", "loadbalancer_status"},
+			Sources: []string{"loadbalancers"},
+			Emit:    (*LoadbalancerExporter).emitLoadbalancers,
+		},
+		{
+			Name:    "amphorae",
+			Metrics: []string{"total_amphorae", "amphora_status"},
+			Sources: []string{"amphorae"},
+			Emit:    (*LoadbalancerExporter).emitAmphorae,
+		},
+		{
+			Name:    "pools",
+			Metrics: []string{"total_pools", "pool_status"},
+			Sources: []string{"pools"},
+			Emit:    (*LoadbalancerExporter).emitPools,
+		},
+	},
 }
 
 func NewLoadbalancerExporter(config *ExporterConfig, logger *slog.Logger) (*LoadbalancerExporter, error) {
-	exporter := LoadbalancerExporter{
-		BaseOpenStackExporter{
+	e := &LoadbalancerExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "loadbalancer",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultLoadbalancerMetrics {
-		exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := loadbalancerGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	loadbalancerGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListAllLoadbalancers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allLoadbalancers []loadbalancers.LoadBalancer
-	allPagesLoadbalancers, err := loadbalancers.List(exporter.ClientV2, loadbalancers.ListOpts{}).AllPages(ctx)
+func (e *LoadbalancerExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(loadbalancerScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &loadbalancerGraph, e.sched, s, ch)
+	})
+}
+
+func (e *LoadbalancerExporter) fetchLoadbalancers(ctx context.Context, s *loadbalancerScrape) error {
+	allPages, err := loadbalancers.List(e.ClientV2, loadbalancers.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+	s.loadbalancers, err = loadbalancers.ExtractLoadBalancers(allPages)
+	return err
+}
 
-	allLoadbalancers, err = loadbalancers.ExtractLoadBalancers(allPagesLoadbalancers)
+func (e *LoadbalancerExporter) fetchAmphorae(ctx context.Context, s *loadbalancerScrape) error {
+	allPages, err := amphorae.List(e.ClientV2, amphorae.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+	s.amphorae, err = amphorae.ExtractAmphorae(allPages)
+	return err
+}
 
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_loadbalancers"].Metric,
-		prometheus.GaugeValue, float64(len(allLoadbalancers)))
-
-	// Loadbalancer status metrics
-	for _, loadbalancer := range allLoadbalancers {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancer_status"].Metric,
-			prometheus.GaugeValue, float64(mapLoadbalancerStatus(loadbalancer.OperatingStatus)), loadbalancer.ID, loadbalancer.Name, loadbalancer.ProjectID,
-			loadbalancer.OperatingStatus, loadbalancer.ProvisioningStatus, loadbalancer.Provider, loadbalancer.VipAddress)
+func (e *LoadbalancerExporter) fetchPools(ctx context.Context, s *loadbalancerScrape) error {
+	allPages, err := pools.List(e.ClientV2, pools.ListOpts{}).AllPages(ctx)
+	if err != nil {
+		return err
 	}
+	s.pools, err = pools.ExtractPools(allPages)
+	return err
+}
 
+func (e *LoadbalancerExporter) emitLoadbalancers(ctx context.Context, s *loadbalancerScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.TotalLoadbalancers, float64(len(s.loadbalancers)))
+	for _, lb := range s.loadbalancers {
+		emitGauge(ch, e.descs.LoadbalancerStatus,
+			float64(mapLoadbalancerStatus(lb.OperatingStatus)),
+			lb.ID, lb.Name, lb.ProjectID, lb.OperatingStatus, lb.ProvisioningStatus, lb.Provider, lb.VipAddress)
+	}
 	return nil
 }
 
-func ListAllAmphorae(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allAmphorae []amphorae.Amphora
-	allPagesAmphorae, err := amphorae.List(exporter.ClientV2, amphorae.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
+func (e *LoadbalancerExporter) emitAmphorae(ctx context.Context, s *loadbalancerScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.TotalAmphorae, float64(len(s.amphorae)))
+	for _, a := range s.amphorae {
+		emitGauge(ch, e.descs.AmphoraStatus,
+			float64(mapAmphoraStatus(a.Status)),
+			a.ID, a.LoadbalancerID, a.ComputeID, a.Status,
+			a.Role, a.LBNetworkIP, a.HAIP, a.CertExpiration.Format(time.RFC3339))
 	}
-
-	allAmphorae, err = amphorae.ExtractAmphorae(allPagesAmphorae)
-	if err != nil {
-		return err
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_amphorae"].Metric,
-		prometheus.GaugeValue, float64(len(allAmphorae)))
-
-	// Loadbalancer status metrics
-	for _, amphora := range allAmphorae {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["amphora_status"].Metric,
-			prometheus.GaugeValue, float64(mapAmphoraStatus(amphora.Status)), amphora.ID, amphora.LoadbalancerID, amphora.ComputeID, amphora.Status,
-			amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339))
-	}
-
 	return nil
 }
 
-func ListAllPools(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allPools []pools.Pool
-	allPagesPools, err := pools.List(exporter.ClientV2, pools.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allPools, err = pools.ExtractPools(allPagesPools)
-	if err != nil {
-		return err
-	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_pools"].Metric,
-		prometheus.GaugeValue, float64(len(allPools)))
-
-	for _, pool := range allPools {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_status"].Metric,
-			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
+func (e *LoadbalancerExporter) emitPools(ctx context.Context, s *loadbalancerScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.TotalPools, float64(len(s.pools)))
+	for _, pool := range s.pools {
+		emitGauge(ch, e.descs.PoolStatus,
+			float64(mapPoolStatus(pool.ProvisioningStatus)),
+			pool.ID, pool.ProvisioningStatus, pool.Name,
 			lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID)
 	}
-
 	return nil
 }
 
@@ -166,6 +200,5 @@ func lbsLabels(lbs []pools.LoadBalancerID) string {
 		}
 		label += l.ID
 	}
-
 	return label
 }

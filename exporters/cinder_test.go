@@ -115,6 +115,6 @@ openstack_cinder_volumes 2
 `
 
 func (suite *CinderTestSuite) TestCinderExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(cinderExpectedUp), metricNamesFrom(cinderExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

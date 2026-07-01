@@ -29,6 +29,6 @@ openstack_glance_up 1
 `
 
 func (suite *GlanceTestSuite) TestGlanceExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(glanceExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(glanceExpectedUp), metricNamesFrom(glanceExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

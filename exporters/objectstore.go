@@ -9,54 +9,80 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type ObjectStoreExporter struct {
-	BaseOpenStackExporter
+func init() {
+	RegisterTypedExporter("object-store", NewObjectStoreExporter)
 }
 
-var defaultObjectStoreMetrics = []Metric{
-	{Name: "objects", Labels: []string{"container_name"}, Fn: ListContainers},
-	{Name: "bytes", Labels: []string{"container_name"}, Fn: nil},
+type ObjectStoreExporter struct {
+	BaseOpenStackExporter
+	sched Schedule
+	descs objectStoreDescs
+}
+
+type objectStoreDescs struct {
+	Objects *prometheus.Desc `metric:"objects" labels:"container_name"`
+	Bytes   *prometheus.Desc `metric:"bytes"   labels:"container_name"`
+}
+
+type objectStoreScrape struct {
+	containers []containers.Container
+}
+
+var objectStoreGraph = Graph[*ObjectStoreExporter, objectStoreScrape]{
+	Sources: []Source[*ObjectStoreExporter, objectStoreScrape]{
+		{Name: "containers", Fetch: (*ObjectStoreExporter).fetchContainers},
+	},
+	Emitters: []Emitter[*ObjectStoreExporter, objectStoreScrape]{
+		{
+			Name:    "containers",
+			Metrics: []string{"objects", "bytes"},
+			Sources: []string{"containers"},
+			Emit:    (*ObjectStoreExporter).emitContainers,
+		},
+	},
 }
 
 func NewObjectStoreExporter(config *ExporterConfig, logger *slog.Logger) (*ObjectStoreExporter, error) {
-	exporter := ObjectStoreExporter{
-		BaseOpenStackExporter{
+	e := &ObjectStoreExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "object_store",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultObjectStoreMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := objectStoreGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	objectStoreGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListContainers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	err := containers.List(exporter.ClientV2, containers.ListOpts{}).EachPage(ctx, func(_ context.Context, page pagination.Page) (bool, error) {
-		containerList, err := containers.ExtractInfo(page)
-		if err != nil {
-			return false, err
-		}
-
-		for _, c := range containerList {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["objects"].Metric,
-				prometheus.GaugeValue, float64(c.Count), c.Name)
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["bytes"].Metric,
-				prometheus.GaugeValue, float64(c.Bytes), c.Name)
-		}
-		return true, nil
+func (e *ObjectStoreExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(objectStoreScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &objectStoreGraph, e.sched, s, ch)
 	})
+}
 
-	if err != nil {
-		return err
+func (e *ObjectStoreExporter) fetchContainers(ctx context.Context, s *objectStoreScrape) error {
+	return containers.List(e.ClientV2, containers.ListOpts{}).EachPage(ctx,
+		func(_ context.Context, page pagination.Page) (bool, error) {
+			list, err := containers.ExtractInfo(page)
+			if err != nil {
+				return false, err
+			}
+			s.containers = append(s.containers, list...)
+			return true, nil
+		})
+}
+
+func (e *ObjectStoreExporter) emitContainers(ctx context.Context, s *objectStoreScrape, ch chan<- prometheus.Metric) error {
+	for _, c := range s.containers {
+		emitGauge(ch, e.descs.Objects, float64(c.Count), c.Name)
+		emitGauge(ch, e.descs.Bytes, float64(c.Bytes), c.Name)
 	}
 	return nil
 }

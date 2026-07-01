@@ -1,0 +1,10 @@
+{
+    "extension": {
+        "alias": "vpnaas",
+        "description": "Introduces VPN feature",
+        "links": [],
+        "name": "VPN service",
+        "namespace": "http://docs.openstack.org/ext/vpn/api/v2.0",
+        "updated": "2013-05-29T10:00:00-00:00"
+    }
+}

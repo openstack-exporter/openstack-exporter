@@ -30,6 +30,6 @@ openstack_designate_zones 1
 `
 
 func (suite *DesignateTestSuite) TestDesignateExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(designateExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(designateExpectedUp), metricNamesFrom(designateExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

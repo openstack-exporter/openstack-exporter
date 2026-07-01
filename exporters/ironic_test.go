@@ -39,6 +39,6 @@ openstack_ironic_up 1
 `
 
 func (suite *IronicTestSuite) TestIronicExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(ironicExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(ironicExpectedUp), metricNamesFrom(ironicExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

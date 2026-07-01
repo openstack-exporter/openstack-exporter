@@ -9,6 +9,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	RegisterTypedExporter("container-infra", NewContainerInfraExporter)
+}
+
 var knownClusterStatuses = map[string]int{
 	"CREATE_COMPLETE":      0,
 	"CREATE_FAILED":        1,
@@ -36,63 +40,76 @@ func mapClusterStatus(current string) int {
 
 type ContainerInfraExporter struct {
 	BaseOpenStackExporter
+	sched Schedule
+	descs containerInfraDescs
 }
 
-var defaultContainerInfraMetrics = []Metric{
-	{Name: "total_clusters", Fn: ListAllClusters},
-	{Name: "cluster_masters", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "project_id"}, Fn: nil},
-	{Name: "cluster_nodes", Labels: []string{"uuid", "name", "stack_id", "status", "master_count", "project_id"}, Fn: nil},
-	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count", "project_id"}, Fn: nil},
+type containerInfraDescs struct {
+	TotalClusters  *prometheus.Desc `metric:"total_clusters"`
+	ClusterMasters *prometheus.Desc `metric:"cluster_masters" labels:"uuid,name,stack_id,status,node_count,project_id"`
+	ClusterNodes   *prometheus.Desc `metric:"cluster_nodes"   labels:"uuid,name,stack_id,status,master_count,project_id"`
+	ClusterStatus  *prometheus.Desc `metric:"cluster_status"  labels:"uuid,name,stack_id,status,node_count,master_count,project_id"`
+}
+
+type containerInfraScrape struct {
+	clusters []clusters.Cluster
+}
+
+var containerInfraGraph = Graph[*ContainerInfraExporter, containerInfraScrape]{
+	Sources: []Source[*ContainerInfraExporter, containerInfraScrape]{
+		{Name: "clusters", Fetch: (*ContainerInfraExporter).fetchClusters},
+	},
+	Emitters: []Emitter[*ContainerInfraExporter, containerInfraScrape]{
+		{
+			Name:    "clusters",
+			Metrics: []string{"total_clusters", "cluster_masters", "cluster_nodes", "cluster_status"},
+			Sources: []string{"clusters"},
+			Emit:    (*ContainerInfraExporter).emitClusters,
+		},
+	},
 }
 
 func NewContainerInfraExporter(config *ExporterConfig, logger *slog.Logger) (*ContainerInfraExporter, error) {
-	exporter := ContainerInfraExporter{
-		BaseOpenStackExporter{
+	e := &ContainerInfraExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "container_infra",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultContainerInfraMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := containerInfraGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	containerInfraGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func ListAllClusters(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allClusters []clusters.Cluster
-	allPagesClusters, err := clusters.List(exporter.ClientV2, clusters.ListOpts{}).AllPages(ctx)
+func (e *ContainerInfraExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(containerInfraScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &containerInfraGraph, e.sched, s, ch)
+	})
+}
+
+func (e *ContainerInfraExporter) fetchClusters(ctx context.Context, s *containerInfraScrape) error {
+	allPages, err := clusters.List(e.ClientV2, clusters.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+	s.clusters, err = clusters.ExtractClusters(allPages)
+	return err
+}
 
-	allClusters, err = clusters.ExtractClusters(allPagesClusters)
-	if err != nil {
-		return err
+func (e *ContainerInfraExporter) emitClusters(ctx context.Context, s *containerInfraScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.TotalClusters, float64(len(s.clusters)))
+	for _, c := range s.clusters {
+		emitGauge(ch, e.descs.ClusterMasters, float64(c.MasterCount), c.UUID, c.Name, c.StackID, c.Status, strconv.Itoa(c.NodeCount), c.ProjectID)
+		emitGauge(ch, e.descs.ClusterNodes, float64(c.NodeCount), c.UUID, c.Name, c.StackID, c.Status, strconv.Itoa(c.MasterCount), c.ProjectID)
+		emitGauge(ch, e.descs.ClusterStatus, float64(mapClusterStatus(c.Status)), c.UUID, c.Name, c.StackID, c.Status,
+			strconv.Itoa(c.NodeCount), strconv.Itoa(c.MasterCount), c.ProjectID)
 	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_clusters"].Metric,
-		prometheus.GaugeValue, float64(len(allClusters)))
-
-	// Cluster status metrics
-	for _, cluster := range allClusters {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_masters"].Metric,
-			prometheus.GaugeValue, float64(cluster.MasterCount), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), cluster.ProjectID)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_nodes"].Metric,
-			prometheus.GaugeValue, float64(cluster.NodeCount), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_status"].Metric,
-			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), cluster.UUID, cluster.Name,
-			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
-	}
-
 	return nil
 }

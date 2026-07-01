@@ -375,6 +375,6 @@ openstack_neutron_vpn_siteconnections 1
 `
 
 func (suite *NeutronTestSuite) TestNeutronExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(neutronExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(neutronExpectedUp), metricNamesFrom(neutronExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

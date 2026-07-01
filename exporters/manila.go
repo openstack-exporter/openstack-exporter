@@ -9,118 +9,110 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type ManilaExporter struct {
-	BaseOpenStackExporter
+func init() {
+	RegisterTypedExporter("sharev2", NewManilaExporter)
 }
 
-var defaultManilaMetrics = []Metric{
-	{Name: "shares_counter", Fn: CountShares},
-	{Name: "share_gb", Labels: []string{"id", "name", "status", "availability_zone", "share_type", "share_proto", "share_type_name", "project_id"}, Fn: nil},
-	{Name: "share_status", Labels: []string{"id", "name", "status", "size", "share_type", "share_proto", "share_type_name", "project_id"}, Fn: ListShareStatus},
-	{Name: "share_status_counter", Labels: []string{"status"}, Fn: nil},
+type ManilaExporter struct {
+	BaseOpenStackExporter
+	sched Schedule
+	descs manilaDescs
+}
+
+type manilaDescs struct {
+	SharesCounter      *prometheus.Desc `metric:"shares_counter"`
+	ShareGB            *prometheus.Desc `metric:"share_gb"            labels:"id,name,status,availability_zone,share_type,share_proto,share_type_name,project_id"`
+	ShareStatus        *prometheus.Desc `metric:"share_status"        labels:"id,name,status,size,share_type,share_proto,share_type_name,project_id"`
+	ShareStatusCounter *prometheus.Desc `metric:"share_status_counter" labels:"status"`
+}
+
+type manilaScrape struct {
+	shares []shares.Share
+}
+
+var manilaGraph = Graph[*ManilaExporter, manilaScrape]{
+	Sources: []Source[*ManilaExporter, manilaScrape]{
+		{Name: "shares", Fetch: (*ManilaExporter).fetchShares},
+	},
+	Emitters: []Emitter[*ManilaExporter, manilaScrape]{
+		{
+			Name:    "share_counts",
+			Metrics: []string{"shares_counter", "share_gb", "share_status_counter"},
+			Sources: []string{"shares"},
+			Emit:    (*ManilaExporter).emitShareCounts,
+		},
+		{
+			Name:    "share_status",
+			Metrics: []string{"share_status"},
+			Sources: []string{"shares"},
+			Emit:    (*ManilaExporter).emitShareStatus,
+		},
+	},
 }
 
 func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExporter, error) {
-	exporter := ManilaExporter{
-		BaseOpenStackExporter{
+	e := &ManilaExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "sharev2",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultManilaMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
-		}
+	e.RegisterAndFillDescs(&e.descs)
+	sched, err := manilaGraph.PruneSchedule(&e.BaseOpenStackExporter)
+	if err != nil {
+		return nil, err
 	}
-
-	return &exporter, nil
+	e.sched = sched
+	manilaGraph.LogDAG(&e.BaseOpenStackExporter, e.sched)
+	return e, nil
 }
 
-func CountShares(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allShares []shares.Share
+func (e *ManilaExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(manilaScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &manilaGraph, e.sched, s, ch)
+	})
+}
 
-	allPagesShares, err := shares.ListDetail(exporter.ClientV2, shares.ListOpts{AllTenants: true}).AllPages(ctx)
+func (e *ManilaExporter) fetchShares(ctx context.Context, s *manilaScrape) error {
+	allPages, err := shares.ListDetail(e.ClientV2, shares.ListOpts{AllTenants: true}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+	s.shares, err = shares.ExtractShares(allPages)
+	return err
+}
 
-	allShares, err = shares.ExtractShares(allPagesShares)
-	if err != nil {
-		return err
+var manilaShareStatuses = []string{
+	"creating", "available", "updating", "migrating", "migration_error",
+	"extending", "deleting", "shrinking", "error", "error_deleting",
+	"shrinking_error", "reverting_error", "restoring", "reverting",
+	"managing", "unmanaging", "reverting_to_snapshot", "soft_deleting", "inactive",
+}
+
+func (e *ManilaExporter) emitShareCounts(ctx context.Context, s *manilaScrape, ch chan<- prometheus.Metric) error {
+	emitGauge(ch, e.descs.SharesCounter, float64(len(s.shares)))
+	statusCounter := map[string]int{}
+	for _, st := range manilaShareStatuses {
+		statusCounter[st] = 0
 	}
-
-	ch <- prometheus.MustNewConstMetric(exporter.Metrics["shares_counter"].Metric,
-		prometheus.GaugeValue, float64(len(allShares)))
-
-	// share_gb metrics
-	for _, share := range allShares {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_gb"].Metric,
-			prometheus.GaugeValue, float64(share.Size), share.ID, share.Name,
-			share.Status, share.AvailabilityZone, share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
+	for _, share := range s.shares {
+		emitGauge(ch, e.descs.ShareGB, float64(share.Size), share.ID, share.Name, share.Status, share.AvailabilityZone,
+			share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
+		statusCounter[share.Status]++
 	}
-
-	share_status_counter := map[string]int{
-		"creating":              0,
-		"available":             0,
-		"updating":              0,
-		"migrating":             0,
-		"migration_error":       0,
-		"extending":             0,
-		"deleting":              0,
-		"shrinking":             0,
-		"error":                 0,
-		"error_deleting":        0,
-		"shrinking_error":       0,
-		"reverting_error":       0,
-		"restoring":             0,
-		"reverting":             0,
-		"managing":              0,
-		"unmanaging":            0,
-		"reverting_to_snapshot": 0,
-		"soft_deleting":         0,
-		"inactive":              0,
+	for status, count := range statusCounter {
+		emitGauge(ch, e.descs.ShareStatusCounter, float64(count), status)
 	}
-
-	for _, share := range allShares {
-		share_status_counter[share.Status]++
-	}
-
-	// Share status counter metrics
-	for status, count := range share_status_counter {
-		ch <- prometheus.MustNewConstMetric(
-			exporter.Metrics["share_status_counter"].Metric,
-			prometheus.GaugeValue,
-			float64(count),
-			status)
-	}
-
 	return nil
 }
 
-func ListShareStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allShares []shares.Share
-
-	allPagesShares, err := shares.ListDetail(exporter.ClientV2, shares.ListOpts{AllTenants: true}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allShares, err = shares.ExtractShares(allPagesShares)
-	if err != nil {
-		return err
-	}
-
-	// Share status metrics
-	for _, share := range allShares {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["share_status"].Metric,
-			prometheus.GaugeValue, float64(mapVolumeStatus(share.Status)), share.ID, share.Name,
+func (e *ManilaExporter) emitShareStatus(ctx context.Context, s *manilaScrape, ch chan<- prometheus.Metric) error {
+	for _, share := range s.shares {
+		emitGauge(ch, e.descs.ShareStatus,
+			float64(mapVolumeStatus(share.Status)), share.ID, share.Name,
 			share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
 	}
-
 	return nil
 }

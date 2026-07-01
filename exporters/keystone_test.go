@@ -46,6 +46,6 @@ openstack_identity_users 2
 `
 
 func (suite *KeystoneTestSuite) TestKeystoneExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(keystoneExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(keystoneExpectedUp), metricNamesFrom(keystoneExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

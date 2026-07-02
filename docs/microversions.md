@@ -13,7 +13,7 @@ centrally for services that advertise microversion ranges.
 Service | Environment override | Default behavior
 --- | --- | ---
 Bare Metal (Ironic) | `OS_BAREMETAL_API_VERSION` | Uses the repo default `1.90` when supported, otherwise the cloud's advertised maximum.
-Compute (Nova) | `OS_COMPUTE_API_VERSION` | Uses the repo default `2.87` when supported, otherwise the cloud's advertised maximum.
+Compute (Nova) | `OS_COMPUTE_API_VERSION` | Uses the cloud's advertised maximum.
 Container Infra (Magnum) | `OS_CONTAINER_INFRA_API_VERSION` | Uses the cloud's advertised maximum.
 Placement | `OS_PLACEMENT_API_VERSION` | Uses the cloud's advertised maximum.
 Shared File Systems (Manila) | `OS_SHARE_API_VERSION` | Uses the cloud's advertised maximum.
@@ -33,7 +33,7 @@ Set the matching `OS_*_API_VERSION` variable when a cloud needs a specific API
 microversion for compatibility or troubleshooting.
 
 ```sh
-export OS_COMPUTE_API_VERSION=2.87
+export OS_COMPUTE_API_VERSION=2.88
 openstack-exporter --os-client-config /etc/openstack/clouds.yaml my-cloud
 ```
 
@@ -62,6 +62,6 @@ Nova has several metrics that depend on newer compute API behavior. For example,
 hypervisor pagination is available from microversion `2.33`, and newer Nova or
 Placement behavior can change where capacity data should be collected.
 
-The exporter currently caps its Nova default at the latest microversion it is
-known to support. Raise that default only after confirming the affected metrics
-and fixtures work against the newer behavior.
+The exporter uses Nova discovery by default instead of carrying a hardcoded
+compute microversion cap. When a deployment needs to pin older behavior, set
+`OS_COMPUTE_API_VERSION` explicitly.

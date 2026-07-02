@@ -50,7 +50,7 @@ type microversionConfig struct {
 
 var serviceMicroversionConfigs = map[string]microversionConfig{
 	"baremetal":       {envName: "OS_BAREMETAL_API_VERSION", defaultLatest: ironicLatestSupportedMicroversion},
-	"compute":         {envName: "OS_COMPUTE_API_VERSION", defaultLatest: novaLatestSupportedMicroversion},
+	"compute":         {envName: "OS_COMPUTE_API_VERSION"},
 	"container-infra": {envName: "OS_CONTAINER_INFRA_API_VERSION"},
 	"placement":       {envName: "OS_PLACEMENT_API_VERSION"},
 	"sharev2":         {envName: "OS_SHARE_API_VERSION"},

@@ -20,7 +20,7 @@ func TestIsMicroversionAtLeast(t *testing.T) {
 		want     bool
 	}{
 		{name: "same version", current: "2.46", required: "2.46", want: true},
-		{name: "higher minor", current: "2.87", required: "2.46", want: true},
+		{name: "higher minor", current: "2.50", required: "2.46", want: true},
 		{name: "lower minor", current: "2.32", required: "2.33", want: false},
 		{name: "higher major", current: "3.1", required: "2.99", want: true},
 		{name: "lower major", current: "1.99", required: "2.1", want: false},
@@ -53,10 +53,10 @@ func TestSetupClientMicroversionV2UsesDefaultWhenSupported(t *testing.T) {
 		}
 	}`)
 
-	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.87", slog.Default())
+	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.50", slog.Default())
 
 	require.NoError(t, err)
-	require.Equal(t, "2.87", client.Microversion)
+	require.Equal(t, "2.50", client.Microversion)
 }
 
 func TestSetupClientMicroversionV2UsesDetectedMaximumWithoutDefault(t *testing.T) {
@@ -86,7 +86,7 @@ func TestSetupClientMicroversionV2UsesEnvironmentOverride(t *testing.T) {
 		}
 	}`)
 
-	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.87", slog.Default())
+	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.50", slog.Default())
 
 	require.NoError(t, err)
 	require.Equal(t, "2.42", client.Microversion)
@@ -103,7 +103,7 @@ func TestSetupClientMicroversionV2RejectsUnsupportedEnvironmentOverride(t *testi
 		}
 	}`)
 
-	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.87", slog.Default())
+	err := SetupClientMicroversionV2(context.Background(), client, "OS_TEST_API_VERSION", "2.50", slog.Default())
 
 	require.Error(t, err)
 }

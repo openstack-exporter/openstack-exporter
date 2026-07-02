@@ -17,7 +17,7 @@ jobs:
     name: Deploy OpenStack ${{ matrix.name }} with Ironic and run baremetal acceptance tests
     steps:
       - name: Checkout Gophercloud
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 

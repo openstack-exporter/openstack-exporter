@@ -29,16 +29,24 @@ func IsMicroversionAtLeast(current, required string) (bool, error) {
 	return currentMinor >= requiredMinor, nil
 }
 
-// SetupClientMicroversionV2 sets client microversion using environment variable or by some known good default
+// SetupClientMicroversionV2 sets client microversion using environment variable, a known good default, or the detected maximum.
 func SetupClientMicroversionV2(ctx context.Context, client *gophercloud.ServiceClient, envName, defaultLatest string, log *slog.Logger) error {
 	lg := log.With("service_type", client.Type, "default_microversion", defaultLatest)
 
 	// NOTE: utils.RequireMicroversion() from 2.9.0 do not work if the service returns multiple version endpoints, e.g. Nova.
 	supportedVersions, err := utils.GetServiceVersions(ctx, client.ProviderClient, client.Endpoint, true)
 	if err != nil {
+		if _, present := os.LookupEnv(envName); !present {
+			lg.Debug("Skipping microversion setup because endpoint discovery failed", "err", err)
+			return nil
+		}
 		return fmt.Errorf("failed to get supported api versions: %w", err)
 	}
 	if len(supportedVersions) == 0 {
+		if _, present := os.LookupEnv(envName); !present {
+			lg.Debug("Skipping microversion setup because endpoint did not advertise versions")
+			return nil
+		}
 		return fmt.Errorf("microversions not supported by endpoint")
 	}
 
@@ -47,20 +55,33 @@ func SetupClientMicroversionV2(ctx context.Context, client *gophercloud.ServiceC
 		var found bool
 		var prevMaxMajor, prevMaxMinor int
 		for _, ver := range supportedVersions {
-			if ok, _ := ver.IsSupported(defaultLatest); ok {
-				microversion = defaultLatest
-				found = true
-				lg.Debug("Default microversion supported, set it")
-				break
-			} else {
-				prevMaxMajor = max(prevMaxMajor, ver.MaxMajor)
-				prevMaxMinor = max(prevMaxMinor, ver.MaxMinor)
+			if defaultLatest != "" {
+				if ok, _ := ver.IsSupported(defaultLatest); ok {
+					microversion = defaultLatest
+					found = true
+					lg.Debug("Default microversion supported, set it")
+					break
+				}
+			}
+
+			if ver.MaxMajor > prevMaxMajor || (ver.MaxMajor == prevMaxMajor && ver.MaxMinor > prevMaxMinor) {
+				prevMaxMajor = ver.MaxMajor
+				prevMaxMinor = ver.MaxMinor
 			}
 		}
 
 		if !found && prevMaxMajor > 0 {
 			microversion = fmt.Sprintf("%d.%d", prevMaxMajor, prevMaxMinor)
-			lg.Warn("Default microversion not supported, set detected maximum available microversion", "detected_microversion", microversion)
+			if defaultLatest == "" {
+				lg.Debug("No default microversion configured, set detected maximum available microversion", "detected_microversion", microversion)
+			} else {
+				lg.Warn("Default microversion not supported, set detected maximum available microversion", "detected_microversion", microversion)
+			}
+		}
+
+		if microversion == "" {
+			lg.Debug("Skipping microversion setup because endpoint did not advertise microversions")
+			return nil
 		}
 
 	} else {

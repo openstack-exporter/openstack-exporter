@@ -7,19 +7,29 @@ using too new a version can fail against older clouds.
 
 ## Current behavior
 
-The exporter uses Gophercloud v2 service clients for services that need
-microversion support. For Nova, the exporter calls
-`utils.SetupClientMicroversionV2` with `OS_COMPUTE_API_VERSION` and the latest
-microversion supported by the exporter.
+The exporter uses Gophercloud v2 service clients and configures microversions
+centrally for services that advertise microversion ranges.
 
-When the environment variable is set, the exporter validates that the requested
+Service | Environment override | Default behavior
+--- | --- | ---
+Bare Metal (Ironic) | `OS_BAREMETAL_API_VERSION` | Uses the repo default `1.90` when supported, otherwise the cloud's advertised maximum.
+Compute (Nova) | `OS_COMPUTE_API_VERSION` | Uses the repo default `2.87` when supported, otherwise the cloud's advertised maximum.
+Container Infra (Magnum) | `OS_CONTAINER_INFRA_API_VERSION` | Uses the cloud's advertised maximum.
+Placement | `OS_PLACEMENT_API_VERSION` | Uses the cloud's advertised maximum.
+Shared File Systems (Manila) | `OS_SHARE_API_VERSION` | Uses the cloud's advertised maximum.
+Block Storage (Cinder) | `OS_VOLUME_API_VERSION` | Uses the cloud's advertised maximum.
+
+When an environment variable is set, the exporter validates that the requested
 microversion is supported by the cloud endpoint and uses it. When it is not set,
-the exporter tries the exporter default first, then falls back to the highest
-microversion advertised by the cloud if the default is unavailable.
+the exporter tries the service default first when one is configured, then falls
+back to the highest microversion advertised by the cloud.
+
+Services that do not advertise microversion ranges in Gophercloud discovery are
+left unchanged.
 
 ## Operator guidance
 
-Set `OS_COMPUTE_API_VERSION` when a cloud needs a specific Nova API
+Set the matching `OS_*_API_VERSION` variable when a cloud needs a specific API
 microversion for compatibility or troubleshooting.
 
 ```sh
@@ -33,9 +43,10 @@ service instead of silently collecting partial or misleading metrics.
 
 ## Contributor guidance
 
-Use the shared microversion helper when adding service code that depends on a
-specific API microversion. Avoid setting `ServiceClient.Microversion` directly
-unless the service has a documented reason that the helper cannot cover.
+Add services to the central microversion configuration when they advertise
+microversion ranges and have a stable environment variable override. Avoid
+setting `ServiceClient.Microversion` directly unless the service has a
+documented reason that the helper cannot cover.
 
 When adding a metric that depends on a newer field or endpoint:
 

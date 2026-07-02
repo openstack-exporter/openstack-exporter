@@ -43,6 +43,20 @@ const (
 
 var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
+type microversionConfig struct {
+	envName       string
+	defaultLatest string
+}
+
+var serviceMicroversionConfigs = map[string]microversionConfig{
+	"baremetal":       {envName: "OS_BAREMETAL_API_VERSION", defaultLatest: ironicLatestSupportedMicroversion},
+	"compute":         {envName: "OS_COMPUTE_API_VERSION", defaultLatest: novaLatestSupportedMicroversion},
+	"container-infra": {envName: "OS_CONTAINER_INFRA_API_VERSION"},
+	"placement":       {envName: "OS_PLACEMENT_API_VERSION"},
+	"sharev2":         {envName: "OS_SHARE_API_VERSION"},
+	"volume":          {envName: "OS_VOLUME_API_VERSION"},
+}
+
 type OpenStackExporter interface {
 	prometheus.Collector
 
@@ -320,6 +334,14 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
 	if err != nil {
 		return nil, err
+	}
+
+	if microversion, ok := serviceMicroversionConfigs[name]; ok {
+		ctx := context.TODO()
+		err := utils.SetupClientMicroversionV2(ctx, clientV2, microversion.envName, microversion.defaultLatest, logger)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if uuidGenFunc == nil {

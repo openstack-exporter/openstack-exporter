@@ -165,6 +165,8 @@ var fixtures map[string]string = map[string]string{
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
 	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
 	"/object-store/?marker=centos9-epel-next": "swift_empty",
+	"/masakari/v1/segments": "masakari_segments",
+	"/masakari/v1/segments/9e800031-6946-4b43-bf09-8b3d1cab792b/hosts": "masakari_hosts",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -238,4 +240,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
 	suite.Run(t, &ObjectStoreTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "object-store"}})
+	suite.Run(t, &MasakariTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "instance-ha"}})
 }

@@ -41,7 +41,7 @@ const (
 	TERABYTE
 )
 
-var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
+var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2", "instance-ha"}
 
 type OpenStackExporter interface {
 	prometheus.Collector
@@ -373,6 +373,8 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		exporter, err = NewPlacementExporter(&exporterConfig, logger)
 	case "sharev2":
 		exporter, err = NewManilaExporter(&exporterConfig, logger)
+	case "instance-ha":
+		exporter, err = NewMasakariExporter(&exporterConfig, logger)
 	default:
 		return nil, fmt.Errorf("couldn't find a handler for %s exporter", name)
 	}

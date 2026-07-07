@@ -36,6 +36,7 @@ var serviceCatalogTypesByExporterService = map[string][]string{
 	"orchestration":   {"orchestration"},
 	"placement":       {"placement"},
 	"sharev2":         {"shared-file-system", "sharev2"},
+	"instance-ha":     {"instance-ha", "ha", "masakari"},
 }
 
 func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper) (*gophercloudv2.ProviderClient, error) {
@@ -170,6 +171,8 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 		}
 	case "image":
 		return openstackv2.NewImageV2(pClient, eo)
+	case "instance-ha":
+		return newInstanceHAV1(pClient, eo)
 	case "load-balancer":
 		return openstackv2.NewLoadBalancerV2(pClient, eo)
 	case "network":
@@ -322,6 +325,37 @@ func isServiceAvailable(providerClient *gophercloudv2.ProviderClient, endpointOp
 	}
 
 	return false
+}
+
+// newInstanceHAV1 creates a ServiceClient for the Masakari (instance-ha) v1
+// API. Gophercloud does not ship a constructor for this service, so the client
+// is assembled manually from the service catalog, mirroring the behaviour of
+// gophercloud's own New${Service}V1 helpers.
+func newInstanceHAV1(pClient *gophercloudv2.ProviderClient, eo gophercloudv2.EndpointOpts) (*gophercloudv2.ServiceClient, error) {
+	eo.ApplyDefaults("instance-ha")
+
+	url, err := pClient.EndpointLocator(eo)
+	if err != nil {
+		return nil, err
+	}
+
+	sc := &gophercloudv2.ServiceClient{
+		ProviderClient: pClient,
+		Endpoint:       url,
+		Type:           "instance-ha",
+	}
+
+	// Masakari endpoints in the catalog do not always include the API version
+	// segment. Ensure requests are prefixed with "v1/".
+	if !strings.HasSuffix(strings.TrimSuffix(sc.Endpoint, "/"), "v1") {
+		base := sc.Endpoint
+		if !strings.HasSuffix(base, "/") {
+			base += "/"
+		}
+		sc.ResourceBase = base + "v1/"
+	}
+
+	return sc, nil
 }
 
 func IsExporterNameValid(service string) bool {

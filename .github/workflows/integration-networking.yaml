@@ -17,7 +17,7 @@ jobs:
     name: Deploy OpenStack ${{ matrix.name }} with Neutron and run networking integration tests
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
       - name: Deploy devstack
         uses: gophercloud/devstack-action@60ca1042045c0c9e3e001c64575d381654ffcba1
         with:

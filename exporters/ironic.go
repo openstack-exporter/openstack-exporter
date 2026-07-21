@@ -6,7 +6,6 @@ import (
 	"strconv"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
-	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -25,17 +24,10 @@ var defaultIronicMetrics = []Metric{
 
 // NewIronicExporter : returns a pointer to IronicExporter
 func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExporter, error) {
-	ctx := context.TODO()
-
 	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
 	// For whatever reason, it adds a v1 field to the URL,
 	// so it sends requests to /v1/v1 if left unfixed.
 	//config.ClientV2.ResourceBase = config.ClientV2.Endpoint
-
-	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_BAREMETAL_API_VERSION", ironicLatestSupportedMicroversion, logger)
-	if err != nil {
-		return nil, err
-	}
 
 	exporter := IronicExporter{
 		BaseOpenStackExporter{

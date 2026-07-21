@@ -5,6 +5,15 @@
 A [OpenStack](https://openstack.org/) exporter for prometheus written in Golang using the
 [gophercloud](https://github.com/gophercloud/gophercloud) library.
 
+## Documentation
+
+Project documentation is starting to move into the [`docs`](docs/) folder so
+operational guidance can grow without making this README harder to scan.
+
+Start with:
+
+* [Using OpenStack API microversions](docs/microversions.md)
+
 ## Deployment options
 
 The openstack-exporter can be deployed using the following mechanisms:
@@ -295,15 +304,11 @@ that might be missing.
 
 #### OpenStack Exporter Compatibility with Older OpenStack Versions
 
-OpenStack evolves with new features and fields added to the API over time, leveraging a system of microversions to allow for incremental changes while maintaining backward compatibility. However, not all OpenStack deployments will be running the latest microversions, meaning certain fields or metrics may not be available when using an older version of OpenStack. Similarly, as newer OpenStack versions are adopted with more recent microversions, these changes are also seamlessly handled.
-
-OpenStack-Exporter is designed to handle both older and newer microversions gracefully by default. When querying an OpenStack environment, it ensures compatibility with various microversions, using fallback behaviors for missing fields introduced in newer microversions:
-
-* For Boolean Fields: Assumes the default value of false.
-* For Numeric Fields: Missing numeric fields will default to 0
-* For String Fields: Typically default to an empty string ("")
-
-This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
+OpenStack evolves with new features and fields added to the API over time,
+leveraging a system of microversions to allow for incremental changes while
+maintaining backward compatibility. See
+[Using OpenStack API microversions](docs/microversions.md) for the current
+operator and contributor guidance.
 
 ## Metrics
 

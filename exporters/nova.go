@@ -23,10 +23,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// Latest supported microversion for Nova which provides all metrics
-// See also: https://github.com/openstack-exporter/openstack-exporter/issues/249
-const novaLatestSupportedMicroversion = "2.87"
-
 var knownServerStatuses = map[string]int{
 	"ACTIVE":            0,
 	"BUILD":             1,  // The server has not finished the original build process.
@@ -109,13 +105,6 @@ var defaultNovaMetrics = []Metric{
 }
 
 func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter, error) {
-	ctx := context.TODO()
-
-	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_COMPUTE_API_VERSION", novaLatestSupportedMicroversion, logger)
-	if err != nil {
-		return nil, err
-	}
-
 	exporter := NovaExporter{
 		BaseOpenStackExporter{
 			Name:           "nova",

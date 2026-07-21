@@ -125,6 +125,35 @@ jobs:
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
 
+      # The first call to the action will invoke setup-trivy and install trivy
+      - name: Generate Trivy Vulnerability Report
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: docker.io/${{ github.repository }}
+          scan-type: "image"
+          output: trivy-report.json
+          format: json
+          exit-code: 0
+
+      - name: Upload Vulnerability Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-report
+          path: trivy-report.json
+          retention-days: 30
+
+      - name: Fail build on High/Critical Vulnerabilities
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: docker.io/${{ github.repository }}
+          scan-type: "image"
+          format: table
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: 1
+          # On a subsequent call to the action we know trivy is already installed so can skip this
+          skip-setup-trivy: true
+
       # This step runs ONLY when a tag is pushed
       - name: Run GoReleaser (Tag Release)
         if: contains(github.ref, 'refs/tags/')

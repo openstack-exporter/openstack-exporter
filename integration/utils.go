@@ -103,23 +103,21 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 
 	enabledExporters := 0
 	for _, service := range enabledServices {
-		exp, err := exporters.EnableExporter(
-			service,
-			prefix,
-			cloud,
-			disabledMetrics,
-			endpointType,
-			collectTime,
-			disableSlowMetrics,
-			disableDeprecatedMetrics,
-			disableCinderAgentUUID,
-			domainID,
-			tenantID,
-			novaMetadataMapping, // non-nil here
-			dnsConcurrentCount,
-			nil,
-			logger,
-		)
+		exp, err := exporters.EnableExporter(exporters.ExporterOptions{
+			Service:                  service,
+			Prefix:                   prefix,
+			Cloud:                    cloud,
+			DisabledMetrics:          disabledMetrics,
+			EndpointType:             endpointType,
+			CollectTime:              collectTime,
+			DisableSlowMetrics:       disableSlowMetrics,
+			DisableDeprecatedMetrics: disableDeprecatedMetrics,
+			DisableCinderAgentUUID:   disableCinderAgentUUID,
+			DomainID:                 domainID,
+			TenantID:                 tenantID,
+			NovaMetadataMapping:      novaMetadataMapping, // non-nil here
+			DnsConcurrentCount:       dnsConcurrentCount,
+		}, logger)
 		if err != nil {
 			slog.Error(
 				"enabling exporter for service failed",

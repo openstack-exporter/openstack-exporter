@@ -18,32 +18,36 @@ import (
 )
 
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
-func CollectCache(
-	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, int, func() (string, error), *slog.Logger,
-	) (*exporters.OpenStackExporter, error),
-	multiCloud bool,
-	services []string, prefix,
-	cloud string,
-	disabledMetrics []string,
-	endpointType string,
-	collectTime bool,
-	disableSlowMetrics bool,
-	disableDeprecatedMetrics bool,
-	disableCinderAgentUUID bool,
-	domainID string,
-	tenantID string,
-	novaMetadataMapping *utils.LabelMappingFlag,
-	dnsConcurrentCount int,
-	uuidGenFunc func() (string, error),
-	logger *slog.Logger,
-) error {
+type EnableExporterFunc func(exporters.ExporterOptions, *slog.Logger) (*exporters.OpenStackExporter, error)
+
+type CollectCacheOptions struct {
+	EnableExporterFunc          EnableExporterFunc
+	MultiCloud                  bool
+	Services                    []string
+	Prefix                      string
+	Cloud                       string
+	DisabledMetrics             []string
+	EndpointType                string
+	CollectTime                 bool
+	DisableSlowMetrics          bool
+	DisableDeprecatedMetrics    bool
+	DisableCinderAgentUUID      bool
+	DomainID                    string
+	TenantID                    string
+	NovaMetadataMapping         *utils.LabelMappingFlag
+	DnsConcurrentCount          int
+	UUIDGenFunc                 func() (string, error)
+	CompletePlacementInParallel bool
+	CollectPlacementTraits      bool
+}
+
+func CollectCache(options CollectCacheOptions, logger *slog.Logger) error {
 	logger.Info("Run collect cache job")
 	cacheBackend := GetCache()
 
 	clouds := []string{}
 
-	if multiCloud {
+	if options.MultiCloud {
 		cloudsConfig, err := clientconfig.LoadCloudsYAML()
 		if err != nil {
 			return err
@@ -53,8 +57,8 @@ func CollectCache(
 			clouds = append(clouds, cloud)
 		}
 	}
-	if cloud != "" && !multiCloud {
-		clouds = append(clouds, cloud)
+	if options.Cloud != "" && !options.MultiCloud {
+		clouds = append(clouds, options.Cloud)
 	}
 
 	for _, cloud := range clouds {
@@ -64,11 +68,28 @@ func CollectCache(
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
-		for _, service := range services {
+		for _, service := range options.Services {
 			lg2 := lg.With("service", service)
 			lg2.Info("Start collect cache data")
 
-			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+			exp, err := options.EnableExporterFunc(exporters.ExporterOptions{
+				Service:                     service,
+				Prefix:                      options.Prefix,
+				Cloud:                       cloud,
+				DisabledMetrics:             options.DisabledMetrics,
+				EndpointType:                options.EndpointType,
+				CollectTime:                 options.CollectTime,
+				DisableSlowMetrics:          options.DisableSlowMetrics,
+				DisableDeprecatedMetrics:    options.DisableDeprecatedMetrics,
+				DisableCinderAgentUUID:      options.DisableCinderAgentUUID,
+				DomainID:                    options.DomainID,
+				TenantID:                    options.TenantID,
+				NovaMetadataMapping:         options.NovaMetadataMapping,
+				DnsConcurrentCount:          options.DnsConcurrentCount,
+				UUIDGenFunc:                 options.UUIDGenFunc,
+				CompletePlacementInParallel: options.CompletePlacementInParallel,
+				CollectPlacementTraits:      options.CollectPlacementTraits,
+			}, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				lg2.Error("enabling exporter for service failed", "error", err)

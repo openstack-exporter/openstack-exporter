@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -27,7 +26,7 @@ func TestNetworkingIntegration(t *testing.T) {
 	})
 
 	t.Run("openstack_neutron_core_metrics_present", func(t *testing.T) {
-		metrics.requireAnyFamily(t,
+		metrics.requireAllFamilies(t,
 			"openstack_neutron_networks",
 			"openstack_neutron_ports",
 			"openstack_neutron_subnets",
@@ -65,7 +64,7 @@ func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing
 
 	networkClient := funcs.NewNetworkClient(t)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := funcs.RequestContext(t)
 	defer cancel()
 
 	if _, err := extensions.Get(ctx, networkClient, "net-mtu-writable").Extract(); err != nil {
@@ -86,7 +85,9 @@ func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing
 	networkDeleted := false
 	t.Cleanup(func() {
 		if !networkDeleted {
-			_ = networks.Delete(context.Background(), networkClient, createdNetwork.ID).ExtractErr()
+			ctx, cancel := funcs.CleanupContext(t)
+			defer cancel()
+			_ = networks.Delete(ctx, networkClient, createdNetwork.ID).ExtractErr()
 		}
 	})
 
@@ -221,7 +222,7 @@ func TestNetworkingVPNaaSCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 	ipsecPolicy, deleteIPSecPolicy := funcs.MustCreateVPNIPSecPolicy(t, networkClient)
 	vpnService, deleteVPNService := funcs.MustCreateVPNService(t, networkClient, router)
 	localEndpointGroup, deleteLocalEndpointGroup := funcs.MustCreateVPNEndpointGroup(t, networkClient, endpointgroups.TypeSubnet, []string{subnet.ID})
-	peerEndpointGroup, deletePeerEndpointGroup := funcs.MustCreateVPNEndpointGroup(t, networkClient, endpointgroups.TypeCIDR, []string{"10.42.0.0/24"})
+	peerEndpointGroup, deletePeerEndpointGroup := funcs.MustCreateVPNEndpointGroup(t, networkClient, endpointgroups.TypeCIDR, []string{funcs.VPNPeerCIDR()})
 	siteConnection, deleteSiteConnection := funcs.MustCreateVPNSiteConnection(t, networkClient, ikePolicy.ID, ipsecPolicy.ID, vpnService.ID, peerEndpointGroup.ID, localEndpointGroup.ID)
 
 	metrics := scrapeMetrics(t, "after VPNaaS resources create")

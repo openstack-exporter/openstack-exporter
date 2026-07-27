@@ -3,6 +3,7 @@ package funcs
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"testing"
 	"time"
@@ -28,6 +29,25 @@ type NetworkWithMTU struct {
 	mtu.NetworkMTUExt
 }
 
+const (
+	networkingRequestTimeout = 60 * time.Second
+	defaultVPNPeerAddress    = "172.24.4.233"
+	defaultVPNPeerCIDR       = "10.42.0.0/24"
+)
+
+// RequestContext returns a bounded context for Neutron API calls in tests.
+func RequestContext(t *testing.T) (context.Context, context.CancelFunc) {
+	t.Helper()
+	return context.WithTimeout(t.Context(), networkingRequestTimeout)
+}
+
+// CleanupContext returns a bounded context for cleanup calls after t.Context
+// has been canceled.
+func CleanupContext(t *testing.T) (context.Context, context.CancelFunc) {
+	t.Helper()
+	return context.WithTimeout(context.WithoutCancel(t.Context()), networkingRequestTimeout)
+}
+
 // NewNetworkClient returns a Networking v2 client or fails the test.
 func NewNetworkClient(t *testing.T) *gophercloud.ServiceClient {
 	t.Helper()
@@ -44,11 +64,14 @@ func NewNetworkClient(t *testing.T) *gophercloud.ServiceClient {
 func RequireVPNaaSExtension(t *testing.T, client *gophercloud.ServiceClient) {
 	t.Helper()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := RequestContext(t)
 	defer cancel()
 
 	if _, err := extensions.Get(ctx, client, "vpnaas").Extract(); err != nil {
-		t.Skipf("Neutron VPNaaS extension is not available; enable neutron-vpnaas in DevStack: %v", err)
+		if gophercloud.ResponseCodeIs(err, http.StatusNotFound) {
+			t.Skipf("Neutron VPNaaS extension is not available; enable neutron-vpnaas in DevStack: %v", err)
+		}
+		t.Fatalf("Failed to check Neutron VPNaaS extension availability: %v", err)
 	}
 }
 
@@ -61,6 +84,16 @@ func RequireExternalNetworkID(t *testing.T) string {
 		t.Fatal("OS_EXTGW_ID must be set to create a VPNaaS router with an external gateway")
 	}
 	return externalNetworkID
+}
+
+// VPNPeerAddress returns OS_VPN_PEER_ADDRESS or the DevStack default.
+func VPNPeerAddress() string {
+	return envOrDefault("OS_VPN_PEER_ADDRESS", defaultVPNPeerAddress)
+}
+
+// VPNPeerCIDR returns OS_VPN_PEER_CIDR or the default peer endpoint CIDR.
+func VPNPeerCIDR() string {
+	return envOrDefault("OS_VPN_PEER_CIDR", defaultVPNPeerCIDR)
 }
 
 // CreateNetwork creates a basic Neutron network with a random acceptance-test
@@ -76,7 +109,10 @@ func CreateNetwork(t *testing.T, client *gophercloud.ServiceClient) (*networks.N
 
 	t.Logf("Attempting to create network: %s", networkName)
 
-	network, err := networks.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	network, err := networks.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return network, err
 	}
@@ -111,7 +147,10 @@ func DeleteNetwork(t *testing.T, client *gophercloud.ServiceClient, network *net
 
 	t.Logf("Attempting to delete network: %s", network.ID)
 
-	if err := networks.Delete(context.TODO(), client, network.ID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := networks.Delete(ctx, client, network.ID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete network %s: %v", network.ID, err)
 	}
 
@@ -138,7 +177,10 @@ func CreateSubnet(t *testing.T, client *gophercloud.ServiceClient, network *netw
 
 	t.Logf("Attempting to create subnet: %s", subnetName)
 
-	subnet, err := subnets.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	subnet, err := subnets.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return subnet, err
 	}
@@ -173,7 +215,10 @@ func DeleteSubnet(t *testing.T, client *gophercloud.ServiceClient, subnet *subne
 
 	t.Logf("Attempting to delete subnet: %s", subnet.ID)
 
-	if err := subnets.Delete(context.TODO(), client, subnet.ID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := subnets.Delete(ctx, client, subnet.ID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete subnet %s: %v", subnet.ID, err)
 	}
 
@@ -194,7 +239,10 @@ func CreatePort(t *testing.T, client *gophercloud.ServiceClient, network *networ
 
 	t.Logf("Attempting to create port: %s", portName)
 
-	port, err := ports.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	port, err := ports.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return port, err
 	}
@@ -229,7 +277,10 @@ func DeletePort(t *testing.T, client *gophercloud.ServiceClient, port *ports.Por
 
 	t.Logf("Attempting to delete port: %s", port.ID)
 
-	if err := ports.Delete(context.TODO(), client, port.ID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := ports.Delete(ctx, client, port.ID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete port %s: %v", port.ID, err)
 	}
 
@@ -257,7 +308,10 @@ func CreateRouter(t *testing.T, client *gophercloud.ServiceClient, externalNetwo
 
 	t.Logf("Attempting to create router: %s", routerName)
 
-	router, err := routers.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	router, err := routers.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return router, err
 	}
@@ -292,7 +346,10 @@ func DeleteRouter(t *testing.T, client *gophercloud.ServiceClient, router *route
 
 	t.Logf("Attempting to delete router: %s", router.ID)
 
-	if err := routers.Delete(context.TODO(), client, router.ID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := routers.Delete(ctx, client, router.ID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete router %s: %v", router.ID, err)
 	}
 
@@ -305,7 +362,10 @@ func AddRouterInterface(t *testing.T, client *gophercloud.ServiceClient, router 
 
 	t.Logf("Attempting to add subnet %s to router %s", subnet.ID, router.ID)
 
-	_, err := routers.AddInterface(context.TODO(), client, router.ID, routers.AddInterfaceOpts{
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	_, err := routers.AddInterface(ctx, client, router.ID, routers.AddInterfaceOpts{
 		SubnetID: subnet.ID,
 	}).Extract()
 	if err != nil {
@@ -341,7 +401,10 @@ func RemoveRouterInterface(t *testing.T, client *gophercloud.ServiceClient, rout
 
 	t.Logf("Attempting to remove subnet %s from router %s", subnet.ID, router.ID)
 
-	if _, err := routers.RemoveInterface(context.TODO(), client, router.ID, routers.RemoveInterfaceOpts{
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if _, err := routers.RemoveInterface(ctx, client, router.ID, routers.RemoveInterfaceOpts{
 		SubnetID: subnet.ID,
 	}).Extract(); err != nil {
 		t.Fatalf("Unable to remove subnet %s from router %s: %v", subnet.ID, router.ID, err)
@@ -366,7 +429,10 @@ func CreateVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ikepo
 
 	t.Logf("Attempting to create VPN IKE policy: %s", policyName)
 
-	policy, err := ikepolicies.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	policy, err := ikepolicies.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return policy, err
 	}
@@ -401,7 +467,10 @@ func DeleteVPNIKEPolicy(t *testing.T, client *gophercloud.ServiceClient, policyI
 
 	t.Logf("Attempting to delete VPN IKE policy: %s", policyID)
 
-	if err := ikepolicies.Delete(context.TODO(), client, policyID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := ikepolicies.Delete(ctx, client, policyID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete VPN IKE policy %s: %v", policyID, err)
 	}
 
@@ -426,7 +495,10 @@ func CreateVPNIPSecPolicy(t *testing.T, client *gophercloud.ServiceClient) (*ips
 
 	t.Logf("Attempting to create VPN IPsec policy: %s", policyName)
 
-	policy, err := ipsecpolicies.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	policy, err := ipsecpolicies.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return policy, err
 	}
@@ -462,7 +534,10 @@ func DeleteVPNIPSecPolicy(t *testing.T, client *gophercloud.ServiceClient, polic
 
 	t.Logf("Attempting to delete VPN IPsec policy: %s", policyID)
 
-	if err := ipsecpolicies.Delete(context.TODO(), client, policyID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := ipsecpolicies.Delete(ctx, client, policyID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete VPN IPsec policy %s: %v", policyID, err)
 	}
 
@@ -483,7 +558,10 @@ func CreateVPNEndpointGroup(t *testing.T, client *gophercloud.ServiceClient, end
 
 	t.Logf("Attempting to create VPN endpoint group: %s", groupName)
 
-	group, err := endpointgroups.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	group, err := endpointgroups.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return group, err
 	}
@@ -520,7 +598,10 @@ func DeleteVPNEndpointGroup(t *testing.T, client *gophercloud.ServiceClient, gro
 
 	t.Logf("Attempting to delete VPN endpoint group: %s", groupID)
 
-	if err := endpointgroups.Delete(context.TODO(), client, groupID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := endpointgroups.Delete(ctx, client, groupID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete VPN endpoint group %s: %v", groupID, err)
 	}
 
@@ -542,7 +623,10 @@ func CreateVPNService(t *testing.T, client *gophercloud.ServiceClient, router *r
 
 	t.Logf("Attempting to create VPN service: %s", serviceName)
 
-	service, err := services.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	service, err := services.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return service, err
 	}
@@ -577,7 +661,10 @@ func DeleteVPNService(t *testing.T, client *gophercloud.ServiceClient, serviceID
 
 	t.Logf("Attempting to delete VPN service: %s", serviceID)
 
-	if err := services.Delete(context.TODO(), client, serviceID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := services.Delete(ctx, client, serviceID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete VPN service %s: %v", serviceID, err)
 	}
 
@@ -590,7 +677,7 @@ func CreateVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, ik
 	t.Helper()
 
 	connectionName := tools.RandomString("ACPTTEST", 16)
-	peerAddress := "172.24.4.233"
+	peerAddress := VPNPeerAddress()
 	createOpts := siteconnections.CreateOpts{
 		Name:           connectionName,
 		PSK:            "secret",
@@ -608,7 +695,10 @@ func CreateVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, ik
 
 	t.Logf("Attempting to create VPN site connection: %s", connectionName)
 
-	connection, err := siteconnections.Create(context.TODO(), client, createOpts).Extract()
+	ctx, cancel := RequestContext(t)
+	defer cancel()
+
+	connection, err := siteconnections.Create(ctx, client, createOpts).Extract()
 	if err != nil {
 		return connection, err
 	}
@@ -645,9 +735,20 @@ func DeleteVPNSiteConnection(t *testing.T, client *gophercloud.ServiceClient, co
 
 	t.Logf("Attempting to delete VPN site connection: %s", connectionID)
 
-	if err := siteconnections.Delete(context.TODO(), client, connectionID).ExtractErr(); err != nil {
+	ctx, cancel := CleanupContext(t)
+	defer cancel()
+
+	if err := siteconnections.Delete(ctx, client, connectionID).ExtractErr(); err != nil {
 		t.Fatalf("Unable to delete VPN site connection %s: %v", connectionID, err)
 	}
 
 	t.Logf("Deleted VPN site connection: %s", connectionID)
+}
+
+func envOrDefault(name string, fallback string) string {
+	value := os.Getenv(name)
+	if value == "" {
+		return fallback
+	}
+	return value
 }

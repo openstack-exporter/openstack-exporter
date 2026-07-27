@@ -122,6 +122,16 @@ func (m metricSet) requireAnyFamily(t *testing.T, names ...string) {
 	failMetrics(t, m.body, "Expected one of metrics %v to be present", names)
 }
 
+func (m metricSet) requireAllFamilies(t *testing.T, names ...string) {
+	t.Helper()
+
+	for _, name := range names {
+		if _, ok := m.samples[name]; !ok {
+			failMetrics(t, m.body, "Expected metric family %s to be present", name)
+		}
+	}
+}
+
 func (m metricSet) requireLabels(t *testing.T, metricName string, match map[string]string, labels ...string) metricSample {
 	t.Helper()
 

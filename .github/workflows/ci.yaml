@@ -129,7 +129,7 @@ jobs:
       - name: Generate Trivy Vulnerability Report
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: docker.io/${{ github.repository }}
+          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta-github-image.outputs.tags }}
           scan-type: "image"
           output: trivy-report.json
           format: json
@@ -145,7 +145,7 @@ jobs:
       - name: Fail build on High/Critical Vulnerabilities
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: docker.io/${{ github.repository }}
+          image-ref: ghcr.io/${{ github.repository }}:${{ steps.meta-github-image.outputs.tags }}
           scan-type: "image"
           format: table
           severity: CRITICAL,HIGH

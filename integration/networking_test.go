@@ -2,9 +2,11 @@ package integration
 
 import (
 	"fmt"
+	"net/http"
 	"testing"
 	"time"
 
+	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/endpointgroups"
@@ -64,11 +66,16 @@ func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing
 
 	networkClient := funcs.NewNetworkClient(t)
 
-	ctx, cancel := funcs.RequestContext(t)
-	defer cancel()
-
-	if _, err := extensions.Get(ctx, networkClient, "net-mtu-writable").Extract(); err != nil {
-		t.Skipf("Neutron net-mtu-writable extension is not available: %v", err)
+	{
+		ctx, cancel := funcs.RequestContext(t)
+		_, err := extensions.Get(ctx, networkClient, "net-mtu-writable").Extract()
+		cancel()
+		if err != nil {
+			if gophercloud.ResponseCodeIs(err, http.StatusNotFound) {
+				t.Skipf("Neutron net-mtu-writable extension is not available: %v", err)
+			}
+			t.Fatalf("Failed to check Neutron net-mtu-writable extension availability: %v", err)
+		}
 	}
 
 	cleanup := startExporter(t, "network")
@@ -79,8 +86,13 @@ func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing
 		MTU:               1440,
 	}
 	var createdNetwork funcs.NetworkWithMTU
-	if err := networks.Create(ctx, networkClient, createOpts).ExtractInto(&createdNetwork); err != nil {
-		t.Fatalf("Failed to create Neutron network with MTU: %v", err)
+	{
+		ctx, cancel := funcs.RequestContext(t)
+		err := networks.Create(ctx, networkClient, createOpts).ExtractInto(&createdNetwork)
+		cancel()
+		if err != nil {
+			t.Fatalf("Failed to create Neutron network with MTU: %v", err)
+		}
 	}
 	networkDeleted := false
 	t.Cleanup(func() {
@@ -95,13 +107,23 @@ func TestNetworkingNetworkMTUCreateUpdateDeleteUpdatesExporterMetrics(t *testing
 
 	updateOpts := mtu.UpdateOptsExt{UpdateOptsBuilder: networks.UpdateOpts{}, MTU: 1350}
 	var updatedNetwork funcs.NetworkWithMTU
-	if err := networks.Update(ctx, networkClient, createdNetwork.ID, updateOpts).ExtractInto(&updatedNetwork); err != nil {
-		t.Fatalf("Failed to update Neutron network MTU: %v", err)
+	{
+		ctx, cancel := funcs.RequestContext(t)
+		err := networks.Update(ctx, networkClient, createdNetwork.ID, updateOpts).ExtractInto(&updatedNetwork)
+		cancel()
+		if err != nil {
+			t.Fatalf("Failed to update Neutron network MTU: %v", err)
+		}
 	}
 	scrapeMetrics(t, "after MTU network update").requireLabelValue(t, "openstack_neutron_network", labels{"id": createdNetwork.ID}, "mtu", "1350")
 
-	if err := networks.Delete(ctx, networkClient, createdNetwork.ID).ExtractErr(); err != nil {
-		t.Fatalf("Failed to delete Neutron network with MTU: %v", err)
+	{
+		ctx, cancel := funcs.RequestContext(t)
+		err := networks.Delete(ctx, networkClient, createdNetwork.ID).ExtractErr()
+		cancel()
+		if err != nil {
+			t.Fatalf("Failed to delete Neutron network with MTU: %v", err)
+		}
 	}
 	networkDeleted = true
 

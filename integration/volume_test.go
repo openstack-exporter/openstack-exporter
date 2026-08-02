@@ -19,7 +19,7 @@ func TestVolumeImageMetadataIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client, err := clients.NewBlockStorageV3NoAuthClient()
+	client, err := clients.NewBlockStorageV3Client()
 	if err != nil {
 		t.Fatalf("Failed to build block storage client: %v", err)
 	}

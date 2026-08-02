@@ -22,3 +22,6 @@ vendor
 
 # Snap build
 *.snap
+
+# Handled by goreleaser directly
+VERSION

@@ -1,10 +1,10 @@
-name: ci
+name: build
 
 on:
   push:
     branches: [main]
     tags:
-      - 'v*'
+      - "v*"
   pull_request:
   workflow_dispatch:
 
@@ -57,11 +57,12 @@ jobs:
           filter_mode: nofilter
 
   build:
-    name: Build and test
+    name: Build, test, release
     permissions:
       contents: write
       packages: write
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -118,14 +119,14 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64, linux/arm64, linux/s390x
+          platforms: linux/amd64,linux/arm64,linux/s390x
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta-github-image.outputs.tags }}
           labels: ${{ steps.meta-github-image.outputs.labels }}
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
 
-      # This step runs ONLY when a tag is pushed
+      # GoReleaser: full release on tags
       - name: Run GoReleaser (Tag Release)
         if: contains(github.ref, 'refs/tags/')
         uses: goreleaser/goreleaser-action@v7
@@ -135,7 +136,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # This step runs on anything EXCEPT tags
+      # GoReleaser: snapshot on branches / PRs
       - name: Run GoReleaser (Snapshot)
         if: ${{ !contains(github.ref, 'refs/tags/') }}
         uses: goreleaser/goreleaser-action@v7
@@ -144,3 +145,30 @@ jobs:
           args: release --snapshot --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Snapcraft Release
+      - name: Install Snapcraft
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          sudo snap install snapcraft --classic
+          sudo snap install lxd
+          sudo lxd init --auto
+
+      - name: Build snap
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          snapcraft --use-lxd
+
+      - name: Upload snap to store
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.SNAPCRAFT_STORE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          SNAP_FILE="$(find . -maxdepth 1 -type f -name '*.snap' | head -n 1)"
+          if [ -z "$SNAP_FILE" ]; then
+            echo "No .snap file found to upload"
+            exit 1
+          fi
+          echo "Uploading $SNAP_FILE"
+          snapcraft upload "$SNAP_FILE" --release=stable

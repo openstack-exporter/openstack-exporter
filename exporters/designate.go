@@ -1,12 +1,14 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/recordsets"
-	"github.com/gophercloud/gophercloud/openstack/dns/v2/zones"
+	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/recordsets"
+	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/zones"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 type DesignateExporter struct {
@@ -60,8 +62,9 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 			logger:         logger,
 		},
 	}
+
 	// This header needed for colletiong zone of all projects
-	exporter.Client.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
+	exporter.ClientV2.MoreHeaders = map[string]string{"X-Auth-All-Projects": "True"}
 
 	for _, metric := range defaultDesignateMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
@@ -75,8 +78,8 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 	return &exporter, nil
 }
 
-func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesZones, err := zones.List(exporter.Client, zones.ListOpts{}).AllPages()
+func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPagesZones, err := zones.List(exporter.ClientV2, zones.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -89,32 +92,42 @@ func ListZonesAndRecordsets(exporter *BaseOpenStackExporter, ch chan<- prometheu
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(exporter.GetDnsConcurrencyCount())
+
 	// Collect recordsets for zone and write metrics for zones and recordsets
 	for _, zone := range allZones {
+		zone := zone
+		g.Go(func() error {
+			allPagesRecordsets, err := recordsets.ListByZone(exporter.ClientV2, zone.ID, recordsets.ListOpts{}).AllPages(gCtx)
+			if err != nil {
+				return err
+			}
 
-		allPagesRecordsets, err := recordsets.ListByZone(exporter.Client, zone.ID, recordsets.ListOpts{}).AllPages()
-		if err != nil {
-			return err
-		}
+			allRecordsets, err := recordsets.ExtractRecordSets(allPagesRecordsets)
+			if err != nil {
+				return err
+			}
 
-		allRecordsets, err := recordsets.ExtractRecordSets(allPagesRecordsets)
-		if err != nil {
-			return err
-		}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
+				prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets"].Metric,
-			prometheus.GaugeValue, float64(len(allRecordsets)), zone.ID, zone.Name, zone.ProjectID)
+			for _, recordset := range allRecordsets {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
+					prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
+					recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
+			}
 
-		for _, recordset := range allRecordsets {
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["recordsets_status"].Metric,
-				prometheus.GaugeValue, float64(mapRecordsetStatus(recordset.Status)), recordset.ID, recordset.Name,
-				recordset.Status, recordset.ZoneID, recordset.ZoneName, recordset.Type)
-		}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
+				prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
+				zone.Status, zone.ProjectID, zone.Type)
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["zone_status"].Metric,
-			prometheus.GaugeValue, float64(mapZoneStatus(zone.Status)), zone.ID, zone.Name,
-			zone.Status, zone.ProjectID, zone.Type)
+			return nil
+		})
+	}
 
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	return nil

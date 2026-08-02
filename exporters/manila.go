@@ -1,11 +1,11 @@
 package exporters
 
 import (
+	"context"
+	"log/slog"
 	"strconv"
 
-	"log/slog"
-
-	"github.com/gophercloud/gophercloud/openstack/sharedfilesystems/v2/shares"
+	"github.com/gophercloud/gophercloud/v2/openstack/sharedfilesystems/v2/shares"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -23,7 +23,6 @@ var defaultManilaMetrics = []Metric{
 func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExporter, error) {
 	exporter := ManilaExporter{
 		BaseOpenStackExporter{
-
 			Name:           "sharev2",
 			ExporterConfig: *config,
 			logger:         logger,
@@ -42,11 +41,10 @@ func NewManilaExporter(config *ExporterConfig, logger *slog.Logger) (*ManilaExpo
 	return &exporter, nil
 }
 
-func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
+func CountShares(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allShares []shares.Share
 
-	allPagesShares, err := shares.ListDetail(exporter.Client, shares.ListOpts{AllTenants: true}).AllPages()
+	allPagesShares, err := shares.ListDetail(exporter.ClientV2, shares.ListOpts{AllTenants: true}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -104,11 +102,10 @@ func CountShares(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	return nil
 }
 
-func ListShareStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-
+func ListShareStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allShares []shares.Share
 
-	allPagesShares, err := shares.ListDetail(exporter.Client, shares.ListOpts{AllTenants: true}).AllPages()
+	allPagesShares, err := shares.ListDetail(exporter.ClientV2, shares.ListOpts{AllTenants: true}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -124,5 +121,6 @@ func ListShareStatus(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			prometheus.GaugeValue, float64(mapVolumeStatus(share.Status)), share.ID, share.Name,
 			share.Status, strconv.Itoa(share.Size), share.ShareType, share.ShareProto, share.ShareTypeName, share.ProjectID)
 	}
+
 	return nil
 }

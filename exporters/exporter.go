@@ -1,23 +1,25 @@
 package exporters
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"log/slog"
 
-	"github.com/gophercloud/gophercloud"
 	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/utils/openstack/clientconfig"
+	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
 	"github.com/mitchellh/go-homedir"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	"golang.org/x/sync/errgroup"
 )
 
 type Metric struct {
@@ -39,6 +41,8 @@ const (
 	TERABYTE
 )
 
+var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
+
 type OpenStackExporter interface {
 	prometheus.Collector
 
@@ -47,8 +51,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +65,8 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	Client                   *gophercloud.ServiceClient
 	ClientV2                 *gophercloudv2.ServiceClient
+	ServiceName              string
 	Prefix                   string
 	DisabledMetrics          []string
 	CollectTime              bool
@@ -73,6 +77,7 @@ type ExporterConfig struct {
 	DomainID                 string
 	TenantID                 string
 	NovaMetadataMapping      *utils.LabelMappingFlag
+	DnsConcurrentCount       int
 }
 
 type BaseOpenStackExporter struct {
@@ -82,12 +87,8 @@ type BaseOpenStackExporter struct {
 	logger  *slog.Logger
 }
 
-type ListFunc func(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
+type ListFunc func(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error
 
-var (
-	endpointOpts   = make(map[string]gophercloud.EndpointOpts)
-	endpointOptsMu sync.Mutex
-)
 var (
 	endpointOptsV2   map[string]gophercloudv2.EndpointOpts
 	endpointOptsV2Mu sync.Mutex
@@ -113,9 +114,11 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger *slog.Logger) error {
+	ctx := context.TODO()
+
 	exporter.logger.Info("Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
-	err := metric.Fn(exporter, ch)
+	err := metric.Fn(ctx, exporter, ch)
 	if err != nil {
 		return fmt.Errorf("failed to collect metric: %s, error: %s", metricName, err)
 	}
@@ -124,33 +127,53 @@ func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, m
 	if exporter.CollectTime {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["openstack_metric_collect_seconds"].Metric, prometheus.GaugeValue, time.Since(now).Seconds(), metricName)
 	}
+
 	return nil
 }
 
 func (exporter *BaseOpenStackExporter) Collect(ch chan<- prometheus.Metric) {
-	metricsDown := 0
-	metricsCount := len(exporter.Metrics)
+	metricsCount := 0
+	var failures int32
+
+	var g errgroup.Group
 
 	for name, metric := range exporter.Metrics {
 		if metric.Fn == nil {
 			exporter.logger.Debug("No function handler set for metric", "metric", name)
-			metricsCount--
 			continue
 		}
 
-		if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
-			exporter.logger.Error("Failed to collect metric for exporter", "exporter", exporter.Name, "error", err)
-			metricsDown++
-		}
+		metricsCount++
+
+		name := name
+		metric := metric
+
+		g.Go(func() error {
+			if err := exporter.RunCollection(metric, name, ch, exporter.logger); err != nil {
+				exporter.logger.Error(
+					"Failed to collect metric for exporter",
+					"exporter", exporter.Name,
+					"metric", name,
+					"err", err,
+				)
+				atomic.AddInt32(&failures, 1)
+			}
+			return nil
+		})
 	}
 
-	//If all metrics collections fails for a given service, we'll flag it as down.
-	if metricsDown >= metricsCount {
+	_ = g.Wait()
+
+	if metricsCount == 0 {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
+		return
+	}
+
+	if int(atomic.LoadInt32(&failures)) >= metricsCount {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 0)
 	} else {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["up"].Metric, prometheus.GaugeValue, 1)
 	}
-
 }
 
 func (exporter *BaseOpenStackExporter) isSlowMetric(metric *Metric) bool {
@@ -162,7 +185,6 @@ func (exporter *BaseOpenStackExporter) isDeprecatedMetric(metric *Metric) bool {
 }
 
 func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, labels []string, deprecatedVersion string, constLabels prometheus.Labels) {
-
 	if exporter.MetricIsDisabled(name) {
 		exporter.logger.Warn("metric has been disabled for exporter, not collecting metrics", "metric", name, "exporter", exporter.Name)
 		return
@@ -204,6 +226,10 @@ func (exporter *BaseOpenStackExporter) AddMetric(name string, fn ListFunc, label
 	}
 }
 
+func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
+	return exporter.DnsConcurrentCount
+}
+
 // took from here:
 // https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L87
 func pathOrContents(poc string) ([]byte, bool, error) {
@@ -231,16 +257,15 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 	return []byte(poc), false, nil
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
-	var transport *http.Transport
+	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
-	opts := clientconfig.ClientOpts{Cloud: cloud}
 	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
 
-	config, err := clientconfig.GetCloudFromYAML(&opts)
+	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
 	if err != nil {
 		return nil, err
 	}
@@ -281,9 +306,15 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		transport = &http.Transport{TLSClientConfig: &tlsConfig}
 	}
 
-	client, err := NewServiceClient(name, &opts, transport, endpointType)
-	if err != nil {
-		return nil, err
+	if _, ok := os.LookupEnv("OS_DEBUG"); ok {
+		if transport == nil {
+			transport = http.DefaultTransport
+		}
+
+		transport = &clientutilsv2.RoundTripper{
+			Rt:     transport,
+			Logger: &clientutilsv2.DefaultLogger{},
+		}
 	}
 
 	clientV2, err := NewServiceClientV2(name, &optsv2, transport, endpointType)
@@ -296,8 +327,8 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		Client:                   client,
 		ClientV2:                 clientV2,
+		ServiceName:              name,
 		Prefix:                   prefix,
 		DisabledMetrics:          disabledMetrics,
 		CollectTime:              collectTime,
@@ -308,6 +339,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		DomainID:                 domainID,
 		TenantID:                 tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
+		DnsConcurrentCount:       dnsConcurrentCount,
 	}
 
 	switch name {

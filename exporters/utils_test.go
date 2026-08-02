@@ -68,3 +68,24 @@ kf2kRqwmo4NpwI1Zb5eaQa6ca6qBaAQ35l+bpes7VEQX
 		t.Error("Cert pools are not equal")
 	}
 }
+
+func TestServiceTypeMappings(t *testing.T) {
+	if len(serviceCatalogTypesByExporterService["compute"]) == 0 {
+		t.Error("expected compute service type mapping")
+	}
+	if len(serviceCatalogTypesByExporterService["volume"]) == 0 {
+		t.Error("expected volume service type mapping")
+	}
+	if len(serviceCatalogTypesByExporterService["gnocchi"]) == 0 {
+		t.Error("expected gnocchi service type mapping")
+	}
+}
+
+func TestIsExporterNameValid(t *testing.T) {
+	if !IsExporterNameValid("compute") {
+		t.Fatal("expected compute to be a valid exporter name")
+	}
+	if IsExporterNameValid("nope") {
+		t.Fatal("expected nope to be an invalid exporter name")
+	}
+}

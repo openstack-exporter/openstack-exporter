@@ -61,7 +61,7 @@ type NovaExporter struct {
 
 var (
 	defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "image_id"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
 	defaultNovaLimitsLabels     = []string{"tenant", "tenant_id"}
@@ -396,18 +396,25 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			imageID := ""
+			if server.Image != nil {
+				if val, exists := server.Image["id"]; exists {
+					imageID = fmt.Sprintf("%v", val)
+				}
+			}
+
 			labelValues := func() []string {
 				if flavorIDMapper == nil {
 					return []string{
 						server.ID, server.Status, server.Name, server.TenantID,
 						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName,
+						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName, imageID,
 					}
 				}
 				return []string{
 					server.ID, server.Status, server.Name, server.TenantID,
 					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName,
+					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName, imageID,
 				}
 			}()
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)

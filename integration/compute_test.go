@@ -50,6 +50,10 @@ func TestComputeIntegration(t *testing.T) {
 		}, "flavor_id", "tenant_id", "user_id", "host_id", "hypervisor_hostname")
 	})
 
+	t.Run("nova_server_image_id_label_present", func(t *testing.T) {
+		metrics.requireLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "image_id")
+	})
+
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {
 		metrics.requireMinValueWithLabels(t, "openstack_nova_quota_instances", labels{
 			"tenant": "admin",

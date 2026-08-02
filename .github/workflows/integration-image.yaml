@@ -24,7 +24,7 @@ jobs:
           branch: ${{ matrix.openstack_version }}
           enabled_services: "${{ matrix.additional_services }}"
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version-file: 'go.mod'
       - name: Display clouds.yaml configuration

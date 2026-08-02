@@ -24,9 +24,13 @@ type metricSet struct {
 }
 
 func startExporter(t *testing.T, services ...string) func() {
+	return startExporterWithIronicDriverInfo(t, false, services...)
+}
+
+func startExporterWithIronicDriverInfo(t *testing.T, enableIronicDriverInfo bool, services ...string) func() {
 	t.Helper()
 
-	_, cleanup, err := startOpenStackExporter(services)
+	_, cleanup, err := startOpenStackExporter(services, enableIronicDriverInfo)
 	if err != nil {
 		t.Fatalf("Failed to start exporter: %v", err)
 	}

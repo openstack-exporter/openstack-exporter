@@ -22,8 +22,8 @@ func TestBaremetalIntegration(t *testing.T) {
 	th.AssertNoErr(t, err)
 
 	cleanup := startExporter(t, "baremetal")
-	defer cleanup()
 	metrics := scrapeLoggedMetrics(t, "")
+	cleanup()
 
 	t.Run("openstack_ironic_node_metric", func(t *testing.T) {
 		metrics.requirePresentLabels(t, "openstack_ironic_node", labels{"id": node.UUID},
@@ -37,6 +37,27 @@ func TestBaremetalIntegration(t *testing.T) {
 			"retired",
 			"retired_reason",
 		)
+	})
+
+	t.Run("openstack_ironic_node_driver_info_labels_disabled", func(t *testing.T) {
+		sample := metrics.requireMetric(t, "openstack_ironic_node", labels{"id": node.UUID})
+		for _, label := range []string{"deploy_kernel", "deploy_ramdisk"} {
+			if _, present := sample.labels[label]; present {
+				failMetrics(t, metrics.body, "Expected %s metric to omit %s when driver info is disabled", "openstack_ironic_node", label)
+			}
+		}
+	})
+
+	cleanup = startExporterWithIronicDriverInfo(t, true, "baremetal")
+	defer cleanup()
+	metrics = scrapeLoggedMetrics(t, " with Ironic driver info enabled")
+
+	t.Run("openstack_ironic_node_driver_info_labels", func(t *testing.T) {
+		metrics.requireMetric(t, "openstack_ironic_node", labels{
+			"id":             node.UUID,
+			"deploy_kernel":  node.DriverInfo["deploy_kernel"].(string),
+			"deploy_ramdisk": node.DriverInfo["deploy_ramdisk"].(string),
+		})
 	})
 
 	t.Run("openstack_ironic_node_boolean_labels", func(t *testing.T) {

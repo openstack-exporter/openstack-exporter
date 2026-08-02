@@ -1,10 +1,6 @@
 package integration
 
 import (
-	"fmt"
-	"log"
-	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
@@ -14,121 +10,77 @@ import (
 func TestComputeIntegration(t *testing.T) {
 	clients.RequireLong(t)
 
-	// Build a compute client
 	computeClient, err := clients.NewComputeV2Client()
 	if err != nil {
 		t.Fatalf("Failed to build compute client: %v", err)
 	}
 
-	// Create a real VM
 	server, err := funcs.CreateServer(t, computeClient)
 	if err != nil {
 		t.Fatalf("Could not create test server: %v", err)
 	}
 	defer funcs.DeleteServer(t, computeClient, server)
 
-	// Helper to print body on failure
-	failWithBody := func(t *testing.T, body string, msg string, args ...interface{}) {
-		t.Helper()
-		log.Printf("Metrics body:\n%s\n", body)
-		t.Fatalf(msg, args...)
-	}
-
-	// Start exporter
-	_, cleanup, err := startOpenStackExporter([]string{"compute"})
-	if err != nil {
-		t.Fatalf("Failed to start exporter: %v", err)
-	}
+	cleanup := startExporter(t, "compute")
 	defer cleanup()
-
-	_, bodyBytes, err := httpGetRetry(defaultMetricsURL, 10, t)
-	if err != nil {
-		t.Fatalf("Failed to fetch metrics: %v", err)
-	}
-	body := string(bodyBytes)
-	t.Logf("Metrics response body:\n%s", body)
+	metrics := scrapeLoggedMetrics(t, "")
 
 	t.Run("nova_server_status_metric_present", func(t *testing.T) {
-		// Matches lines like:
-		// openstack_nova_server_status{...,id="<uuid>",...} 0
-		re := regexp.MustCompile(fmt.Sprintf(
-			`openstack_nova_server_status\{[^}]*id="%s"`,
-			server.ID,
-		))
-		if !re.MatchString(body) {
-			failWithBody(t, body,
-				"Expected server_status metric for server %s not found",
-				server.ID,
-			)
-		}
+		metrics.requireMetric(t, "openstack_nova_server_status", labels{"id": server.ID})
 	})
 
 	t.Run("nova_total_vms_incremented", func(t *testing.T) {
-		if !strings.Contains(body, "openstack_nova_total_vms") {
-			failWithBody(t, body,
-				"Metric openstack_nova_total_vms missing entirely",
-			)
-		}
-		re := regexp.MustCompile(`openstack_nova_total_vms [0-9]+`)
-		if !re.MatchString(body) {
-			failWithBody(t, body,
-				"openstack_nova_total_vms did not contain a numeric value",
-			)
-		}
+		metrics.requireMinValue(t, "openstack_nova_total_vms", nil, 1)
 	})
 
 	t.Run("nova_server_local_gb_metric_present", func(t *testing.T) {
-		// Matches lines like:
-		// openstack_nova_server_local_gb{id="<uuid>",name="...",tenant_id="..."} 20
-		re := regexp.MustCompile(fmt.Sprintf(
-			`openstack_nova_server_local_gb\{[^}]*id="%s"`,
-			server.ID,
-		))
-		if !re.MatchString(body) {
-			failWithBody(t, body,
-				"Expected server_local_gb metric for server %s not found",
-				server.ID,
-			)
-		}
+		metrics.requireMetric(t, "openstack_nova_server_local_gb", labels{"id": server.ID})
 	})
 
 	t.Run("nova_server_az_label_present", func(t *testing.T) {
-		// Ensure the status metric for this server has both id and availability_zone labels.
-		re := regexp.MustCompile(fmt.Sprintf(
-			`openstack_nova_server_status\{[^}]*id="%s"[^}]*\}[^\n]*\n`,
-			regexp.QuoteMeta(server.ID),
-		))
+		metrics.requireMetric(t, "openstack_nova_server_status", labels{
+			"id":                server.ID,
+			"availability_zone": server.AvailabilityZone,
+		})
+	})
 
-		match := re.FindString(body)
-		if match == "" || !strings.Contains(match, fmt.Sprintf(`availability_zone="%s"`, server.AvailabilityZone)) {
-			failWithBody(t, body,
-				"Expected AZ label '%s' for server %s not found",
-				server.AvailabilityZone, server.ID,
-			)
-		}
+	t.Run("nova_server_status_labels_present", func(t *testing.T) {
+		metrics.requireLabels(t, "openstack_nova_server_status", labels{
+			"id": server.ID, "name": server.Name, "status": "ACTIVE", "uuid": server.ID,
+		}, "flavor_id", "tenant_id", "user_id", "host_id", "hypervisor_hostname")
 	})
 
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {
-		// Expect a non-zero in_use instances quota for admin tenant:
-		// openstack_nova_quota_instances{tenant="admin",type="in_use"} <n> (n > 0)
-		re := regexp.MustCompile(
-			`openstack_nova_quota_instances\{tenant="admin",type="in_use"\} [1-9][0-9]*`,
-		)
-		if !re.MatchString(body) {
-			failWithBody(t, body,
-				"Expected non-zero quota_instances for admin tenant not found",
-			)
-		}
+		metrics.requireMinValueWithLabels(t, "openstack_nova_quota_instances", labels{
+			"tenant": "admin",
+			"type":   "in_use",
+		}, 1, "tenant_id")
 	})
 
 	t.Run("nova_quota_key_pairs_admin_limit_present", func(t *testing.T) {
-		// Expect exactly this line (based on your setup/fixtures):
-		// openstack_nova_quota_key_pairs{tenant="admin",type="limit"} 100
-		const expected = `openstack_nova_quota_key_pairs{tenant="admin",type="limit"} 100`
-		if !strings.Contains(body, expected) {
-			failWithBody(t, body,
-				"Expected quota_key_pairs limit=100 for admin tenant not found",
-			)
+		metrics.requireMinValueWithLabels(t, "openstack_nova_quota_key_pairs", labels{
+			"tenant": "admin",
+			"type":   "limit",
+		}, 1, "tenant_id")
+	})
+
+	t.Run("nova_quota_admin_usage_metrics_present", func(t *testing.T) {
+		for _, tc := range []struct {
+			name      string
+			metric    string
+			quotaType string
+			minValue  float64
+		}{
+			{name: "cores_in_use", metric: "openstack_nova_quota_cores", quotaType: "in_use", minValue: 1},
+			{name: "ram_in_use", metric: "openstack_nova_quota_ram", quotaType: "in_use", minValue: 1},
+			{name: "instances_limit", metric: "openstack_nova_quota_instances", quotaType: "limit", minValue: 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				metrics.requireMinValueWithLabels(t, tc.metric, labels{
+					"tenant": "admin",
+					"type":   tc.quotaType,
+				}, tc.minValue, "tenant_id")
+			})
 		}
 	})
 }

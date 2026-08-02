@@ -13,7 +13,7 @@ type CinderTestSuite struct {
 
 var cinderExpectedUp = `
 # HELP openstack_cinder_agent_state agent_state
-# TYPE openstack_cinder_agent_state counter
+# TYPE openstack_cinder_agent_state gauge
 openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
 openstack_cinder_agent_state{adminState="enabled",disabledReason="Test1",hostname="devstack",service="cinder-scheduler",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
 openstack_cinder_agent_state{adminState="enabled",disabledReason="Test2",hostname="devstack",service="cinder-backup",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1

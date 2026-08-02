@@ -1,8 +1,6 @@
 package integration
 
 import (
-	"regexp"
-	"strings"
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
@@ -11,105 +9,27 @@ import (
 func TestImagesIntegration(t *testing.T) {
 	clients.RequireLong(t)
 
-	_, cleanup, err := startOpenStackExporter([]string{
-		"image",
-	})
-	if err != nil {
-		t.Fatalf("Failed to start OpenStack exporter: %v", err)
-	}
+	cleanup := startExporter(t, "image")
 	defer cleanup()
-
-	const maxTriesFetch = 10
-	resp, body, err := httpGetRetry(defaultMetricsURL, maxTriesFetch, t)
-	if err != nil {
-		t.Fatalf("Failed to fetch metrics after multiple retries: %v", err)
-	}
-
-	bodyString := string(body)
-
-	// Helper to always dump status, endpoint, and full body on failure paths.
-	logOnFailure := func(t *testing.T) {
-		t.Helper()
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
-		}
-		t.Logf(
-			"\nStatus Code: %d\nMetrics Endpoint: %s\nResponse Body:\n%s\n",
-			statusCode,
-			defaultMetricsURL,
-			bodyString,
-		)
-	}
+	metrics := scrapeLoggedMetrics(t, "")
 
 	t.Run("openstack_glance_up_metric", func(t *testing.T) {
-		if !strings.Contains(bodyString, "openstack_glance_up") {
-			logOnFailure(t)
-			t.Fatalf(
-				"Metric %q not found in metrics response",
-				"openstack_glance_up",
-			)
-		}
-		if !strings.Contains(bodyString, "openstack_glance_up 1") {
-			logOnFailure(t)
-			t.Error(
-				"openstack_glance_up metric should have value 1 indicating service is up",
-			)
-		}
-		if !strings.Contains(bodyString, "# HELP openstack_glance_up up") {
-			logOnFailure(t)
-			t.Error("Missing HELP comment for openstack_glance_up metric")
-		}
-		if !strings.Contains(bodyString, "# TYPE openstack_glance_up gauge") {
-			logOnFailure(t)
-			t.Error("Missing TYPE comment for openstack_glance_up metric")
-		}
+		metrics.requireUp(t, "openstack_glance_up")
 	})
 
 	t.Run("openstack_glance_core_metrics_present", func(t *testing.T) {
-		expected := []string{
-			"# HELP openstack_glance_images",
-			"# HELP openstack_glance_image_bytes",
-			"# HELP openstack_glance_image_created_at",
-		}
-		foundAny := false
-		for _, m := range expected {
-			if strings.Contains(bodyString, m) {
-				foundAny = true
-				break
-			}
-		}
-		if !foundAny {
-			// Informational, but full body is useful when this triggers.
-			logOnFailure(t)
-			t.Log(
-				"Note: Expected Glance metrics HELP headers not found; Glance may not be fully available",
-			)
-		}
+		metrics.requireAnyFamily(t,
+			"openstack_glance_images",
+			"openstack_glance_image_bytes",
+			"openstack_glance_image_created_at",
+		)
 	})
 
-	// Regex-based specificity checks against actual metric lines
-	t.Run("glance_image_bytes_line_format", func(t *testing.T) {
-		re := regexp.MustCompile(
-			`(?m)^openstack_glance_image_bytes\{id="[^"]+",name="[^"]+",tenant_id="[^"]+"\} [0-9.e\+\-]+$`,
-		)
-		if !re.MatchString(bodyString) {
-			logOnFailure(t)
-			t.Errorf(
-				"No 'openstack_glance_image_bytes' line matched expected format",
-			)
-		}
+	t.Run("glance_image_bytes_labels_present", func(t *testing.T) {
+		metrics.requireSampleWithLabels(t, "openstack_glance_image_bytes", "id", "name", "tenant_id")
 	})
 
-	t.Run("glance_image_created_at_line_format", func(t *testing.T) {
-		re := regexp.MustCompile(
-			`(?m)^openstack_glance_image_created_at\{hidden="(?:true|false)",id="[^"]+",name="[^"]+",status="[^"]+",tenant_id="[^"]+",visibility="[^"]+"\} [0-9.e\+\-]+$`,
-		)
-		if !re.MatchString(bodyString) {
-			logOnFailure(t)
-			t.Errorf(
-				"No 'openstack_glance_image_created_at' line matched expected format with labels hidden,id,name,status,tenant_id,visibility",
-			)
-		}
+	t.Run("glance_image_created_at_labels_present", func(t *testing.T) {
+		metrics.requireSampleWithLabels(t, "openstack_glance_image_created_at", "hidden", "id", "name", "status", "tenant_id", "visibility")
 	})
 }

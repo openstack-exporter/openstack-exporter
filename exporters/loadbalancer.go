@@ -1,76 +1,60 @@
 package exporters
 
 import (
+	"context"
 	"log/slog"
 	"strconv"
 	"time"
 
-	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/amphorae"
-	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/listeners"
-	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/loadbalancers"
-	"github.com/gophercloud/gophercloud/openstack/loadbalancer/v2/pools"
+	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/amphorae"
+	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/listeners"
+	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/loadbalancers"
+	"github.com/gophercloud/gophercloud/v2/openstack/loadbalancer/v2/pools"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var loadbalancer_status = []string{
-	// Octavia API v2 entities have two status codes present in the response body.
-	// The provisioning_status describes the lifecycle status of the entity while the operating_status provides the observed status of the entity.
-	// Here we put operating_status in metrics value and provisioning_status in metrics label
-	"ONLINE",     // Entity is operating normally. All pool members are healthy
-	"DRAINING",   // The member is not accepting new connections
-	"OFFLINE",    // Entity is administratively disabled
-	"ERROR",      // The entity has failed. The member is failing it's health monitoring checks. All of the pool members are in ERROR
-	"NO_MONITOR", // No health monitor is configured for this entity and it's status is unknown
+// Octavia API v2 entities have two status codes present in the response body.
+// The provisioning_status describes the lifecycle status of the entity while the operating_status provides the observed status of the entity.
+// Here we put operating_status in metrics value and provisioning_status in metrics label
+var knownLoadbalancerStatuses = map[string]int{
+	"ONLINE":     0, // Entity is operating normally. All pool members are healthy
+	"DRAINING":   1, // The member is not accepting new connections
+	"OFFLINE":    2, // Entity is administratively disabled
+	"ERROR":      3, // The entity has failed. The member is failing it's health monitoring checks. All of the pool members are in ERROR
+	"NO_MONITOR": 4, // No health monitor is configured for this entity and it's status is unknown
 }
 
-var amphora_status = []string{
-	// The status of the amphora. One of: BOOTING, ALLOCATED, READY, PENDING_CREATE, PENDING_DELETE, DELETED, ERROR.
-	"BOOTING",
-	"ALLOCATED",
-	"READY",
-	"PENDING_CREATE",
-	"PENDING_DELETE",
-	"DELETED",
-	"ERROR",
+// The status of the amphora. One of: BOOTING, ALLOCATED, READY, PENDING_CREATE, PENDING_DELETE, DELETED, ERROR.
+var knownAmphoraStatuses = map[string]int{
+	"BOOTING":        0,
+	"ALLOCATED":      1,
+	"READY":          2,
+	"PENDING_CREATE": 3,
+	"PENDING_DELETE": 4,
+	"DELETED":        5,
+	"ERROR":          6,
 }
 
-var pool_status = []string{
-	// Loadbalancer pool provisioning status. One of: ACTIVE, DELETED, ERROR, PENDING_CREATE, PENDING_UPDATE, PENDING_DELETE.
-	"ACTIVE",
-	"DELETED",
-	"ERROR",
-	"PENDING_CREATE",
-	"PENDING_UPDATE",
-	"PENDING_DELETE",
+// Loadbalancer pool provisioning status. One of: ACTIVE, DELETED, ERROR, PENDING_CREATE, PENDING_UPDATE, PENDING_DELETE.
+var knownPoolStatuses = map[string]int{
+	"ACTIVE":         0,
+	"DELETED":        1,
+	"ERROR":          2,
+	"PENDING_CREATE": 3,
+	"PENDING_UPDATE": 4,
+	"PENDING_DELETE": 5,
 }
 
 func mapLoadbalancerStatus(current string) int {
-	for idx, status := range loadbalancer_status {
-		if current == status {
-			return idx
-		}
-	}
-	return -1
+	return mapStatus(knownLoadbalancerStatuses, current)
 }
 
 func mapAmphoraStatus(current string) int {
-
-	for idx, status := range amphora_status {
-		if current == status {
-			return idx
-		}
-	}
-	return -1
+	return mapStatus(knownAmphoraStatuses, current)
 }
 
 func mapPoolStatus(current string) int {
-
-	for idx, status := range pool_status {
-		if current == status {
-			return idx
-		}
-	}
-	return -1
+	return mapStatus(knownPoolStatuses, current)
 }
 
 type LoadbalancerExporter struct {
@@ -109,20 +93,23 @@ func NewLoadbalancerExporter(config *ExporterConfig, logger *slog.Logger) (*Load
 			logger:         logger,
 		},
 	}
+
 	for _, metric := range defaultLoadbalancerMetrics {
 		if !exporter.isSlowMetric(&metric) {
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
 	return &exporter, nil
 }
 
-func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllLoadbalancers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allLoadbalancers []loadbalancers.LoadBalancer
-	allPagesLoadbalancers, err := loadbalancers.List(exporter.Client, loadbalancers.ListOpts{}).AllPages()
+	allPagesLoadbalancers, err := loadbalancers.List(exporter.ClientV2, loadbalancers.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	allLoadbalancers, err = loadbalancers.ExtractLoadBalancers(allPagesLoadbalancers)
 	if err != nil {
 		return err
@@ -130,6 +117,7 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_loadbalancers"].Metric,
 		prometheus.GaugeValue, float64(len(allLoadbalancers)))
+
 	// Loadbalancer status metrics
 	for _, loadbalancer := range allLoadbalancers {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["loadbalancer_status"].Metric,
@@ -138,7 +126,7 @@ func ListAllLoadbalancers(exporter *BaseOpenStackExporter, ch chan<- prometheus.
 
 		// Loadbalancer stats metrics (only if enabled)
 		if _, hasStatsMetrics := exporter.Metrics["stats_bytes_in"]; hasStatsMetrics {
-			stats, err := loadbalancers.GetStats(exporter.Client, loadbalancer.ID).Extract()
+			stats, err := loadbalancers.GetStats(ctx, exporter.ClientV2, loadbalancer.ID).Extract()
 			if err != nil {
 				exporter.logger.Warn("failed to get loadbalancer stats", "id", loadbalancer.ID, "error", err)
 				continue
@@ -174,9 +162,9 @@ func listenerLbsLabels(lbs []listeners.LoadBalancerID) string {
 	return label
 }
 
-func ListAllListeners(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllListeners(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allListeners []listeners.Listener
-	allPagesListeners, err := listeners.List(exporter.Client, listeners.ListOpts{}).AllPages()
+	allPagesListeners, err := listeners.List(exporter.ClientV2, listeners.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -191,7 +179,7 @@ func ListAllListeners(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 	// Listener stats metrics (only if enabled)
 	if _, hasStatsMetrics := exporter.Metrics["listener_stats_bytes_in"]; hasStatsMetrics {
 		for _, listener := range allListeners {
-			stats, err := listeners.GetStats(exporter.Client, listener.ID).Extract()
+			stats, err := listeners.GetStats(ctx, exporter.ClientV2, listener.ID).Extract()
 			if err != nil {
 				exporter.logger.Warn("failed to get listener stats", "id", listener.ID, "error", err)
 				continue
@@ -213,15 +201,17 @@ func ListAllListeners(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metr
 				prometheus.GaugeValue, float64(stats.RequestErrors), labelValues...)
 		}
 	}
+
 	return nil
 }
 
-func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllAmphorae(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allAmphorae []amphorae.Amphora
-	allPagesAmphorae, err := amphorae.List(exporter.Client, amphorae.ListOpts{}).AllPages()
+	allPagesAmphorae, err := amphorae.List(exporter.ClientV2, amphorae.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	allAmphorae, err = amphorae.ExtractAmphorae(allPagesAmphorae)
 	if err != nil {
 		return err
@@ -229,43 +219,49 @@ func ListAllAmphorae(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_amphorae"].Metric,
 		prometheus.GaugeValue, float64(len(allAmphorae)))
+
 	// Loadbalancer status metrics
 	for _, amphora := range allAmphorae {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["amphora_status"].Metric,
 			prometheus.GaugeValue, float64(mapAmphoraStatus(amphora.Status)), amphora.ID, amphora.LoadbalancerID, amphora.ComputeID, amphora.Status,
 			amphora.Role, amphora.LBNetworkIP, amphora.HAIP, amphora.CertExpiration.Format(time.RFC3339))
 	}
+
 	return nil
 }
 
-func ListAllPools(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListAllPools(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allPools []pools.Pool
-	allPagesPools, err := pools.List(exporter.Client, pools.ListOpts{}).AllPages()
+	allPagesPools, err := pools.List(exporter.ClientV2, pools.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
+
 	allPools, err = pools.ExtractPools(allPagesPools)
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_pools"].Metric,
 		prometheus.GaugeValue, float64(len(allPools)))
+
 	for _, pool := range allPools {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_status"].Metric,
 			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
 			lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID)
 	}
+
 	return nil
 }
 
 func lbsLabels(lbs []pools.LoadBalancerID) string {
 	label := ""
 	for i, l := range lbs {
-		if i == 0 {
-			label += l.ID
-		} else {
-			label += "," + l.ID
+		if i != 0 {
+			label += ","
 		}
+		label += l.ID
 	}
+
 	return label
 }

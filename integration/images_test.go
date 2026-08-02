@@ -25,6 +25,11 @@ func TestImagesIntegration(t *testing.T) {
 		)
 	})
 
+	t.Run("glance_images_labels_present", func(t *testing.T) {
+		metrics.requirePresentLabels(t, "openstack_glance_images", nil,
+			"id", "name", "image_stats", "disk_format", "tags", "project_id")
+	})
+
 	t.Run("glance_image_bytes_labels_present", func(t *testing.T) {
 		metrics.requireSampleWithLabels(t, "openstack_glance_image_bytes", "id", "name", "tenant_id")
 	})

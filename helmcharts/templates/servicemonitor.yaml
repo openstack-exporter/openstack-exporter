@@ -1,0 +1,82 @@
+{{- if .Values.multicloud.enabled }}
+{{- $fullname := include "openstack-exporter.fullname" . }}
+{{- $labels   := include "openstack-exporter.labels" . }}
+{{- range .Values.multicloud.clouds }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ $fullname }}-{{ .name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+{{- $labels | indent 4 }}
+spec:
+  endpoints:
+  - interval: {{ $.Values.serviceMonitor.interval }}
+    scrapeTimeout: {{ $.Values.serviceMonitor.scrapeTimeout }}
+    port: metrics
+    path: /probe
+    params:
+      cloud:
+        - {{ .name }}
+      include_services:
+        - {{ join "," .services }}
+    relabelings:
+    - action: replace
+      regex: (.*)
+      replacement: {{ .name }}
+      targetLabel: instance
+  jobLabel: jobLabel
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+{{- $labels | indent 6 }}
+{{- end }}
+{{- if .Values.multicloud.selfmonitor }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "openstack-exporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{- include "openstack-exporter.labels" . | indent 4 }}
+spec:
+  endpoints:
+  - interval: {{ .Values.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+    port: metrics
+  jobLabel: jobLabel
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+{{- include "openstack-exporter.labels" . | indent 6 }}
+{{- end }}
+{{- else }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "openstack-exporter.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+{{ include "openstack-exporter.labels" . | indent 4 }}
+spec:
+  endpoints:
+  - interval: {{ .Values.serviceMonitor.interval }}
+    scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+    port: metrics
+    relabelings:
+    - action: replace
+      regex: (.*)
+      replacement: {{ .Values.cloud }}
+      targetLabel: instance
+  jobLabel: jobLabel
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+{{ include "openstack-exporter.labels" . | indent 6 }}
+{{- end }}

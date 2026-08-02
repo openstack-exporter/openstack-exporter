@@ -6,8 +6,6 @@ import (
 	"regexp"
 	"slices"
 	"strings"
-
-	"github.com/alecthomas/kingpin/v2"
 )
 
 var (
@@ -23,7 +21,7 @@ var (
 // See: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels
 var labelNameConstraintRe = regexp.MustCompile(`^([^_0-9][^_][a-zA-Z]|(?:_)[a-zA-Z0-9]|[a-zA-Z])[a-zA-Z0-9_]*$`)
 
-// LabelMappingFlag parse server metadata to label kingpin option
+// LabelMappingFlag parses server metadata to a command-line option.
 //
 // Supported formats:
 // - `label=key` - map metadata *key* value to *label*;
@@ -83,6 +81,10 @@ func (s *LabelMappingFlag) String() string {
 	return strings.Join(buf, ",")
 }
 
+func (s *LabelMappingFlag) Type() string {
+	return "label-mapping"
+}
+
 func (s *LabelMappingFlag) IsCumulative() bool {
 	return true
 }
@@ -93,11 +95,5 @@ func (s *LabelMappingFlag) Extract(m map[string]string) []string {
 		ret = append(ret, m[key])
 	}
 
-	return ret
-}
-
-func LabelMapping(s kingpin.Settings) *LabelMappingFlag {
-	ret := new(LabelMappingFlag)
-	s.SetValue(ret)
 	return ret
 }

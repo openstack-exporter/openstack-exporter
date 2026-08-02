@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	kingpin "github.com/alecthomas/kingpin/v2"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
 	"github.com/hashicorp/vault-client-go"
@@ -26,15 +28,25 @@ import (
 	pver "github.com/prometheus/client_golang/prometheus/collectors/version"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/promslog"
-	"github.com/prometheus/common/promslog/flag"
 	"github.com/prometheus/common/version"
 	"github.com/prometheus/exporter-toolkit/web"
-	webflag "github.com/prometheus/exporter-toolkit/web/kingpinflag"
 )
 
 const DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
 
 type serviceState int
+
+type cobraValue struct {
+	value interface {
+		Set(string) error
+		String() string
+	}
+	typeName string
+}
+
+func (v cobraValue) Set(value string) error { return v.value.Set(value) }
+func (v cobraValue) String() string         { return v.value.String() }
+func (v cobraValue) Type() string           { return v.typeName }
 
 const (
 	serviceAuto serviceState = iota
@@ -43,54 +55,116 @@ const (
 )
 
 var (
-	metrics                  = kingpin.Flag("web.telemetry-path", "uri path to expose metrics").Default("/metrics").String()
-	osClientConfig           = kingpin.Flag("os-client-config", "Path to the cloud configuration file").Default(DEFAULT_OS_CLIENT_CONFIG).String()
-	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
-	endpointType             = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
-	collectTime              = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
-	disabledMetrics          = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
-	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
-	disableDeprecatedMetrics = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
-	disableCinderAgentUUID   = kingpin.Flag("disable-cinder-agent-uuid", "Disable UUID generation for Cinder agents").Default("false").Bool()
-	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
-	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
-	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
-	cacheEnable              = kingpin.Flag("cache", "Enable Cache mechanism globally").Default("false").Bool()
-	cacheTTL                 = kingpin.Flag("cache-ttl", "TTL duration for cache expiry(eg. 10s, 11m, 1h)").Default("300s").Duration()
-	tenantID                 = kingpin.Flag("project-id", "Gather metrics only for the given Project ID (defaults to all projects)").String()
-	disableServiceAutodetect = kingpin.Flag("disable-service-autodetect", "Disable single-cloud service autodetection and use only explicit service flags").Default("false").Bool()
-	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
-	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
+	metrics                  = new(string)
+	osClientConfig           = new(string)
+	prefix                   = new(string)
+	endpointType             = new(string)
+	collectTime              = new(bool)
+	disabledMetrics          = new([]string)
+	disableSlowMetrics       = new(bool)
+	disableDeprecatedMetrics = new(bool)
+	disableCinderAgentUUID   = new(bool)
+	cloud                    = new(string)
+	multiCloud               = new(bool)
+	domainID                 = new(string)
+	cacheEnable              = new(bool)
+	cacheTTL                 = new(time.Duration)
+	tenantID                 = new(string)
+	disableServiceAutodetect = new(bool)
+	novaMetadataMapping      = new(utils.LabelMappingFlag)
+	dnsConcurrentCount       = new(int)
 )
 
 func main() {
+	command, serviceStates, toolkitFlags, promlogConfig, shouldRun := newRootCommand()
+	if err := command.Execute(); err != nil {
+		os.Exit(1)
+	}
+	if !*shouldRun {
+		return
+	}
+	logger := promslog.New(promlogConfig)
+	logger.Info("Build Version", "version_info", version.Info(), "build_context", version.BuildContext())
+	run(serviceStates, toolkitFlags, logger)
+}
 
+func newRootCommand() (*cobra.Command, map[string]serviceState, *web.FlagConfig, *promslog.Config, *bool) {
 	serviceStates := make(map[string]serviceState, len(exporters.SupportedExporters))
+	shouldRun := new(bool)
+	command := &cobra.Command{
+		Use:          "openstack-exporter [cloud]",
+		Short:        "Export OpenStack metrics for Prometheus",
+		Version:      version.Print("openstack-exporter"),
+		Args:         cobra.MaximumNArgs(1),
+		SilenceUsage: true,
+		Run: func(cmd *cobra.Command, args []string) {
+			if help, _ := cmd.Flags().GetBool("help"); help {
+				return
+			}
+			if showVersion, _ := cmd.Flags().GetBool("version"); showVersion {
+				return
+			}
+			if len(args) == 1 {
+				*cloud = args[0]
+			}
+			*shouldRun = true
+		},
+	}
+	flags := command.Flags()
+	flags.StringVar(metrics, "web.telemetry-path", "/metrics", "uri path to expose metrics")
+	flags.StringVar(osClientConfig, "os-client-config", DEFAULT_OS_CLIENT_CONFIG, "Path to the cloud configuration file")
+	flags.StringVar(prefix, "prefix", "openstack", "Prefix for metrics")
+	flags.StringVar(endpointType, "endpoint-type", "public", "openstack endpoint type to use (i.e: public, internal, admin)")
+	flags.BoolVar(collectTime, "collect-metric-time", false, "time spent collecting each metric")
+	flags.StringArrayVarP(disabledMetrics, "disable-metric", "d", nil, "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)")
+	flags.BoolVar(disableSlowMetrics, "disable-slow-metrics", false, "Disable slow metrics for performance reasons")
+	flags.BoolVar(disableDeprecatedMetrics, "disable-deprecated-metrics", false, "Disable deprecated metrics")
+	flags.BoolVar(disableCinderAgentUUID, "disable-cinder-agent-uuid", false, "Disable UUID generation for Cinder agents")
+	flags.BoolVar(multiCloud, "multi-cloud", false, "Toggle the multiple cloud scraping mode under /probe?cloud=")
+	flags.StringVar(domainID, "domain-id", "", "Gather metrics only for the given Domain ID (defaults to all domains)")
+	flags.BoolVar(cacheEnable, "cache", false, "Enable Cache mechanism globally")
+	flags.DurationVar(cacheTTL, "cache-ttl", 300*time.Second, "TTL duration for cache expiry(eg. 10s, 11m, 1h)")
+	flags.StringVar(tenantID, "project-id", "", "Gather metrics only for the given Project ID (defaults to all projects)")
+	flags.BoolVar(disableServiceAutodetect, "disable-service-autodetect", false, "Disable single-cloud service autodetection and use only explicit service flags")
+	flags.Var(cobraValue{value: novaMetadataMapping, typeName: "label-mapping"}, "nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric")
+	flags.IntVar(dnsConcurrentCount, "dns-concurrent-count", 10, "Number of concurrent requests for DNS recordset collection")
 
 	for _, service := range exporters.SupportedExporters {
 		serviceStates[service] = serviceAuto
 		disableFlagName := fmt.Sprintf("disable-service.%s", service)
 		disableFlagHelp := fmt.Sprintf("Disable the %s service exporter in strict mode", service)
 		serviceName := service
-		disableValue := false
-		kingpin.Flag(disableFlagName, disableFlagHelp).Default("false").Action(func(*kingpin.ParseContext) error {
-			if disableValue {
+		flags.BoolFunc(disableFlagName, disableFlagHelp, func(value string) error {
+			disabled, err := strconv.ParseBool(value)
+			if err != nil {
+				return err
+			}
+			if disabled {
 				serviceStates[serviceName] = serviceDisabled
 			} else {
 				serviceStates[serviceName] = serviceEnabled
 			}
 			return nil
-		}).BoolVar(&disableValue)
+		})
 	}
-	toolkitFlags := webflag.AddFlags(kingpin.CommandLine, ":9180")
+	toolkitFlags := &web.FlagConfig{
+		WebListenAddresses: flags.StringArray("web.listen-address", []string{":9180"}, "Addresses on which to expose metrics and web interface. Repeatable for multiple addresses. Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock"),
+		WebConfigFile:      flags.String("web.config.file", "", "Path to configuration file that can enable TLS or authentication. See: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md"),
+	}
+	if runtime.GOOS == "linux" {
+		toolkitFlags.WebSystemdSocket = flags.Bool("web.systemd-socket", false, "Use systemd socket activation listeners instead of port listeners (Linux only).")
+	} else {
+		toolkitFlags.WebSystemdSocket = new(bool)
+	}
+	promlogConfig := &promslog.Config{Level: promslog.NewLevel(), Format: promslog.NewFormat()}
+	flags.Var(cobraValue{value: promlogConfig.Level, typeName: "level"}, "log.level", "Only log messages with the given severity or above. One of: [debug, info, warn, error]")
+	flags.Var(cobraValue{value: promlogConfig.Format, typeName: "format"}, "log.format", "Output format of log messages. One of: [logfmt, json]")
+	_ = promlogConfig.Level.Set("info")
+	_ = promlogConfig.Format.Set("logfmt")
+	return command, serviceStates, toolkitFlags, promlogConfig, shouldRun
+}
 
-	promlogConfig := &promslog.Config{}
-	flag.AddFlags(kingpin.CommandLine, promlogConfig)
-	kingpin.Version(version.Print("openstack-exporter"))
-	kingpin.HelpFlag.Short('h')
-	kingpin.Parse()
-	logger := promslog.New(promlogConfig)
-	logger.Info("Build Version", "version_info", version.Info(), "build_context", version.BuildContext())
+func run(serviceStates map[string]serviceState, toolkitFlags *web.FlagConfig, logger *slog.Logger) {
 
 	if *cloud == "" && !*multiCloud {
 		logger.Error("openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")

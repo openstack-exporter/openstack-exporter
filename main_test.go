@@ -49,6 +49,28 @@ func TestGetEnabledServicesFromStates(t *testing.T) {
 	assert.ElementsMatch(t, []string{"compute", "network"}, services)
 }
 
+func TestRootCommandParsesExporterFlags(t *testing.T) {
+	command, serviceStates, toolkitFlags, promlogConfig, shouldRun := newRootCommand()
+	command.SetArgs([]string{
+		"test-cloud",
+		"--disable-service.compute",
+		"--web.listen-address=:9999",
+		"--disable-metric=cinder-snapshots",
+		"--disable-metric=network-agents",
+		"--log.level=debug",
+		"--log.format=json",
+	})
+
+	require.NoError(t, command.Execute())
+	assert.True(t, *shouldRun)
+	assert.Equal(t, "test-cloud", *cloud)
+	assert.Equal(t, serviceDisabled, serviceStates["compute"])
+	assert.Equal(t, []string{":9999"}, *toolkitFlags.WebListenAddresses)
+	assert.Equal(t, []string{"cinder-snapshots", "network-agents"}, *disabledMetrics)
+	assert.Equal(t, "debug", promlogConfig.Level.String())
+	assert.Equal(t, "json", promlogConfig.Format.String())
+}
+
 func TestSelectServicesForRequest(t *testing.T) {
 	configured := []string{"compute", "network", "image"}
 	tests := []struct {

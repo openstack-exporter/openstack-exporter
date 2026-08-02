@@ -5,10 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/recordsets"
 	"github.com/gophercloud/gophercloud/v2/openstack/dns/v2/zones"
-	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -79,20 +77,6 @@ func NewDesignateExporter(config *ExporterConfig, logger *slog.Logger) (*Designa
 	return &exporter, nil
 }
 
-func listAllRecordsets(client *gophercloud.ServiceClient, opts recordsets.ListOptsBuilder) pagination.Pager {
-	url := client.ServiceURL("recordsets")
-	if opts != nil {
-		query, err := opts.ToRecordSetListQuery()
-		if err != nil {
-			return pagination.Pager{Err: err}
-		}
-		url += query
-	}
-	return pagination.NewPager(client, url, func(r pagination.PageResult) pagination.Page {
-		return recordsets.RecordSetPage{LinkedPageBase: pagination.LinkedPageBase{PageResult: r}}
-	})
-}
-
 func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	allPagesZones, err := zones.List(exporter.ClientV2, zones.ListOpts{}).AllPages(ctx)
 	if err != nil {
@@ -107,7 +91,7 @@ func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["zones"].Metric,
 		prometheus.GaugeValue, float64(len(allZones)))
 
-	allPagesRecordsets, err := listAllRecordsets(exporter.ClientV2, recordsets.ListOpts{Limit: exporter.DesignateRecordsetLimit}).AllPages(ctx)
+	allPagesRecordsets, err := recordsets.ListAll(exporter.ClientV2, recordsets.ListOpts{Limit: exporter.DesignateRecordsetLimit}).AllPages(ctx)
 	if err != nil {
 		return err
 	}

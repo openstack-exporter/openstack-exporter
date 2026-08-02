@@ -1,0 +1,20 @@
+{
+  "ikepolicies": [
+    {
+      "name": "policy",
+      "tenant_id": "9145d91459d248b1b02fdaca97c6a75d",
+      "project_id": "9145d91459d248b1b02fdaca97c6a75d",
+      "id": "5c561d9d-eaea-45f6-ae3e-08d1a7080828",
+      "description": "IKE policy",
+      "auth_algorithm": "sha1",
+      "encryption_algorithm": "aes-128",
+      "pfs": "Group5",
+      "lifetime": {
+	"value": 3600,
+	"units": "seconds"
+      },
+      "phase1_negotiation_mode": "main",
+      "ike_version": "v2"
+    }
+  ]
+}

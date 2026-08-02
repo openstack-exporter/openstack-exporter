@@ -1,18 +1,19 @@
 package exporters
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"strconv"
 	"strings"
 
-	"github.com/gophercloud/gophercloud"
-	"github.com/gophercloud/gophercloud/openstack"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/domains"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/groups"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/projects"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/regions"
-	"github.com/gophercloud/gophercloud/openstack/identity/v3/users"
+	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/domains"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/groups"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/regions"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -51,10 +52,10 @@ func NewKeystoneExporter(config *ExporterConfig, logger *slog.Logger) (*Keystone
 	return &exporter, nil
 }
 
-func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListDomains(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allDomains []domains.Domain
 
-	allPagesDomain, err := domains.List(exporter.Client, domains.ListOpts{}).AllPages()
+	allPagesDomain, err := domains.List(exporter.ClientV2, domains.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -63,8 +64,10 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["domains"].Metric,
 		prometheus.GaugeValue, float64(len(allDomains)))
+
 	if !exporter.MetricIsDisabled("domain_info") {
 		for _, d := range allDomains {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["domain_info"].Metric,
@@ -72,24 +75,19 @@ func ListDomains(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 				d.Description, strconv.FormatBool(d.Enabled), d.ID, d.Name)
 		}
 	}
+
 	return nil
 }
 
-func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	var allProjects []projects.Project
-
-	allPagesProject, err := projects.List(exporter.Client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
-	if err != nil {
-		return err
-	}
-
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+func ListProjects(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
 		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["projects"].Metric,
 		prometheus.GaugeValue, float64(len(allProjects)))
+
 	if !exporter.MetricIsDisabled("project_info") {
 		for _, p := range allProjects {
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_info"].Metric,
@@ -98,13 +96,14 @@ func ListProjects(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) 
 				p.ParentID, strings.Join(p.Tags, ","))
 		}
 	}
+
 	return nil
 }
 
-func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListRegions(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allRegions []regions.Region
 
-	allPagesRegion, err := regions.List(exporter.Client, regions.ListOpts{}).AllPages()
+	allPagesRegion, err := regions.List(exporter.ClientV2, regions.ListOpts{}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -113,16 +112,17 @@ func ListRegions(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) e
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["regions"].Metric,
 		prometheus.GaugeValue, float64(len(allRegions)))
 
 	return nil
 }
 
-func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListUsers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allUsers []users.User
 
-	allPagesUser, err := users.List(exporter.Client, users.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesUser, err := users.List(exporter.ClientV2, users.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -131,16 +131,17 @@ func ListUsers(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) err
 	if err != nil {
 		return err
 	}
+
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
 
 	return nil
 }
 
-func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+func ListGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allGroups []groups.Group
 
-	allPagesGroup, err := groups.List(exporter.Client, groups.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	allPagesGroup, err := groups.List(exporter.ClientV2, groups.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -156,38 +157,47 @@ func ListGroups(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) er
 	return nil
 }
 
-func MapProjectsName(exporter *BaseOpenStackExporter) (map[string]string, error) {
-	var allProjects []projects.Project
+func newIdentityV3ClientV2FromExporter(exporter *BaseOpenStackExporter, fallbackServiceName string) (*gophercloud.ServiceClient, error) {
 	var eo gophercloud.EndpointOpts
 
-	projectsMap := make(map[string]string)
-
-	// We create a map of project ID to name to to add it to the data
-	if v, ok := endpointOpts["identity"]; ok {
+	// We need a list of all tenants/projects. Therefore, within this nova exporter we need
+	// to create an openstack client for the Identity/Keystone API.
+	// If possible, use the EndpointOpts spefic to the identity service.
+	if v, ok := endpointOptsV2["identity"]; ok {
 		eo = v
-	} else if v, ok := endpointOpts["volume"]; ok {
+	} else if v, ok := endpointOptsV2[fallbackServiceName]; ok {
 		eo = v
 	} else {
 		return nil, errors.New("no EndpointOpts available to create Identity client")
 	}
 
-	c, err := openstack.NewIdentityV3(exporter.Client.ProviderClient, eo)
+	cli, err := openstack.NewIdentityV3(exporter.ClientV2.ProviderClient, eo)
 	if err != nil {
 		return nil, err
 	}
 
-	allPagesProject, err := projects.List(c, projects.ListOpts{DomainID: exporter.DomainID}).AllPages()
+	return cli, nil
+}
+
+func MapProjectsName(ctx context.Context, exporter *BaseOpenStackExporter) (map[string]string, error) {
+	client, err := newIdentityV3ClientV2FromExporter(exporter, "volume")
 	if err != nil {
 		return nil, err
 	}
 
-	allProjects, err = projects.ExtractProjects(allPagesProject)
+	allPages, err := projects.List(client, projects.ListOpts{DomainID: exporter.DomainID}).AllPages(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, p := range allProjects {
-		projectsMap[p.ID] = p.Name
+	allProjects, err := projects.ExtractProjects(allPages)
+	if err != nil {
+		return nil, err
+	}
+
+	projectsMap := make(map[string]string, len(allProjects))
+	for _, project := range allProjects {
+		projectsMap[project.ID] = project.Name
 	}
 
 	return projectsMap, nil

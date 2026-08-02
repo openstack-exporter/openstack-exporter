@@ -1,13 +1,13 @@
 module github.com/openstack-exporter/openstack-exporter
 
-go 1.26.3
+go 1.26.5
 
 require (
 	github.com/gophercloud/gophercloud/v2 v2.13.0
-	github.com/gophercloud/utils/v2 v2.0.0-20260424064311-2eeed4ceb3e9
+	github.com/gophercloud/utils/v2 v2.0.0-20260626221802-4ae35253ac13
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/vault-client-go v0.4.3
-	github.com/jarcoal/httpmock v1.4.1
+	github.com/jarcoal/httpmock v1.4.2
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.2

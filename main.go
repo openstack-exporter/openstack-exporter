@@ -62,6 +62,9 @@ var (
 	tenantID                 = kingpin.Flag("project-id", "Gather metrics only for the given Project ID (defaults to all projects)").String()
 	disableServiceAutodetect = kingpin.Flag("disable-service-autodetect", "Disable single-cloud service autodetection and use only explicit service flags").Default("false").Bool()
 	novaMetadataMapping      = utils.LabelMapping(kingpin.Flag("nova.metadata-extra-labels", "Map provided server metadata keys to labels in openstack_nova_server_status metric").PlaceHolder("LABEL=KEY,KEY").Default(""))
+	ironicNodeExtraLabels    = utils.QualifiedLabelMapping(kingpin.Flag("ironic.node-extra-labels",
+		"Map Ironic node dictionary keys to labels in openstack_ironic_node metric; keys are qualified with the dictionary they come from ("+strings.Join(exporters.IronicNodeInfoMaps(), ", ")+")").
+		PlaceHolder("LABEL=DICT.KEY,DICT.KEY").Default(exporters.DefaultIronicNodeExtraLabels))
 	dnsConcurrentCount       = kingpin.Flag("dns-concurrent-count", "Number of concurrent requests for DNS recordset collection").Default("10").Int()
 	apiDetailConcurrentCount = kingpin.Flag("api-detail-concurrent-count", "Number of concurrent requests for per-resource API detail collection").Default("10").Int()
 	placementConcurrentCount = kingpin.Flag("placement-concurrent-count", "Number of concurrent requests for Placement provider detail collection").Default("10").Int()
@@ -133,6 +136,7 @@ func main() {
 		DomainID:                 *domainID,
 		TenantID:                 *tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
+		IronicNodeExtraLabels:    ironicNodeExtraLabels,
 		DnsConcurrentCount:       *dnsConcurrentCount,
 		APIDetailConcurrentCount: *apiDetailConcurrentCount,
 		PlacementConcurrentCount: *placementConcurrentCount,
@@ -345,6 +349,7 @@ func startHTTPServer(ctx context.Context, services []string, opts exporters.Expo
 func warnSensitiveLabelMappings(logger *slog.Logger) {
 	mappings := map[string]*utils.LabelMappingFlag{
 		"--nova.metadata-extra-labels": novaMetadataMapping,
+		"--ironic.node-extra-labels":   ironicNodeExtraLabels,
 	}
 	for flag, mapping := range mappings {
 		if mapping == nil {

@@ -109,6 +109,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			DomainID:                 domainID,
 			TenantID:                 tenantID,
 			NovaMetadataMapping:      novaMetadataMapping,
+			IronicNodeExtraLabels:    exporters.NewIronicNodeExtraLabels(),
 			DnsConcurrentCount:       dnsConcurrentCount,
 			APIDetailConcurrentCount: apiDetailConcurrentCount,
 			PlacementConcurrentCount: placementConcurrentCount,

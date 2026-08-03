@@ -785,6 +785,10 @@ type ExporterOptions struct {
 	// NovaMetadataMapping maps Nova server metadata keys to extra Prometheus labels
 	// on the openstack_nova_server_status metric.
 	NovaMetadataMapping *utils.LabelMappingFlag
+	// IronicNodeExtraLabels maps Ironic node dictionary keys to extra Prometheus
+	// labels on the openstack_ironic_node metric. Keys are qualified with the
+	// dictionary they are read from, e.g. "driver_info.deploy_kernel".
+	IronicNodeExtraLabels *utils.LabelMappingFlag
 	// DnsConcurrentCount controls the number of concurrent requests used when
 	// collecting DNS recordsets.
 	DnsConcurrentCount int

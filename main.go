@@ -96,6 +96,8 @@ func main() {
 	logger := promslog.New(promlogConfig)
 	logger.Info("Build Version", "version_info", version.Info(), "build_context", version.BuildContext())
 
+	warnSensitiveLabelMappings(logger)
+
 	if *cloud == "" && !*multiCloud {
 		logger.Error("openstack-exporter: error: required argument 'cloud' or flag --multi-cloud not provided, try --help")
 	}
@@ -334,6 +336,24 @@ func startHTTPServer(ctx context.Context, services []string, opts exporters.Expo
 	<-ctx.Done()
 	if err := srv.Shutdown(context.Background()); err != nil {
 		logger.Error("HTTP server shutdown error", "error", err)
+	}
+}
+
+// warnSensitiveLabelMappings reports label mappings that name a credential.
+// Their values are redacted rather than published, but an operator who mapped
+// such a key probably did not intend to expose it at all.
+func warnSensitiveLabelMappings(logger *slog.Logger) {
+	mappings := map[string]*utils.LabelMappingFlag{
+		"--nova.metadata-extra-labels": novaMetadataMapping,
+	}
+	for flag, mapping := range mappings {
+		if mapping == nil {
+			continue
+		}
+		if labels := mapping.SensitiveLabels(); len(labels) > 0 {
+			logger.Warn("label mapping names credential-bearing keys; their values are redacted",
+				"flag", flag, "labels", strings.Join(labels, ","))
+		}
 	}
 }
 

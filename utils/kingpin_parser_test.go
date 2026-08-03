@@ -127,3 +127,94 @@ func TestQualifiedLabelMappingRejectsAmbiguousLeaves(t *testing.T) {
 		t.Fatalf("Set() error = %v, want %v", err, ErrLabelDup)
 	}
 }
+
+func TestIsSensitive(t *testing.T) {
+	tests := []struct {
+		key  string
+		want bool
+	}{
+		{"ipmi_password", true},
+		{"redfish_password", true},
+		{"snmp_priv_password", true},
+		{"root_password", true},
+		{"password", true},
+		{"driver_info.ipmi_password", true},
+		{"extra.root_password", true},
+		{"api_secret", true},
+		{"auth_token", true},
+		{"private_key", true},
+		{"configdrive", true},
+		{"instance_info.image_url", true},
+		// Legitimate fields that an unanchored pattern would wrongly redact.
+		{"password_updated_at", false},
+		{"secret_count", false},
+		{"deploy_kernel", false},
+		{"ipmi_address", false},
+		{"image_source", false},
+		{"public_key", false},
+	}
+
+	for _, tt := range tests {
+		if got := isSensitive(tt.key, tt.key); got != tt.want {
+			t.Errorf("isSensitive(%q) = %v, want %v", tt.key, got, tt.want)
+		}
+	}
+}
+
+// A credential must stay redacted even when the operator gives it an
+// innocuous-looking label.
+func TestSensitiveDetectionChecksLabelAndKey(t *testing.T) {
+	flg := &LabelMappingFlag{DeriveLabelFromLeaf: true}
+	if err := flg.Set("bmc=driver_info.ipmi_password"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+	if !flg.Sensitive[0] {
+		t.Fatal("credential hidden behind a neutral label was not detected")
+	}
+}
+
+func TestExtractRedactsSensitiveValues(t *testing.T) {
+	flg := new(LabelMappingFlag)
+	if err := flg.Set("addr=ipmi_address,pw=ipmi_password,unset=redfish_password"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	got := flg.ExtractAny(map[string]any{
+		"ipmi_address":  "10.10.0.101",
+		"ipmi_password": "hunter2",
+	})
+	want := []string{"10.10.0.101", RedactedLabelValue, ""}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ExtractAny() = %#v, want %#v", got, want)
+	}
+
+	strGot := flg.Extract(map[string]string{
+		"ipmi_address":  "10.10.0.101",
+		"ipmi_password": "hunter2",
+	})
+	if !reflect.DeepEqual(strGot, want) {
+		t.Fatalf("Extract() = %#v, want %#v", strGot, want)
+	}
+
+	if labels := flg.SensitiveLabels(); !reflect.DeepEqual(labels, []string{"pw", "unset"}) {
+		t.Fatalf("SensitiveLabels() = %#v, want [pw unset]", labels)
+	}
+}
+
+// Sensitive must stay index-aligned with Labels and Keys when a cumulative
+// flag is given more than once.
+func TestSensitiveStaysAlignedAcrossRepeatedSet(t *testing.T) {
+	flg := new(LabelMappingFlag)
+	if err := flg.Set("addr=ipmi_address"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+	if err := flg.Set("pw=ipmi_password"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+	if len(flg.Sensitive) != len(flg.Keys) {
+		t.Fatalf("Sensitive/Keys length mismatch: %d vs %d", len(flg.Sensitive), len(flg.Keys))
+	}
+	if flg.Sensitive[0] || !flg.Sensitive[1] {
+		t.Fatalf("Sensitive misaligned: %v", flg.Sensitive)
+	}
+}

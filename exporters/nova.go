@@ -178,6 +178,10 @@ func NewNovaExporter(config *ExporterConfig, logger *slog.Logger) (*NovaExporter
 			logger:         logger,
 		},
 	}
+	if err := config.NovaMetadataMapping.ValidateAgainst(novaServerStatusBaseLabels); err != nil {
+		return nil, fmt.Errorf("nova.metadata-extra-labels: %w", err)
+	}
+
 	// server_status carries extra labels from NovaMetadataMapping, so its
 	// descriptor cannot come from a struct tag and is declared dynamically.
 	sched, err := SetupExporter(&e.BaseOpenStackExporter, &e.descs, &novaGraph,

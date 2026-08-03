@@ -218,3 +218,17 @@ func TestSensitiveStaysAlignedAcrossRepeatedSet(t *testing.T) {
 		t.Fatalf("Sensitive misaligned: %v", flg.Sensitive)
 	}
 }
+
+func TestValidateAgainstRejectsCollidingLabels(t *testing.T) {
+	flg := new(LabelMappingFlag)
+	if err := flg.Set("status=some_key"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	if err := flg.ValidateAgainst([]string{"id", "status"}); !errors.Is(err, ErrLabelDup) {
+		t.Fatalf("ValidateAgainst() error = %v, want %v", err, ErrLabelDup)
+	}
+	if err := flg.ValidateAgainst([]string{"id", "name"}); err != nil {
+		t.Fatalf("ValidateAgainst() unexpected error = %v", err)
+	}
+}

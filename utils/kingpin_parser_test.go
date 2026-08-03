@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"errors"
 	"fmt"
+	"reflect"
 	"testing"
 
 	assertpkg "github.com/stretchr/testify/assert"
@@ -64,5 +66,64 @@ func TestLabelMappingFlag_Extract(t *testing.T) {
 			obtained := flg.Extract(tc.metadata)
 			assertpkg.Equal(t, tc.expected, obtained)
 		})
+	}
+}
+
+func TestNewLabelMappingFlagIsEmptyNotNil(t *testing.T) {
+	flg := NewLabelMappingFlag()
+	if flg.Labels == nil || flg.Keys == nil {
+		t.Fatal("NewLabelMappingFlag() returned nil slices")
+	}
+	if len(flg.Labels) != 0 || len(flg.Keys) != 0 {
+		t.Fatalf("NewLabelMappingFlag() is not empty: %v %v", flg.Labels, flg.Keys)
+	}
+	if got := flg.ExtractAny(nil); len(got) != 0 {
+		t.Fatalf("ExtractAny(nil) = %v, want empty", got)
+	}
+}
+
+func TestLabelMappingFlagExtractAny(t *testing.T) {
+	flg := new(LabelMappingFlag)
+	if err := flg.Set("str=a_string,num=a_number,big=a_big_number,flag=a_bool,gone=missing,nested=an_object,list=an_array,null=a_null"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	got := flg.ExtractAny(map[string]any{
+		"a_string":     "root",
+		"a_number":     float64(30101),
+		"a_big_number": float64(10737418240),
+		"a_bool":       false,
+		"an_object":    map[string]any{"os_distro": "ubuntu"},
+		"an_array":     []any{"a", "b"},
+		"a_null":       nil,
+	})
+
+	want := []string{"root", "30101", "10737418240", "false", "", "", "", ""}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ExtractAny() = %#v, want %#v", got, want)
+	}
+}
+
+func TestQualifiedLabelMappingDerivesLabelFromLeaf(t *testing.T) {
+	flg := &LabelMappingFlag{DeriveLabelFromLeaf: true}
+	if err := flg.Set("driver_info.deploy_kernel,bmc=driver_info.redfish_address"); err != nil {
+		t.Fatalf("Set() error = %v", err)
+	}
+
+	if want := []string{"deploy_kernel", "bmc"}; !reflect.DeepEqual(flg.Labels, want) {
+		t.Fatalf("Labels = %#v, want %#v", flg.Labels, want)
+	}
+	if want := []string{"driver_info.deploy_kernel", "driver_info.redfish_address"}; !reflect.DeepEqual(flg.Keys, want) {
+		t.Fatalf("Keys = %#v, want %#v", flg.Keys, want)
+	}
+}
+
+// Two qualified keys sharing a leaf would silently produce one label shadowing
+// the other, so the existing duplicate check must reject them.
+func TestQualifiedLabelMappingRejectsAmbiguousLeaves(t *testing.T) {
+	flg := &LabelMappingFlag{DeriveLabelFromLeaf: true}
+	err := flg.Set("instance_info.local_gb,properties.local_gb")
+	if !errors.Is(err, ErrLabelDup) {
+		t.Fatalf("Set() error = %v, want %v", err, ErrLabelDup)
 	}
 }

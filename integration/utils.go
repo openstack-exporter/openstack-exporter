@@ -57,15 +57,6 @@ func httpGetRetry(url string, max int, t interface {
 	return nil, nil, fmt.Errorf("failed to get metrics after %d retries", max)
 }
 
-// newEmptyNovaMetadataMapping returns a non-nil LabelMappingFlag equivalent
-// to having no extra metadata labels configured.
-func newEmptyNovaMetadataMapping() *utils.LabelMappingFlag {
-	return &utils.LabelMappingFlag{
-		Labels: []string{},
-		Keys:   []string{},
-	}
-}
-
 // startOpenStackExporter starts an instance of the OpenStack exporter for
 // testing purposes. It returns a cleanup function that should be called
 // after the test is complete to shut down the exporter.
@@ -95,7 +86,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 
 	// Use an empty, but non-nil nova metadata mapping so Nova exporter
 	// can safely dereference NovaMetadataMapping.
-	novaMetadataMapping := newEmptyNovaMetadataMapping()
+	novaMetadataMapping := utils.NewLabelMappingFlag()
 
 	// Context to control exporter lifecycle
 	ctx, cancel := context.WithCancel(context.Background())

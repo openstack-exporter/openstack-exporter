@@ -27,6 +27,7 @@ func mockEnableExporter(
 	disableSlowMetrics bool,
 	disableDeprecatedMetrics bool,
 	disableCinderAgentUUID bool,
+	enableIronicDriverInfo bool,
 	domainID string,
 	tenantID string,
 	novaMetadataMapping *utils.LabelMappingFlag,
@@ -83,6 +84,7 @@ func TestCollectCache(t *testing.T) {
 	disableSlowMetrics := false
 	disableDeprecatedMetrics := true
 	disableCinderAgentUUID := false
+	enableIronicDriverInfo := false
 	domainID := ""
 	tenantID := ""
 	novaMetadataMapping := new(utils.LabelMappingFlag)
@@ -101,6 +103,7 @@ func TestCollectCache(t *testing.T) {
 		disableSlowMetrics,
 		disableDeprecatedMetrics,
 		disableCinderAgentUUID,
+		enableIronicDriverInfo,
 		domainID,
 		tenantID,
 		novaMetadataMapping,

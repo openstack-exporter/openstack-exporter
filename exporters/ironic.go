@@ -12,13 +12,16 @@ import (
 
 const ironicLatestSupportedMicroversion = "1.90"
 
+var defaultIronicNodeLabels = []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "console_enabled", "resource_class", "retired", "retired_reason"}
+var ironicDriverInfoLabels = []string{"deploy_kernel", "deploy_ramdisk"}
+
 // IronicExporter : extends BaseOpenStackExporter
 type IronicExporter struct {
 	BaseOpenStackExporter
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
+	{Name: "node", Labels: defaultIronicNodeLabels, Fn: ListNodes},
 	{Name: "node_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 	{Name: "node_provision_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 }
@@ -50,7 +53,11 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 			continue
 		}
 		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+			labels := metric.Labels
+			if metric.Name == "node" && config.EnableIronicDriverInfo {
+				labels = append(append([]string{}, defaultIronicNodeLabels...), ironicDriverInfoLabels...)
+			}
+			exporter.AddMetric(metric.Name, metric.Fn, labels, metric.DeprecatedVersion, nil)
 		}
 	}
 
@@ -70,13 +77,27 @@ func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	}
 
 	for _, node := range allNodes {
-		deployKernel := getDriverInfoString(node.DriverInfo, "deploy_kernel")
-		deployRamdisk := getDriverInfoString(node.DriverInfo, "deploy_ramdisk")
+		labelValues := []string{
+			node.UUID,
+			node.Name,
+			node.ProvisionState,
+			node.PowerState,
+			strconv.FormatBool(node.Maintenance),
+			node.MaintenanceReason,
+			strconv.FormatBool(node.ConsoleEnabled),
+			node.ResourceClass,
+			strconv.FormatBool(node.Retired),
+			node.RetiredReason,
+		}
+		if exporter.EnableIronicDriverInfo {
+			labelValues = append(labelValues,
+				getDriverInfoString(node.DriverInfo, "deploy_kernel"),
+				getDriverInfoString(node.DriverInfo, "deploy_ramdisk"),
+			)
+		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
-			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
-			strconv.FormatBool(node.Maintenance), node.MaintenanceReason, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
-			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason)
+			prometheus.GaugeValue, 1.0, labelValues...)
 
 		if !node.UpdatedAt.IsZero() {
 			ch <- prometheus.MustNewConstMetric(

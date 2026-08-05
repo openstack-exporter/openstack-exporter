@@ -20,9 +20,10 @@ const cloudName = "test.cloud"
 
 type BaseOpenStackTestSuite struct {
 	suite.Suite
-	ServiceName string
-	Prefix      string
-	Exporter    *OpenStackExporter
+	ServiceName            string
+	Prefix                 string
+	Exporter               *OpenStackExporter
+	EnableIronicDriverInfo bool
 }
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
@@ -180,7 +181,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, suite.EnableIronicDriverInfo, "", "", novaMetadataMapping, 10, func() (string, error) {
 		return DEFAULT_UUID, nil
 	}, logger)
 
@@ -231,6 +232,7 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &ContainerInfraTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "container-infra"}})
 	suite.Run(t, &DesignateTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "dns"}})
 	suite.Run(t, &IronicTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal"}})
+	suite.Run(t, &IronicDriverInfoTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "baremetal", EnableIronicDriverInfo: true}})
 	suite.Run(t, &GnocchiTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "gnocchi"}})
 	suite.Run(t, &KeystoneTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "identity"}})
 	suite.Run(t, &TroveTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "database"}})

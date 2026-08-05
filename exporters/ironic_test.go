@@ -11,7 +11,13 @@ type IronicTestSuite struct {
 	BaseOpenStackTestSuite
 }
 
-var ironicExpectedUp = `
+type IronicDriverInfoTestSuite struct {
+	BaseOpenStackTestSuite
+}
+
+const expectedIronicDriverInfoLabels = `,deploy_kernel="7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",deploy_ramdisk="e9c96d45-a4c8-4165-8753-9d8f32779e99"`
+
+var ironicExpectedUpWithDriverInfo = `
 # HELP openstack_ironic_node node
 # TYPE openstack_ironic_node gauge
 openstack_ironic_node{console_enabled="false",deploy_kernel="7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",deploy_ramdisk="e9c96d45-a4c8-4165-8753-9d8f32779e99",id="f50dcc35-4913-4667-a9fa-d130659c5661",maintenance="false",maintenance_reason="",name="r1-02",power_state="power off",provision_state="available",resource_class="baremetal",retired="true",retired_reason="No longer needed"} 1
@@ -39,6 +45,12 @@ openstack_ironic_up 1
 `
 
 func (suite *IronicTestSuite) TestIronicExporter() {
+	ironicExpectedUp := strings.ReplaceAll(ironicExpectedUpWithDriverInfo, expectedIronicDriverInfoLabels, "")
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(ironicExpectedUp))
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *IronicDriverInfoTestSuite) TestIronicExporterWithDriverInfo() {
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(ironicExpectedUpWithDriverInfo))
 	assert.NoError(suite.T(), err)
 }

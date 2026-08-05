@@ -72,7 +72,7 @@ func newEmptyNovaMetadataMapping() *utils.LabelMappingFlag {
 //
 // enabledServices controls which OpenStack services' exporters are started.
 // For example: []string{"baremetal"} in the baremetal integration test.
-func startOpenStackExporter(enabledServices []string) (string, func(), error) {
+func startOpenStackExporter(enabledServices []string, enableIronicDriverInfo bool) (string, func(), error) {
 	metricsPath := "/metrics"
 	listenAddress := ":9180"
 	prefix := "openstack"
@@ -113,6 +113,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			disableSlowMetrics,
 			disableDeprecatedMetrics,
 			disableCinderAgentUUID,
+			enableIronicDriverInfo,
 			domainID,
 			tenantID,
 			novaMetadataMapping, // non-nil here

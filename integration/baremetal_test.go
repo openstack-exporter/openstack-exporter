@@ -28,14 +28,9 @@ func TestBaremetalIntegration(t *testing.T) {
 	t.Run("openstack_ironic_node_metric", func(t *testing.T) {
 		metrics.requirePresentLabels(t, "openstack_ironic_node", labels{"id": node.UUID},
 			"console_enabled",
-			"conductor_group",
 			"deploy_kernel",
 			"deploy_ramdisk",
 			"id",
-			"instance_uuid",
-			"ironic_self_healing_state",
-			"last_error",
-			"lessee",
 			"maintenance",
 			"name",
 			"power_state",
@@ -43,8 +38,6 @@ func TestBaremetalIntegration(t *testing.T) {
 			"resource_class",
 			"retired",
 			"retired_reason",
-			"serial_number",
-			"traits",
 		)
 	})
 

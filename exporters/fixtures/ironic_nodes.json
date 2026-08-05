@@ -460,6 +460,7 @@
       },
       "bios_interface": "no-bios",
       "instance_uuid": "31b5f585-104b-497a-bb72-b5376aaa089f",
+      "lessee": "project-1234",
       "name": "r1-03",
       "driver_info": {
         "ipmi_terminal_port": 30241,

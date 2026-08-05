@@ -35,6 +35,7 @@ func TestBaremetalIntegration(t *testing.T) {
 			"instance_uuid",
 			"ironic_self_healing_state",
 			"last_error",
+			"lessee",
 			"maintenance",
 			"name",
 			"power_state",

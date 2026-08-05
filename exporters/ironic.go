@@ -19,7 +19,7 @@ type IronicExporter struct {
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "conductor_group", "traits", "instance_uuid", "last_error", "serial_number", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason", "ironic_self_healing_state"}, Fn: ListNodes},
+	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "conductor_group", "traits", "instance_uuid", "lessee", "last_error", "serial_number", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason", "ironic_self_healing_state"}, Fn: ListNodes},
 	{Name: "node_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 	{Name: "node_provision_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 }
@@ -79,7 +79,7 @@ func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
 			strconv.FormatBool(node.Maintenance), sanitizeMetricString(node.MaintenanceReason), node.ConductorGroup, strings.Join(node.Traits, " "),
-			node.InstanceUUID, sanitizeMetricString(node.LastError), serialNumber, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
+			node.InstanceUUID, node.Lessee, sanitizeMetricString(node.LastError), serialNumber, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
 			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason, ironicSelfHealingState)
 
 		if !node.UpdatedAt.IsZero() {

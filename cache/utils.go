@@ -11,7 +11,6 @@ import (
 
 	"github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/openstack-exporter/openstack-exporter/exporters"
-	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
@@ -19,23 +18,10 @@ import (
 
 // CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
 func CollectCache(
-	enableExporterFunc func(
-		string, string, string, []string, string, bool, bool, bool, bool, string, string, *utils.LabelMappingFlag, int, func() (string, error), *slog.Logger,
-	) (*exporters.OpenStackExporter, error),
+	newExporterFunc func(string, exporters.ExporterOptions, *slog.Logger) (exporters.OpenStackExporter, error),
 	multiCloud bool,
-	services []string, prefix,
-	cloud string,
-	disabledMetrics []string,
-	endpointType string,
-	collectTime bool,
-	disableSlowMetrics bool,
-	disableDeprecatedMetrics bool,
-	disableCinderAgentUUID bool,
-	domainID string,
-	tenantID string,
-	novaMetadataMapping *utils.LabelMappingFlag,
-	dnsConcurrentCount int,
-	uuidGenFunc func() (string, error),
+	services []string,
+	opts exporters.ExporterOptions,
 	logger *slog.Logger,
 ) error {
 	logger.Info("Run collect cache job")
@@ -53,8 +39,8 @@ func CollectCache(
 			clouds = append(clouds, cloud)
 		}
 	}
-	if cloud != "" && !multiCloud {
-		clouds = append(clouds, cloud)
+	if opts.Cloud != "" && !multiCloud {
+		clouds = append(clouds, opts.Cloud)
 	}
 
 	for _, cloud := range clouds {
@@ -64,11 +50,14 @@ func CollectCache(
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
+		cloudOpts := opts
+		cloudOpts.Cloud = cloud
+
 		for _, service := range services {
 			lg2 := lg.With("service", service)
 			lg2.Info("Start collect cache data")
 
-			exp, err := enableExporterFunc(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+			exp, err := newExporterFunc(service, cloudOpts, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters
 				lg2.Error("enabling exporter for service failed", "error", err)
@@ -76,7 +65,7 @@ func CollectCache(
 			}
 
 			registry := prometheus.NewPedanticRegistry()
-			registry.MustRegister(*exp)
+			registry.MustRegister(exp)
 
 			metricFamilies, err := registry.Gather()
 			if err != nil {

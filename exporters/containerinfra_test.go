@@ -30,6 +30,6 @@ openstack_container_infra_up 1
 `
 
 func (suite *ContainerInfraTestSuite) TestContainerInfraExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(containerInfraExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(containerInfraExpectedUp), metricNamesFrom(containerInfraExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

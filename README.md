@@ -106,8 +106,9 @@ Flags:
       --prefix="openstack"       Prefix for metrics
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --[no-]collect-metric-time
-                                 time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+                                 Emit per-source fetch duration metrics
+  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: exporter-metric (i.e: cinder-snapshots)
+  -e, --enable-metric= ...       override disable-slow-metrics / disable-deprecated-metrics for individual metrics; format: exporter-metric (i.e: nova-limits_vcpus_max)
       --[no-]disable-slow-metrics
                                  Disable slow metrics for performance reasons
       --[no-]disable-deprecated-metrics
@@ -118,14 +119,18 @@ Flags:
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
       --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
-      --project-id=PROJECT-ID    Gather metrics only for the given Project ID
-                                 (defaults to all projects)
+      --project-id=PROJECT-ID    Gather metrics only for the given Project ID (defaults to all projects)
       --[no-]disable-service-autodetect
-                                 Disable single-cloud service autodetection and
-                                 use only explicit service flags
+                                 Disable single-cloud service autodetection and use only explicit service flags
       --nova.metadata-extra-labels=LABEL=KEY,KEY ...
-                                 Map provided server metadata keys to labels in
-                                 openstack_nova_server_status metric
+                                 Map provided server metadata keys to labels in openstack_nova_server_status metric
+      --ironic.node-extra-labels=LABEL=DICT.KEY,DICT.KEY ...
+                                 Map Ironic node dictionary keys to labels in openstack_ironic_node metric; keys are qualified with the dictionary they come from (driver_info, instance_info, extra, properties, driver_internal_info)
+      --dns-concurrent-count=10  Number of concurrent requests for DNS recordset collection
+      --api-detail-concurrent-count=10
+                                 Number of concurrent requests for per-resource API detail collection
+      --placement-concurrent-count=10
+                                 Number of concurrent requests for Placement provider detail collection
       --[no-]disable-service.network
                                  Disable the network service exporter in strict mode
       --[no-]disable-service.compute
@@ -158,10 +163,8 @@ Flags:
                                  Disable the sharev2 service exporter in strict mode
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...
-                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
-                                 Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
-      --web.config.file=""       Path to configuration file that can enable TLS or authentication. See:
-                                 https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses. Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
+      --web.config.file=""       Path to configuration file that can enable TLS or authentication. See: https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
       --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
       --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
       --[no-]version             Show application version.
@@ -211,6 +214,33 @@ Scrape all services except `load-balancer` and `dns` from `test.cloud`:
 curl "https://localhost:9180/probe?cloud=test.cloud&exclude_services=load-balancer,dns"
 ```
 
+#### Ironic node labels
+
+`--ironic.node-extra-labels` exports selected keys of an Ironic node as labels
+on `openstack_ironic_node`. Keys are qualified with the node dictionary they are
+read from: `driver_info`, `instance_info`, `extra`, `properties` or
+`driver_internal_info`. The label name defaults to the last segment of the key,
+or can be given explicitly:
+
+```sh
+--ironic.node-extra-labels=driver_info.deploy_kernel,bmc=driver_info.redfish_address
+```
+
+The default is `driver_info.deploy_kernel,driver_info.deploy_ramdisk`, which
+reproduces the labels this metric carried before the option existed. Pass an
+empty value to drop them.
+
+Only top-level keys are read; a nested object such as
+`instance_info.image_properties` yields an empty label value.
+
+Values of keys that look like credentials are replaced with `***`. The check
+covers names ending in `password`, `passwd`, `secret`, `token` or `private_key`,
+plus `configdrive` and `image_url`, which Ironic redacts itself. The marker is
+only substituted when a value is actually present, so alerting on a missing
+credential still works. Note that mapping such a key is rarely intentional:
+`driver_info` holds BMC passwords and `extra` may hold anything an operator put
+there.
+
 ### OpenStack configuration
 
 The cloud credentials and identity configuration
@@ -241,6 +271,26 @@ clouds:
       ...
     verify: true | false  // disable || enable SSL certificate verification
 ```
+
+#### Vault password lookup
+
+If the same configuration file contains `use_vault: true`, the exporter logs
+in to Vault with AppRole, reads a KV v2 secret, and sets `OS_PASSWORD` from one
+field in that secret before creating OpenStack clients. The Vault settings are
+top-level YAML keys, not entries under `clouds`.
+
+```yaml
+use_vault: true
+vault_address: https://vault.example.org:8200
+vault_role_id: {{ vault_role_id }}
+vault_secret_id: {{ vault_secret_id }}
+vault_secret_mount_path: secret
+vault_secret_path: openstack/exporter
+credential_name_in_vault_secret: password
+```
+
+The selected cloud should omit the inline password or otherwise allow the
+OpenStack client config to use `OS_PASSWORD`.
 
 ### OpenStack Domain filtering
 
@@ -290,6 +340,9 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics
 that might be missing.
+
+Exporter internals, DAG execution, and the new-exporter checklist are documented
+in [docs/exporter.md](docs/exporter.md).
 
 ### Operational Concerns
 
@@ -396,7 +449,6 @@ openstack_loadbalancer_total_amphorae|                                          
 openstack_loadbalancer_total_loadbalancers|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of load balancers
 openstack_loadbalancer_total_pools|                                                                                                                                                                                                                                                                                                                       | 2 (float)| Total number of pools
 openstack_loadbalancer_up |                                                                                                                                                                                                                                                                                                                       | 1 (float)| Load balancer service status
-openstack_metric_collect_seconds| openstack_metric="agent_state",openstack_service="openstack_cinder"                                                                                                                                                                                                                                                  |1.27843913| Metric collection time (only if --collect-metric-time is passed)
 openstack_neutron_agent_state| adminState="up",availability_zone="nova",hostname="compute-01",region="RegionOne",service="neutron-dhcp-agent"                                                                                                                                                                                                        |1 or 0 (bool)| Agent state (1=up, 0=down)
 openstack_neutron_floating_ips_associated_not_active| region="RegionOne"                                                                                                                                                                                                                                                                             |1.0 (float)| Number of associated floating IPs not active
 openstack_neutron_floating_ips| region="RegionOne"                                                                                                                                                                                                                                                                                                    |4.0 (float)| Total number of floating IPs

@@ -33,6 +33,6 @@ openstack_gnocchi_up 1
 `
 
 func (suite *GnocchiTestSuite) TestGnocchiExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(gnocchiExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(gnocchiExpectedUp), metricNamesFrom(gnocchiExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

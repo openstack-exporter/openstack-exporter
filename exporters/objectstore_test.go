@@ -30,6 +30,6 @@ openstack_object_store_up 1
 `
 
 func (suite *ObjectStoreTestSuite) TestObjectStoreExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(swiftExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(swiftExpectedUp), metricNamesFrom(swiftExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

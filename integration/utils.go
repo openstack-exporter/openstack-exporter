@@ -57,15 +57,6 @@ func httpGetRetry(url string, max int, t interface {
 	return nil, nil, fmt.Errorf("failed to get metrics after %d retries", max)
 }
 
-// newEmptyNovaMetadataMapping returns a non-nil LabelMappingFlag equivalent
-// to having no extra metadata labels configured.
-func newEmptyNovaMetadataMapping() *utils.LabelMappingFlag {
-	return &utils.LabelMappingFlag{
-		Labels: []string{},
-		Keys:   []string{},
-	}
-}
-
 // startOpenStackExporter starts an instance of the OpenStack exporter for
 // testing purposes. It returns a cleanup function that should be called
 // after the test is complete to shut down the exporter.
@@ -86,6 +77,8 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	domainID := ""
 	tenantID := ""
 	dnsConcurrentCount := 10
+	apiDetailConcurrentCount := 10
+	placementConcurrentCount := 10
 
 	// Logger similar to main.go
 	promlogConfig := &promslog.Config{}
@@ -93,7 +86,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 
 	// Use an empty, but non-nil nova metadata mapping so Nova exporter
 	// can safely dereference NovaMetadataMapping.
-	novaMetadataMapping := newEmptyNovaMetadataMapping()
+	novaMetadataMapping := utils.NewLabelMappingFlag()
 
 	// Context to control exporter lifecycle
 	ctx, cancel := context.WithCancel(context.Background())
@@ -103,23 +96,25 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 
 	enabledExporters := 0
 	for _, service := range enabledServices {
-		exp, err := exporters.EnableExporter(
-			service,
-			prefix,
-			cloud,
-			disabledMetrics,
-			endpointType,
-			collectTime,
-			disableSlowMetrics,
-			disableDeprecatedMetrics,
-			disableCinderAgentUUID,
-			domainID,
-			tenantID,
-			novaMetadataMapping, // non-nil here
-			dnsConcurrentCount,
-			nil,
-			logger,
-		)
+		opts := exporters.ExporterOptions{
+			Cloud:                    cloud,
+			Prefix:                   prefix,
+			DisabledMetrics:          disabledMetrics,
+			EnabledMetrics:           []string{},
+			EndpointType:             endpointType,
+			CollectTime:              collectTime,
+			DisableSlowMetrics:       disableSlowMetrics,
+			DisableDeprecatedMetrics: disableDeprecatedMetrics,
+			DisableCinderAgentUUID:   disableCinderAgentUUID,
+			DomainID:                 domainID,
+			TenantID:                 tenantID,
+			NovaMetadataMapping:      novaMetadataMapping,
+			IronicNodeExtraLabels:    exporters.NewIronicNodeExtraLabels(),
+			DnsConcurrentCount:       dnsConcurrentCount,
+			APIDetailConcurrentCount: apiDetailConcurrentCount,
+			PlacementConcurrentCount: placementConcurrentCount,
+		}
+		exp, err := exporters.NewExporter(service, opts, logger)
 		if err != nil {
 			slog.Error(
 				"enabling exporter for service failed",
@@ -136,7 +131,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			continue
 		}
 
-		registry.MustRegister(*exp)
+		registry.MustRegister(exp)
 		slog.Info(
 			"Enabled exporter for service",
 			"service", service,

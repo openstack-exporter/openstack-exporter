@@ -2,7 +2,9 @@ package exporters
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
@@ -10,110 +12,194 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const ironicLatestSupportedMicroversion = "1.90"
+func init() {
+	RegisterTypedExporter("baremetal", NewIronicExporter)
+}
 
-// IronicExporter : extends BaseOpenStackExporter
+const (
+	ironicLatestSupportedMicroversion = "1.90"
+	// The Ironic detailed-node endpoint enforces a positive limit and may omit
+	// nodes_links even when its server-side default truncates at 1,000 nodes.
+	// fetchNodes follows the marker explicitly instead.
+	ironicNodePageSize = 1000
+)
+
 type IronicExporter struct {
 	BaseOpenStackExporter
+	sched Schedule
+	descs ironicDescs
+	// nodeDesc has dynamic labels (base + NodeExtraLabels mapping).
+	nodeDesc *prometheus.Desc
 }
 
-var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
-	{Name: "node_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
-	{Name: "node_provision_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
+type ironicDescs struct {
+	// node: stored directly in IronicExporter.nodeDesc
+	NodeUpdatedAt          *prometheus.Desc `metric:"node_updated_at"         labels:"id,name,provision_state"`
+	NodeProvisionUpdatedAt *prometheus.Desc `metric:"node_provision_updated_at" labels:"id,name,provision_state"`
 }
 
-// NewIronicExporter : returns a pointer to IronicExporter
+// ironicNodeBaseLabels are the fixed labels of the node metric, before any
+// operator-configured labels are appended.
+var ironicNodeBaseLabels = []string{"id", "name", "provision_state", "power_state",
+	"maintenance", "maintenance_reason", "console_enabled", "resource_class",
+	"retired", "retired_reason"}
+
+// DefaultIronicNodeExtraLabels reproduces the deploy_kernel and deploy_ramdisk
+// labels that openstack_ironic_node carried before the mapping existed, so the
+// default output is unchanged and operators who do not want these labels can
+// now drop them by passing an empty value.
+const DefaultIronicNodeExtraLabels = "driver_info.deploy_kernel,driver_info.deploy_ramdisk"
+
+// NewIronicNodeExtraLabels returns the default node label mapping, for callers
+// that build ExporterOptions without going through the CLI flag.
+func NewIronicNodeExtraLabels() *utils.LabelMappingFlag {
+	m := &utils.LabelMappingFlag{DeriveLabelFromLeaf: true}
+	if err := m.Set(DefaultIronicNodeExtraLabels); err != nil {
+		panic(err) // constant input, cannot fail
+	}
+	return m
+}
+
+// ironicNodeInfoMaps are the node dictionaries whose keys may be mapped to
+// labels. A mapping key is qualified with one of these names, for example
+// `driver_info.deploy_kernel`.
+var ironicNodeInfoMaps = []string{"driver_info", "instance_info", "extra", "properties", "driver_internal_info"}
+
+// IronicNodeInfoMaps returns the node dictionaries whose keys can be mapped to
+// labels, for use in the CLI flag help.
+func IronicNodeInfoMaps() []string {
+	return slices.Clone(ironicNodeInfoMaps)
+}
+
+// ironicNodeNestedMaps exposes the five allowlisted node dictionaries to the
+// generic label mapping helper. It deliberately contains no lookup or
+// redaction logic: LabelMappingFlag owns both.
+func ironicNodeNestedMaps(node *nodes.Node) []utils.NestedMap {
+	return []utils.NestedMap{
+		{Name: "driver_info", Values: node.DriverInfo},
+		{Name: "instance_info", Values: node.InstanceInfo},
+		{Name: "extra", Values: node.Extra},
+		{Name: "properties", Values: node.Properties},
+		{Name: "driver_internal_info", Values: node.DriverInternalInfo},
+	}
+}
+
+type ironicScrape struct {
+	nodes []nodes.Node
+}
+
+var ironicGraph = Graph[*IronicExporter, ironicScrape]{
+	Sources: []Source[*IronicExporter, ironicScrape]{
+		{Name: "nodes", Fetch: (*IronicExporter).fetchNodes},
+	},
+	Emitters: []Emitter[*IronicExporter, ironicScrape]{
+		{
+			Name:    "nodes",
+			Metrics: []string{"node", "node_updated_at", "node_provision_updated_at"},
+			Sources: []string{"nodes"},
+			Emit:    (*IronicExporter).emitNodes,
+		},
+	},
+}
+
 func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExporter, error) {
 	ctx := context.TODO()
-
-	// NOTE(Sharpz7) Gophercloud V2 adds this new field ResourceBase.
-	// For whatever reason, it adds a v1 field to the URL,
-	// so it sends requests to /v1/v1 if left unfixed.
-	//config.ClientV2.ResourceBase = config.ClientV2.Endpoint
-
-	err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_BAREMETAL_API_VERSION", ironicLatestSupportedMicroversion, logger)
-	if err != nil {
+	if err := utils.SetupClientMicroversionV2(ctx, config.ClientV2, "OS_BAREMETAL_API_VERSION", ironicLatestSupportedMicroversion, logger); err != nil {
 		return nil, err
 	}
-
-	exporter := IronicExporter{
-		BaseOpenStackExporter{
+	e := &IronicExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{
 			Name:           "ironic",
 			ExporterConfig: *config,
 			logger:         logger,
 		},
 	}
-
-	for _, metric := range defaultIronicMetrics {
-		if exporter.isDeprecatedMetric(&metric) {
-			continue
-		}
-		if !exporter.isSlowMetric(&metric) {
-			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
+	if err := config.IronicNodeExtraLabels.ValidateNestedKeys(ironicNodeInfoMaps...); err != nil {
+		return nil, err
+	}
+	if config.IronicNodeExtraLabels != nil {
+		if err := config.IronicNodeExtraLabels.ValidateAgainst(ironicNodeBaseLabels); err != nil {
+			return nil, fmt.Errorf("ironic.node-extra-labels: %w", err)
 		}
 	}
 
-	return &exporter, nil
+	// node carries operator-configured labels, so its descriptor cannot come
+	// from a struct tag and is declared dynamically.
+	sched, err := SetupExporter(&e.BaseOpenStackExporter, &e.descs, &ironicGraph,
+		WithDynamicMetrics([]string{"node"}, func(base *BaseOpenStackExporter) {
+			if !base.IsMetricEnabled("node") {
+				return
+			}
+			labels := slices.Clone(ironicNodeBaseLabels)
+			if config.IronicNodeExtraLabels != nil {
+				labels = append(labels, config.IronicNodeExtraLabels.Labels...)
+			}
+			e.nodeDesc = prometheus.NewDesc(
+				prometheus.BuildFQName(base.GetName(), "", "node"),
+				"node", labels, nil)
+			base.RegisterDesc(e.nodeDesc)
+		}))
+	if err != nil {
+		return nil, err
+	}
+	e.sched = sched
+	return e, nil
 }
 
-// ListNodes : list nodes
-func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
+func (e *IronicExporter) Collect(ch chan<- prometheus.Metric) {
+	e.RunCollect(ch, e.sched, func(ch chan<- prometheus.Metric) int {
+		s := new(ironicScrape)
+		return runSchedule(e, &e.BaseOpenStackExporter, &ironicGraph, e.sched, s, ch)
+	})
+}
+
+func (e *IronicExporter) fetchNodes(ctx context.Context, s *ironicScrape) error {
+	var marker string
+	for {
+		allPages, err := nodes.ListDetail(e.ClientV2, nodes.ListOpts{
+			Limit:   ironicNodePageSize,
+			Marker:  marker,
+			SortKey: "id",
+			SortDir: "asc",
+		}).AllPages(ctx)
+		if err != nil {
+			return err
+		}
+
+		page, err := nodes.ExtractNodes(allPages)
+		if err != nil {
+			return err
+		}
+		s.nodes = append(s.nodes, page...)
+		if len(page) < ironicNodePageSize {
+			return nil
+		}
+
+		marker = page[len(page)-1].UUID
+		if marker == "" {
+			return fmt.Errorf("ironic: node page of %d entries ends without a UUID", ironicNodePageSize)
+		}
 	}
+}
 
-	allNodes, err := nodes.ExtractNodes(allPagesNodes)
-	if err != nil {
-		return err
-	}
-
-	for _, node := range allNodes {
-		deployKernel := getDriverInfoString(node.DriverInfo, "deploy_kernel")
-		deployRamdisk := getDriverInfoString(node.DriverInfo, "deploy_ramdisk")
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
-			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
-			strconv.FormatBool(node.Maintenance), node.MaintenanceReason, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
-			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason)
-
+func (e *IronicExporter) emitNodes(ctx context.Context, s *ironicScrape, ch chan<- prometheus.Metric) error {
+	for _, node := range s.nodes {
+		labelValues := []string{
+			node.UUID, node.Name, node.ProvisionState, node.PowerState,
+			strconv.FormatBool(node.Maintenance), node.MaintenanceReason,
+			strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
+			strconv.FormatBool(node.Retired), node.RetiredReason,
+		}
+		labelValues = append(labelValues, e.IronicNodeExtraLabels.ExtractNestedAny(ironicNodeNestedMaps(&node)...)...)
+		emitGauge(ch, e.nodeDesc, 1.0, labelValues...)
 		if !node.UpdatedAt.IsZero() {
-			ch <- prometheus.MustNewConstMetric(
-				exporter.Metrics["node_updated_at"].Metric,
-				prometheus.GaugeValue,
-				float64(node.UpdatedAt.Unix()),
-				node.UUID,
-				node.Name,
-				node.ProvisionState,
-			)
+			emitGauge(ch, e.descs.NodeUpdatedAt,
+				float64(node.UpdatedAt.Unix()), node.UUID, node.Name, node.ProvisionState)
 		}
-
 		if !node.ProvisionUpdatedAt.IsZero() {
-			ch <- prometheus.MustNewConstMetric(
-				exporter.Metrics["node_provision_updated_at"].Metric,
-				prometheus.GaugeValue,
-				float64(node.ProvisionUpdatedAt.Unix()),
-				node.UUID,
-				node.Name,
-				node.ProvisionState,
-			)
+			emitGauge(ch, e.descs.NodeProvisionUpdatedAt,
+				float64(node.ProvisionUpdatedAt.Unix()), node.UUID, node.Name, node.ProvisionState)
 		}
 	}
-
 	return nil
-}
-
-func getDriverInfoString(driverInfo map[string]any, key string) string {
-	v, ok := driverInfo[key]
-	if !ok {
-		return ""
-	}
-
-	s, ok := v.(string)
-	if !ok {
-		return ""
-	}
-
-	return s
 }

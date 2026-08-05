@@ -506,6 +506,6 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 `
 
 func (suite *NovaTestSuite) TestNovaExporter() {
-	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
+	err := testutil.CollectAndCompare(suite.Exporter, strings.NewReader(novaExpectedUp), metricNamesFrom(novaExpectedUp)...)
 	assert.NoError(suite.T(), err)
 }

@@ -37,7 +37,9 @@
       "description": null,
       "uuid": "c9f98cc9-25e9-424e-8a89-002989054ec2",
       "console_enabled": true,
-      "extra": {},
+      "extra": {
+        "root_password": "REDACTED_TEST_VALUE"
+      },
       "raid_config": {},
       "provision_updated_at": "2019-07-12T05:14:03+00:00",
       "power_state": "power off",
@@ -117,7 +119,19 @@
       },
       "chassis_uuid": "e502b695-a037-4613-a9ec-dd2fefa4eff5",
       "owner": null,
-      "instance_info": {},
+      "instance_info": {
+        "image_source": "ab6beb2c-2094-492d-92db-ba16188cdc57",
+        "root_gb": "445",
+        "memory_mb": 32768,
+        "image_type": "whole-disk",
+        "image_url": "https://swift.example.com/img?temp_url_sig=deadbeef",
+        "configdrive": "c2VjcmV0",
+        "image_properties": {
+          "os_distro": "ubuntu",
+          "os_version": "24.04"
+        },
+        "image_tags": []
+      },
       "allocation_uuid": null,
       "retired": true,
       "retired_reason": "No longer needed"

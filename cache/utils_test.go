@@ -17,23 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mockEnableExporter(
-	service,
-	prefix,
-	cloud string,
-	disabledMetrics []string,
-	endpointType string,
-	collectTime bool,
-	disableSlowMetrics bool,
-	disableDeprecatedMetrics bool,
-	disableCinderAgentUUID bool,
-	domainID string,
-	tenantID string,
-	novaMetadataMapping *utils.LabelMappingFlag,
-	dnsConcurrentCount int,
-	uuidGenFunc func() (string, error),
-	logger *slog.Logger,
-) (*exporters.OpenStackExporter, error) {
+func mockEnableExporter(options exporters.ExporterOptions, logger *slog.Logger) (*exporters.OpenStackExporter, error) {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
@@ -89,25 +73,23 @@ func TestCollectCache(t *testing.T) {
 	dnsConcurrentCount := 10
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	err := CollectCache(
-		mockEnableExporter,
-		multiCloud,
-		services,
-		prefix,
-		cloud,
-		disabledMetrics,
-		endpointType,
-		collectTime,
-		disableSlowMetrics,
-		disableDeprecatedMetrics,
-		disableCinderAgentUUID,
-		domainID,
-		tenantID,
-		novaMetadataMapping,
-		dnsConcurrentCount,
-		nil,
-		logger,
-	)
+	err := CollectCache(CollectCacheOptions{
+		EnableExporterFunc:       mockEnableExporter,
+		MultiCloud:               multiCloud,
+		Services:                 services,
+		Prefix:                   prefix,
+		Cloud:                    cloud,
+		DisabledMetrics:          disabledMetrics,
+		EndpointType:             endpointType,
+		CollectTime:              collectTime,
+		DisableSlowMetrics:       disableSlowMetrics,
+		DisableDeprecatedMetrics: disableDeprecatedMetrics,
+		DisableCinderAgentUUID:   disableCinderAgentUUID,
+		DomainID:                 domainID,
+		TenantID:                 tenantID,
+		NovaMetadataMapping:      novaMetadataMapping,
+		DnsConcurrentCount:       dnsConcurrentCount,
+	}, logger)
 	assert.NoError(err, "Collect cache failed")
 
 	cloudCache, exists := cache.GetCloudCache(cloud)

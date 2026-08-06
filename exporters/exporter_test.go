@@ -180,8 +180,17 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
-		return DEFAULT_UUID, nil
+	exporter, err := NewExporter(ExporterOptions{
+		Service:             suite.ServiceName,
+		Prefix:              suite.Prefix,
+		Cloud:               cloudName,
+		DisabledMetrics:     []string{},
+		EndpointType:        "public",
+		NovaMetadataMapping: novaMetadataMapping,
+		DnsConcurrentCount:  10,
+		UUIDGenFunc: func() (string, error) {
+			return DEFAULT_UUID, nil
+		},
 	}, logger)
 
 	if err != nil {

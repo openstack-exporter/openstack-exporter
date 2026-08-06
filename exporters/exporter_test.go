@@ -131,10 +131,10 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f":            "cinder_os_quota_sets",
 	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d":            "cinder_os_quota_sets",
 	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e":            "cinder_os_quota_sets",
-	"/designate/":         "designate_api_discovery",
-	"/designate/v2/zones": "designate_zones",
-	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
-	"/database/": "trove_api_discovery",
+	"/designate/":                         "designate_api_discovery",
+	"/designate/v2/zones":                 "designate_zones",
+	"/designate/v2/recordsets?limit=1000": "designate_recordsets",
+	"/database/":                          "trove_api_discovery",
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",
 	"/orchestration/stacks":         "heat_stacks",
@@ -182,7 +182,7 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
 		return DEFAULT_UUID, nil
-	}, logger)
+	}, 1000, logger)
 
 	if err != nil {
 		suite.Require().NoError(err)

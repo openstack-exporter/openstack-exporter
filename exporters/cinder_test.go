@@ -75,8 +75,8 @@ openstack_cinder_volume_gb{availability_zone="nova",bootable="false",id="6edbc2f
 openstack_cinder_volume_gb{availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status volume_status
 # TYPE openstack_cinder_volume_status gauge
-openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
-openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
+openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_image_id="",volume_image_name="",volume_type="lvmdriver-1"} 5
+openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_image_id="b48c53e1-9a96-4a5a-a630-2e74ec54ddcc",volume_image_name="cirros-0.3.4-x86_64-uec",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status_counter volume_status_counter
 # TYPE openstack_cinder_volume_status_counter gauge
 openstack_cinder_volume_status_counter{status="attaching"} 0

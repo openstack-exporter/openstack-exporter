@@ -22,7 +22,8 @@ openstack_glance_image_created_at{hidden="false",id="781b3762-9469-4cec-b58d-334
 openstack_glance_image_created_at{hidden="false",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",name="cirros-0.3.2-x86_64-disk",status="active",tenant_id="5ef70662f8b34079a6eddb8da9d75fe8",visibility="public"} 1.415380026e+09
 # HELP openstack_glance_images images
 # TYPE openstack_glance_images gauge
-openstack_glance_images 2
+openstack_glance_images{disk_format="qcow2",id="1bea47ed-f6a9-463b-b423-14b9cca9ad27",image_stats="active",name="cirros-0.3.2-x86_64-disk",project_id="5ef70662f8b34079a6eddb8da9d75fe8",tags=""} 2
+openstack_glance_images{disk_format="qcow2",id="781b3762-9469-4cec-b58d-3349e5de4e9c",image_stats="active",name="F17-x86_64-cfntools",project_id="5ef70662f8b34079a6eddb8da9d75fe8",tags=""} 2
 # HELP openstack_glance_up up
 # TYPE openstack_glance_up gauge
 openstack_glance_up 1

@@ -286,6 +286,29 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 * Returns no data if the cache is empty or expired.
 * Retrieves and returns cached data from the backend.
 
+### Placement 10000-resource-provider benchmark
+
+The Placement benchmarks simulate 10000 resource providers with inventories, usages, and
+allocations in a local mock Placement API. They are intended to measure exporter overhead
+without requiring a large OpenStack deployment.
+
+```sh
+mkdir -p ./env/go-build-cache
+GOCACHE="$(pwd)/env/go-build-cache" go test ./exporters -bench 'BenchmarkPlacement.*10000' -benchmem -run '^$'
+```
+
+Use these benchmarks before and after Placement collector changes:
+
+* `BenchmarkPlacementListResourceProviders10000` measures the direct Placement collection path.
+* `BenchmarkPlacementCollectCold10000` measures full Prometheus gather cost from a fresh exporter.
+* `BenchmarkPlacementCollectWarm10000` measures repeated gather cost and shows the effect of
+  any Placement collector cache that reuses resource provider API results.
+* `BenchmarkPlacementCacheWrite10000` measures the existing exporter response cache by writing
+  already gathered metric families to an HTTP response.
+
+Set `PLACEMENT_BENCH_REQUEST_DELAY_MS` to a non-negative integer to add per-request mock API
+latency when modeling slower Placement servers.
+
 ## Contributing
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics

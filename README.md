@@ -286,6 +286,29 @@ Enabling the cache with `--cache` changes the exporter's metric collection and d
 * Returns no data if the cache is empty or expired.
 * Retrieves and returns cached data from the backend.
 
+### Placement 10000-resource-provider benchmark
+
+The Placement benchmarks simulate 10000 resource providers with inventories, usages, and
+allocations in a local mock Placement API. They are intended to measure exporter overhead
+without requiring a large OpenStack deployment.
+
+```sh
+mkdir -p ./env/go-build-cache
+GOCACHE="$(pwd)/env/go-build-cache" go test ./exporters -bench 'BenchmarkPlacement.*10000' -benchmem -run '^$'
+```
+
+Use these benchmarks before and after Placement collector changes:
+
+* `BenchmarkPlacementListResourceProviders10000` measures the direct Placement collection path.
+* `BenchmarkPlacementCollectCold10000` measures full Prometheus gather cost from a fresh exporter.
+* `BenchmarkPlacementCollectWarm10000` measures repeated gather cost and shows the effect of
+  any Placement collector cache that reuses resource provider API results.
+* `BenchmarkPlacementCacheWrite10000` measures the existing exporter response cache by writing
+  already gathered metric families to an HTTP response.
+
+Set `PLACEMENT_BENCH_REQUEST_DELAY_MS` to a non-negative integer to add per-request mock API
+latency when modeling slower Placement servers.
+
 ## Contributing
 
 Please file pull requests or issues under GitHub. Feel free to request any metrics
@@ -466,7 +489,7 @@ openstack_nova_quota_security_group_rules|tenant="admin",type="in_use"          
 openstack_nova_quota_security_groups|tenant="admin",type="in_use"                                                                                                                                                                                                                                                                      |1 (float)|Current usage of security groups for the tenant
 openstack_nova_quota_server_group_members|tenant="admin",type="in_use"                                                                                                                                                                                                                                                            |1 (float)|Current usage of server group members for the tenant
 openstack_nova_quota_server_groups|tenant="admin",type="in_use"                                                                                                                                                                                                                                                                          |1 (float)|Current usage of server groups for the tenant
-openstack_nova_running_vms| region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd"                                                                                                                                                                                                                              |12.0 (float)| Number of running VMs
+openstack_nova_running_vms| region="RegionOne",hostname="compute-01",availability_zone="az1",aggregates="shared,ssd",tenant_id="tenant_id"                                                                                                                                                                                                         |12.0 (float)| Number of running VMs
 openstack_nova_security_groups| region="RegionOne"                                                                                                                                                                                                                                                                                                      |1.0 (float)| Total number of security groups
 openstack_nova_server_local_gb| id="27bb2854-b06a-48f5-ab4e-139817b8b8ff",name="openstack-monitoring-0",tenant_id="110f6313d2d346b4aa90eabe4970b62a"                                                                                                                                                                                                 | 10 (float)| Server local disk size
 openstack_nova_server_status| region="RegionOne",hostname="compute-01",id="id",name="name",tenant_id="tenant_id",user_id="user_id",address_ipv4="address_ipv4",address_ipv6="address_ipv6",host_id="host_id",uuid="uuid",availability_zone="availability_zone"                                                                                             |0.0 (float)| Server status

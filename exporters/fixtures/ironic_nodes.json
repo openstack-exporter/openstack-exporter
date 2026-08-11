@@ -418,7 +418,6 @@
         "hammer_error_resets": [
           "2018-05-10T12:38:40.803234+00:00"
         ],
-        "ironic_self_healing_state": "healed",
         "system_vendor": {
           "serial_number": "SN-1234567890"
         }

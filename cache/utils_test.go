@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -41,6 +42,26 @@ func mockEnableExporter(
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
 	}
 	return &exporter, nil
+}
+
+func mockEnableExporterError(
+	service,
+	prefix,
+	cloud string,
+	disabledMetrics []string,
+	endpointType string,
+	collectTime bool,
+	disableSlowMetrics bool,
+	disableDeprecatedMetrics bool,
+	disableCinderAgentUUID bool,
+	domainID string,
+	tenantID string,
+	novaMetadataMapping *utils.LabelMappingFlag,
+	dnsConcurrentCount int,
+	uuidGenFunc func() (string, error),
+	logger *slog.Logger,
+) (*exporters.OpenStackExporter, error) {
+	return nil, errors.New("authentication endpoint is unreachable")
 }
 
 // MockOpenStackExporter is a mock of OpenStackExporter interface
@@ -122,6 +143,35 @@ func TestCollectCache(t *testing.T) {
 
 	assert.Contains(includeServices, "service-a", "service-a should be included in the cache data")
 	assert.NotContains(includeServices, "service-b", "service-b should not be included in the cache data")
+}
+
+func TestCollectCacheFailsWhenNoExporterCanBeEnabled(t *testing.T) {
+	cache := GetCache()
+	defer newSingleCache()
+
+	err := CollectCache(
+		mockEnableExporterError,
+		false,
+		[]string{"service-a"},
+		"testPrefix",
+		"testCloud",
+		nil,
+		"public",
+		false,
+		false,
+		false,
+		false,
+		"",
+		"",
+		new(utils.LabelMappingFlag),
+		10,
+		nil,
+		slog.New(slog.NewTextHandler(os.Stdout, nil)),
+	)
+
+	assert.Error(t, err)
+	_, exists := cache.GetCloudCache("testCloud")
+	assert.False(t, exists)
 }
 
 func TestBufferFromCache(t *testing.T) {

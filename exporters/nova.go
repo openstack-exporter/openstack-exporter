@@ -2,6 +2,7 @@ package exporters
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"reflect"
@@ -413,17 +414,18 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			addressIPv4, addressIPv6 := serverAddresses(server)
 			labelValues := func() []string {
 				if flavorIDMapper == nil {
 					return []string{
 						server.ID, server.Status, server.Name, server.TenantID,
-						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+						server.UserID, addressIPv4, addressIPv6, server.HostID, server.HypervisorHostname, server.ID,
 						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName,
 					}
 				}
 				return []string{
 					server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+					server.UserID, addressIPv4, addressIPv6, server.HostID, server.HypervisorHostname, server.ID,
 					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName,
 				}
 			}()
@@ -434,6 +436,39 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 	return nil
+}
+
+// serverAddresses falls back to the standard Nova addresses map when the
+// optional accessIPv4/accessIPv6 fields are not populated.
+func serverAddresses(server servers.Server) (string, string) {
+	ipv4, ipv6 := server.AccessIPv4, server.AccessIPv6
+	if ipv4 != "" && ipv6 != "" {
+		return ipv4, ipv6
+	}
+
+	for _, rawAddresses := range server.Addresses {
+		data, err := json.Marshal(rawAddresses)
+		if err != nil {
+			continue
+		}
+		var addresses []struct {
+			Address string `json:"addr"`
+			Version int    `json:"version"`
+		}
+		if json.Unmarshal(data, &addresses) != nil {
+			continue
+		}
+		for _, address := range addresses {
+			if address.Version == 4 && ipv4 == "" {
+				ipv4 = address.Address
+			}
+			if address.Version == 6 && ipv6 == "" {
+				ipv6 = address.Address
+			}
+		}
+	}
+
+	return ipv4, ipv6
 }
 
 type novaRunningVMLabels struct {

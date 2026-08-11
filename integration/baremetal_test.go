@@ -33,7 +33,6 @@ func TestBaremetalIntegration(t *testing.T) {
 			"deploy_ramdisk",
 			"id",
 			"instance_uuid",
-			"ironic_self_healing_state",
 			"last_error",
 			"lessee",
 			"maintenance",

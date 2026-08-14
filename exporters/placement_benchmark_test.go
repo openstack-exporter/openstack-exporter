@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -177,11 +178,12 @@ func newPlacementBenchmarkFixture(b *testing.B, parallel bool) *placementBenchma
 	}
 
 	config := &exporters.ExporterConfig{
-		ClientV2:        client,
-		ServiceName:     placementBenchmarkService,
-		Prefix:          "openstack",
-		CollectTime:     true,
-		DisabledMetrics: []string{},
+		ClientV2:                    client,
+		ServiceName:                 placementBenchmarkService,
+		Prefix:                      "openstack",
+		CollectTime:                 true,
+		DisabledMetrics:             []string{},
+		PlacementProviderTraitRegex: regexp.MustCompile("CUSTOM_"),
 	}
 	setPlacementBenchmarkBoolField(config, "CompletePlacementInParallel", parallel)
 	setPlacementBenchmarkBoolField(config, "CollectPlacementTraits", false)

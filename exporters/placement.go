@@ -13,6 +13,7 @@ type PlacementExporter struct {
 }
 
 var placementResourceLabels = []string{"hostname", "resourcetype"}
+var placementResourceProviderTraits = []string{"hostname", "trait"}
 var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
 
 var defaultPlacementMetrics = []Metric{
@@ -22,6 +23,7 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_reserved", Labels: placementResourceLabels},
 	{Name: "resource_usage", Labels: placementResourceLabels},
 	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
+	{Name: "resource_provider_trait", Labels: placementResourceProviderTraits, Slow: true},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -32,6 +34,9 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			logger:         logger,
 		},
 	}
+	// Resource provider traits require at least microversion 1.6
+	exporter.ClientV2.Microversion = "1.6"
+
 	for _, metric := range defaultPlacementMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -59,6 +64,17 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
+		}
+
+		if traitsResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
+			for _, v := range traitsResult.Traits {
+				if !exporter.PlacementProviderTraitRegex.MatchString(v) {
+					continue
+				}
+				emitPlacementResourceMetric(exporter, ch, "resource_provider_trait", 1, resourceprovider.Name, v)
+			}
+		} else {
+			exporter.logger.Error("Could not get resource provider traits list", "resource_provider", resourceprovider.Name, "error", err)
 		}
 
 		for k, v := range inventoryResult.Inventories {

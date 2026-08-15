@@ -33,16 +33,6 @@ var knownAmphoraStatuses = map[string]int{
 	"ERROR":          6,
 }
 
-// Loadbalancer pool provisioning status. One of: ACTIVE, DELETED, ERROR, PENDING_CREATE, PENDING_UPDATE, PENDING_DELETE.
-var knownPoolStatuses = map[string]int{
-	"ACTIVE":         0,
-	"DELETED":        1,
-	"ERROR":          2,
-	"PENDING_CREATE": 3,
-	"PENDING_UPDATE": 4,
-	"PENDING_DELETE": 5,
-}
-
 func mapLoadbalancerStatus(current string) int {
 	return mapStatus(knownLoadbalancerStatuses, current)
 }
@@ -52,7 +42,7 @@ func mapAmphoraStatus(current string) int {
 }
 
 func mapPoolStatus(current string) int {
-	return mapStatus(knownPoolStatuses, current)
+	return mapStatus(knownLoadbalancerStatuses, current)
 }
 
 type LoadbalancerExporter struct {
@@ -151,7 +141,7 @@ func ListAllPools(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<
 
 	for _, pool := range allPools {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["pool_status"].Metric,
-			prometheus.GaugeValue, float64(mapPoolStatus(pool.ProvisioningStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
+			prometheus.GaugeValue, float64(mapPoolStatus(pool.OperatingStatus)), pool.ID, pool.ProvisioningStatus, pool.Name,
 			lbsLabels(pool.Loadbalancers), pool.Protocol, pool.LBMethod, pool.OperatingStatus, pool.ProjectID)
 	}
 

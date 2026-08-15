@@ -4,6 +4,7 @@ package cache
 
 import (
 	"bytes"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -63,6 +64,7 @@ func CollectCache(
 		// Update cloud's cache once finish all exporters' collection job. so we won't mix the old
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
+		successfulServices := 0
 
 		for _, service := range services {
 			lg2 := lg.With("service", service)
@@ -83,6 +85,7 @@ func CollectCache(
 				lg2.Error("Create gather failed", "error", err)
 				continue
 			}
+			successfulServices++
 
 			for _, mf := range metricFamilies {
 				cloudCache.SetMetricFamilyCache(
@@ -96,6 +99,9 @@ func CollectCache(
 			}
 
 			lg2.Info("Finish update cache data")
+		}
+		if successfulServices == 0 {
+			return fmt.Errorf("failed to collect cache for cloud %q: no exporters produced metrics", cloud)
 		}
 
 		cacheBackend.SetCloudCache(cloud, cloudCache)

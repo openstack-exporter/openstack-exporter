@@ -2,16 +2,25 @@ package exporters
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strconv"
 	"strings"
 
+	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const ironicLatestSupportedMicroversion = "1.90"
+const (
+	ironicLatestSupportedMicroversion = "1.90"
+	// The detailed node endpoint enforces a positive limit and may omit
+	// nodes_links even where its server-side default truncates the result, so
+	// AllPages has nothing to follow and silently returns a partial node list.
+	// listAllNodes follows the marker itself instead.
+	ironicNodePageSize = 1000
+)
 
 // IronicExporter : extends BaseOpenStackExporter
 type IronicExporter struct {
@@ -58,14 +67,44 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 	return &exporter, nil
 }
 
+// listAllNodes returns every node, paging on an explicit marker under a stable
+// sort so that deployments with more nodes than the API returns in one response
+// are collected completely.
+func listAllNodes(ctx context.Context, client *gophercloudv2.ServiceClient) ([]nodes.Node, error) {
+	var allNodes []nodes.Node
+	var marker string
+
+	for {
+		allPagesNodes, err := nodes.ListDetail(client, nodes.ListOpts{
+			Limit:   ironicNodePageSize,
+			Marker:  marker,
+			SortKey: "id",
+			SortDir: "asc",
+		}).AllPages(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		page, err := nodes.ExtractNodes(allPagesNodes)
+		if err != nil {
+			return nil, err
+		}
+
+		allNodes = append(allNodes, page...)
+		if len(page) < ironicNodePageSize {
+			return allNodes, nil
+		}
+
+		marker = page[len(page)-1].UUID
+		if marker == "" {
+			return nil, fmt.Errorf("ironic: node page of %d entries ends without a UUID", ironicNodePageSize)
+		}
+	}
+}
+
 // ListNodes : list nodes
 func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allNodes, err := nodes.ExtractNodes(allPagesNodes)
+	allNodes, err := listAllNodes(ctx, exporter.ClientV2)
 	if err != nil {
 		return err
 	}

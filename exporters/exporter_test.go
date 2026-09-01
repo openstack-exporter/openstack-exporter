@@ -165,7 +165,11 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":             "neutron_quotas_1_usage",
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
 	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
-	"/object-store/?marker=centos9-epel-next": "swift_empty",
+	"/object-store/?marker=centos9-epel-next":                                              "swift_empty",
+	"/masakari/v1/segments":                                                                "masakari_segments",
+	"/masakari/v1/segments?limit=1000&marker=1":                                            "masakari_segments_empty",
+	"/masakari/v1/segments/9e800031-6946-4b43-bf09-8b3d1cab792b/hosts":                     "masakari_hosts",
+	"/masakari/v1/segments/9e800031-6946-4b43-bf09-8b3d1cab792b/hosts?limit=1000&marker=2": "masakari_hosts_empty",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"
@@ -239,4 +243,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
 	suite.Run(t, &ObjectStoreTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "object-store"}})
+	suite.Run(t, &MasakariTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "instance-ha"}})
 }

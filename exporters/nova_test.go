@@ -55,6 +55,9 @@ openstack_nova_instance_active 1
 # HELP openstack_nova_instance_build instance_build
 # TYPE openstack_nova_instance_build gauge
 openstack_nova_instance_build 0
+# HELP openstack_nova_instance_deleted instance_deleted
+# TYPE openstack_nova_instance_deleted gauge
+openstack_nova_instance_deleted 1
 # HELP openstack_nova_instance_errors instance_errors
 # TYPE openstack_nova_instance_errors gauge
 openstack_nova_instance_errors 0

@@ -100,6 +100,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_max", Labels: defaultNovaLimitsLabels},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 	{Name: "instance_errors"},
+	{Name: "instance_deleted"},
 	{Name: "instance_build"},
 	{Name: "instance_active"},
 	{Name: "instance_status", Labels: []string{"status"}},
@@ -465,6 +466,19 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 				prometheus.GaugeValue, float64(count), status)
 		}
 	}
+	if !exporter.MetricIsDisabled("instance_deleted") {
+		allPagesDeleted, err := servers.List(exporter.ClientV2, deletedServerListOptions(exporter.TenantID)).AllPages(ctx)
+		if err != nil {
+			return err
+		}
+
+		var deletedServers []ServerWithExt
+		if err = servers.ExtractServersInto(allPagesDeleted, &deletedServers); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_deleted"].Metric,
+			prometheus.GaugeValue, float64(len(deletedServers)))
+	}
 
 	if !exporter.MetricIsDisabled("running_vms") {
 		runningVMs := map[novaRunningVMLabels]int{}
@@ -624,6 +638,25 @@ func getServerListOptions(tenantID string) servers.ListOpts {
 		return servers.ListOpts{AllTenants: true}
 	}
 	return servers.ListOpts{TenantID: tenantID}
+}
+
+type deletedServerListOpts struct {
+	AllTenants bool   `q:"all_tenants"`
+	TenantID   string `q:"tenant_id"`
+	Deleted    bool   `q:"deleted"`
+}
+
+func (opts deletedServerListOpts) ToServerListQuery() (string, error) {
+	query, err := gophercloud.BuildQueryString(opts)
+	return query.String(), err
+}
+
+func deletedServerListOptions(tenantID string) deletedServerListOpts {
+	return deletedServerListOpts{
+		AllTenants: tenantID == "",
+		TenantID:   tenantID,
+		Deleted:    true,
+	}
 }
 
 // Help function to determine if this aggregate has only the 'availability_zone' metadata

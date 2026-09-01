@@ -78,6 +78,7 @@ var fixtures map[string]string = map[string]string{
 	"/compute/limits?tenant_id=5961c443439d4fcebe42643723755e9d": "nova_os_limits",
 	"/compute/limits?tenant_id=fdb8424c4e4f4c0ba32c52e2de3bd80e": "nova_os_limits",
 	"/compute/servers/detail?all_tenants=true":                   "nova_os_servers",
+	"/compute/servers/detail?all_tenants=true&deleted=true":      "nova_os_deleted_servers",
 	"/compute/os-simple-tenant-usage?detailed=1":                 "nova_os_simple_tenant_usage",
 	"/glance/":          "glance_api_discovery",
 	"/glance/v2/images": "glance_images",

@@ -36,7 +36,12 @@ func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statu
 		StatusCode: statusCode,
 	}
 
-	responder := httpmock.ResponderFromResponse(response).Times(2)
+	responder := httpmock.ResponderFromResponse(response)
+	if file == suite.FixturePath("manila_shares") {
+		responder = responder.Times(3)
+	} else {
+		responder = responder.Times(2)
+	}
 	httpmock.RegisterResponder(method, url, responder)
 }
 
@@ -54,6 +59,7 @@ func (suite *BaseOpenStackTestSuite) FixturePath(name string) string {
 var fixtures map[string]string = map[string]string{
 	"/container-infra/":                                          "container_infra_api_discovery",
 	"/container-infra/clusters":                                  "container_infra_clusters",
+	"/container-infra/mservices":                                 "container_infra_mservices",
 	"/compute/":                                                  "nova_api_discovery",
 	"/compute/v2.1/":                                             "nova_api_v2.1",
 	"/compute/os-services":                                       "nova_os_services",
@@ -132,8 +138,9 @@ var fixtures map[string]string = map[string]string{
 	"/volumes/os-quota-sets/4b1eb781a47440acb8af9850103e537f":            "cinder_os_quota_sets",
 	"/volumes/os-quota-sets/5961c443439d4fcebe42643723755e9d":            "cinder_os_quota_sets",
 	"/volumes/os-quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e":            "cinder_os_quota_sets",
-	"/designate/":         "designate_api_discovery",
-	"/designate/v2/zones": "designate_zones",
+	"/designate/":                    "designate_api_discovery",
+	"/designate/v2/zones":            "designate_zones",
+	"/designate/v2/service_statuses": "designate_service_statuses",
 	"/designate/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets": "designate_recordsets",
 	"/database/": "trove_api_discovery",
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
@@ -164,8 +171,25 @@ var fixtures map[string]string = map[string]string{
 	"/neutron/v2.0/quotas/fdb8424c4e4f4c0ba32c52e2de3bd80e/details.json":             "neutron_quotas_1_usage",
 	"/neutron/v2.0/quotas/4b1eb781a47440acb8af9850103e537f/details.json":             "neutron_quotas_1_usage",
 	"/shares/v2/shares/detail?all_tenants=true":                                      "manila_shares",
+	"/shares/v2/quota-sets/0c4e939acacf4376bdcd1129f1a054ad":                         "manila_quota_set",
+	"/shares/v2/quota-sets/0cbd49cbf76d405d9c86562e1d579bd3":                         "manila_quota_set",
+	"/shares/v2/quota-sets/2db68fed84324f29bb73130c6c2094fb":                         "manila_quota_set",
+	"/shares/v2/quota-sets/3d594eb0f04741069dbbb521635b21c7":                         "manila_quota_set",
+	"/shares/v2/quota-sets/43ebde53fc314b1c9ea2b8c5dc744927":                         "manila_quota_set",
+	"/shares/v2/quota-sets/4b1eb781a47440acb8af9850103e537f":                         "manila_quota_set",
+	"/shares/v2/quota-sets/5961c443439d4fcebe42643723755e9d":                         "manila_quota_set",
+	"/shares/v2/quota-sets/fdb8424c4e4f4c0ba32c52e2de3bd80e":                         "manila_quota_set",
 	"/object-store/": "swift_list", // NOTE: /v1/AUTH_%(tenant_id)s
-	"/object-store/?marker=centos9-epel-next": "swift_empty",
+	"/object-store/v1/AUTH_0c4e939acacf4376bdcd1129f1a054ad":                          "swift_list",
+	"/object-store/v1/AUTH_0c4e939acacf4376bdcd1129f1a054ad?marker=centos9-epel-next": "swift_empty",
+	"/object-store/v1/AUTH_0cbd49cbf76d405d9c86562e1d579bd3":                          "swift_empty",
+	"/object-store/v1/AUTH_2db68fed84324f29bb73130c6c2094fb":                          "swift_empty",
+	"/object-store/v1/AUTH_3d594eb0f04741069dbbb521635b21c7":                          "swift_empty",
+	"/object-store/v1/AUTH_43ebde53fc314b1c9ea2b8c5dc744927":                          "swift_empty",
+	"/object-store/v1/AUTH_4b1eb781a47440acb8af9850103e537f":                          "swift_empty",
+	"/object-store/v1/AUTH_5961c443439d4fcebe42643723755e9d":                          "swift_empty",
+	"/object-store/v1/AUTH_fdb8424c4e4f4c0ba32c52e2de3bd80e":                          "swift_empty",
+	"/object-store/?marker=centos9-epel-next":                                         "swift_empty",
 }
 
 const DEFAULT_UUID = "3649e0f6-de80-ab6e-4f1c-351042d2f7fe"

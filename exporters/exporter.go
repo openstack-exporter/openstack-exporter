@@ -67,7 +67,6 @@ type ExporterOptions struct {
 	DnsConcurrentCount          int
 	UUIDGenFunc                 func() (string, error)
 	CompletePlacementInParallel bool
-	CollectPlacementTraits      bool
 }
 
 func EnableExporter(options ExporterOptions, logger *slog.Logger) (*OpenStackExporter, error) {
@@ -98,7 +97,6 @@ type ExporterConfig struct {
 	NovaMetadataMapping         *utils.LabelMappingFlag
 	DnsConcurrentCount          int
 	CompletePlacementInParallel bool
-	CollectPlacementTraits      bool
 }
 
 type BaseOpenStackExporter struct {
@@ -362,7 +360,6 @@ func NewExporter(options ExporterOptions, logger *slog.Logger) (OpenStackExporte
 		NovaMetadataMapping:         options.NovaMetadataMapping,
 		DnsConcurrentCount:          options.DnsConcurrentCount,
 		CompletePlacementInParallel: options.CompletePlacementInParallel,
-		CollectPlacementTraits:      options.CollectPlacementTraits,
 	}
 
 	switch options.Service {

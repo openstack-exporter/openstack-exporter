@@ -184,7 +184,6 @@ func newPlacementBenchmarkFixture(b *testing.B, parallel bool) *placementBenchma
 		DisabledMetrics: []string{},
 	}
 	setPlacementBenchmarkBoolField(config, "CompletePlacementInParallel", parallel)
-	setPlacementBenchmarkBoolField(config, "CollectPlacementTraits", false)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	exporter, err := exporters.NewPlacementExporter(config, logger)

@@ -38,7 +38,6 @@ type CollectCacheOptions struct {
 	DnsConcurrentCount          int
 	UUIDGenFunc                 func() (string, error)
 	CompletePlacementInParallel bool
-	CollectPlacementTraits      bool
 }
 
 func CollectCache(options CollectCacheOptions, logger *slog.Logger) error {
@@ -88,7 +87,6 @@ func CollectCache(options CollectCacheOptions, logger *slog.Logger) error {
 				DnsConcurrentCount:          options.DnsConcurrentCount,
 				UUIDGenFunc:                 options.UUIDGenFunc,
 				CompletePlacementInParallel: options.CompletePlacementInParallel,
-				CollectPlacementTraits:      options.CollectPlacementTraits,
 			}, logger)
 			if err != nil {
 				// Log error and continue with enabling other exporters

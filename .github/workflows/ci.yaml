@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-shellcheck@4c07458293ac342d477251099501a718ae5ef86e # v1.32.0
+      - uses: reviewdog/action-shellcheck@0722bbdb0d47f04c1b53b8734d2422ac63a45ec6 # v1.32.1
         with:
           fail_level: any
           filter_mode: nofilter
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-actionlint@d63ba7532e0942965320cd8d73cbae4c7b3c5283 # v1.73.1
+      - uses: reviewdog/action-actionlint@dbe5299849118fd6f099ba563d263d770955a64a # v1.73.2
         with:
           fail_level: any
           filter_mode: nofilter
@@ -127,6 +127,22 @@ jobs:
           labels: ${{ steps.meta-github-image.outputs.labels }}
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
+
+      - name: Set up Helm
+        if: contains(github.ref, 'refs/tags/')
+        uses: azure/setup-helm@v4
+
+      - name: Publish Helm chart
+        if: contains(github.ref, 'refs/tags/')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_dir="$(mktemp -d)"
+          helm package helmcharts \
+            --destination "$package_dir" \
+            --version "$version" \
+            --app-version "$version"
+          helm push "$package_dir/prometheus-openstack-exporter-$version.tgz" \
+            "oci://ghcr.io/${{ github.repository_owner }}/charts"
 
       # This step runs ONLY when a tag is pushed
       - name: Run GoReleaser (Tag Release)

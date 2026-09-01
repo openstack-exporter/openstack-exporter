@@ -1,10 +1,17 @@
 package exporters
 
 import (
+	"context"
+	"fmt"
+	"net/http"
 	"strings"
+	"testing"
 
+	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type IronicTestSuite struct {
@@ -41,4 +48,47 @@ openstack_ironic_up 1
 func (suite *IronicTestSuite) TestIronicExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(ironicExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+// TestListAllNodesFollowsMarker covers a deployment holding more nodes than the
+// API returns in one response. The first page comes back full and without
+// nodes_links, which is exactly the case where AllPages stops early, so
+// collection has to continue from the last UUID by itself.
+func TestListAllNodesFollowsMarker(t *testing.T) {
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	const (
+		nodesURL       = "http://ironic.test/v1/nodes/detail"
+		secondPageSize = 3
+	)
+
+	nodePage := func(first, count int) httpmock.Responder {
+		entries := make([]string, count)
+		for i := range entries {
+			entries[i] = fmt.Sprintf(`{"uuid": "node-%04d"}`, first+i)
+		}
+		resp := httpmock.NewStringResponse(http.StatusOK, `{"nodes": [`+strings.Join(entries, ",")+`]}`)
+		resp.Header.Set("Content-Type", "application/json")
+		return httpmock.ResponderFromResponse(resp)
+	}
+
+	httpmock.RegisterResponder(http.MethodGet,
+		nodesURL+"?limit=1000&sort_dir=asc&sort_key=id",
+		nodePage(0, ironicNodePageSize))
+	httpmock.RegisterResponder(http.MethodGet,
+		fmt.Sprintf("%s?limit=1000&marker=node-%04d&sort_dir=asc&sort_key=id", nodesURL, ironicNodePageSize-1),
+		nodePage(ironicNodePageSize, secondPageSize))
+	httpmock.RegisterNoResponder(httpmock.NewNotFoundResponder(t.Fatal))
+
+	client := &gophercloudv2.ServiceClient{
+		ProviderClient: &gophercloudv2.ProviderClient{},
+		Endpoint:       "http://ironic.test/v1/",
+	}
+
+	allNodes, err := listAllNodes(context.Background(), client)
+	require.NoError(t, err)
+	require.Len(t, allNodes, ironicNodePageSize+secondPageSize)
+	assert.Equal(t, "node-0000", allNodes[0].UUID)
+	assert.Equal(t, fmt.Sprintf("node-%04d", ironicNodePageSize+secondPageSize-1), allNodes[len(allNodes)-1].UUID)
 }

@@ -64,6 +64,12 @@ func TestComputeIntegration(t *testing.T) {
 		}, 1)
 	})
 
+	t.Run("nova_compute_capacity_metrics_present", func(t *testing.T) {
+		metrics.requireMinValue(t, "openstack_nova_compute_vcpus", nil, 1)
+		metrics.requireMinValue(t, "openstack_nova_compute_memory_bytes", nil, 1)
+		metrics.requireAnyFamily(t, "openstack_nova_compute_disk_available_bytes")
+	})
+
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {
 		metrics.requireMinValueWithLabels(t, "openstack_nova_quota_instances", labels{
 			"tenant": "admin",

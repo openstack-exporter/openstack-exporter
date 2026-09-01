@@ -87,6 +87,9 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "free_disk_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "hypervisor_count"},
+	{Name: "compute_vcpus"},
+	{Name: "compute_memory_bytes"},
+	{Name: "compute_disk_available_bytes"},
 	{Name: "hypervisor_cpu_utilization", Labels: defaultNovaHypervisorLabels},
 	{Name: "hypervisor_memory_utilization", Labels: defaultNovaHypervisorLabels},
 	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
@@ -229,6 +232,7 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		}
 	}
 
+	var computeVCPUs, computeMemoryBytes, computeDiskAvailableBytes float64
 	for _, hypervisor := range allHypervisors {
 		availabilityZone := ""
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
@@ -246,6 +250,7 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
 			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeVCPUs += float64(vcpus)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregates)
@@ -260,6 +265,7 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeMemoryBytes += float64(hypervisor.MemoryMB * MEGABYTE)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
@@ -280,7 +286,20 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeDiskAvailableBytes += float64(hypervisor.FreeDiskGB * GIGABYTE)
 
+	}
+	if !exporter.MetricIsDisabled("compute_vcpus") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_vcpus"].Metric,
+			prometheus.GaugeValue, computeVCPUs)
+	}
+	if !exporter.MetricIsDisabled("compute_memory_bytes") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_memory_bytes"].Metric,
+			prometheus.GaugeValue, computeMemoryBytes)
+	}
+	if !exporter.MetricIsDisabled("compute_disk_available_bytes") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_disk_available_bytes"].Metric,
+			prometheus.GaugeValue, computeDiskAvailableBytes)
 	}
 
 	return nil

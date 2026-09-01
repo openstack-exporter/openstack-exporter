@@ -21,6 +21,15 @@ openstack_nova_agent_state{adminState="enabled",disabledReason="",hostname="host
 # HELP openstack_nova_availability_zones availability_zones
 # TYPE openstack_nova_availability_zones gauge
 openstack_nova_availability_zones 1
+# HELP openstack_nova_compute_disk_available_bytes compute_disk_available_bytes
+# TYPE openstack_nova_compute_disk_available_bytes gauge
+openstack_nova_compute_disk_available_bytes 1.103806595072e+12
+# HELP openstack_nova_compute_memory_bytes compute_memory_bytes
+# TYPE openstack_nova_compute_memory_bytes gauge
+openstack_nova_compute_memory_bytes 8.589934592e+09
+# HELP openstack_nova_compute_vcpus compute_vcpus
+# TYPE openstack_nova_compute_vcpus gauge
+openstack_nova_compute_vcpus 4
 # HELP openstack_nova_current_workload current_workload
 # TYPE openstack_nova_current_workload gauge
 openstack_nova_current_workload{aggregates="",availability_zone="",hostname="host1"} 0

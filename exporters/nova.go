@@ -16,6 +16,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/limits"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/quotasets"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servergroups"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
@@ -61,7 +62,7 @@ type NovaExporter struct {
 
 var (
 	defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "task_state", "security_groups"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
 	defaultNovaRunningVMLabels  = []string{"hostname", "availability_zone", "aggregates", "tenant_id"}
@@ -85,7 +86,15 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "local_storage_used_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "free_disk_bytes", Labels: defaultNovaHypervisorLabels},
+	{Name: "hypervisor_count"},
+	{Name: "compute_vcpus"},
+	{Name: "compute_memory_bytes"},
+	{Name: "compute_disk_available_bytes"},
+	{Name: "hypervisor_cpu_utilization", Labels: defaultNovaHypervisorLabels},
+	{Name: "hypervisor_memory_utilization", Labels: defaultNovaHypervisorLabels},
 	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
+	{Name: "server_groups", Fn: ListServerGroups},
+	{Name: "server_group_members", Labels: []string{"id", "name", "policy", "project_id"}},
 	{Name: "limits_vcpus_max", Labels: defaultNovaLimitsLabels, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: defaultNovaLimitsLabels},
 	{Name: "limits_memory_max", Labels: defaultNovaLimitsLabels},
@@ -93,6 +102,13 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_used", Labels: defaultNovaLimitsLabels},
 	{Name: "limits_instances_max", Labels: defaultNovaLimitsLabels},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
+	{Name: "instance_errors"},
+	{Name: "instance_deleted"},
+	{Name: "instance_build"},
+	{Name: "instance_active"},
+	{Name: "instance_status", Labels: []string{"status"}},
+	{Name: "instance_vcpu", Labels: []string{"id", "tenant_id"}},
+	{Name: "instance_memory_mb", Labels: []string{"id", "tenant_id"}},
 	{Name: "quota_cores", Labels: defaultNovaQuotaLabels, Fn: ListQuotas},
 	{Name: "quota_instances", Labels: defaultNovaQuotaLabels},
 	{Name: "quota_key_pairs", Labels: defaultNovaQuotaLabels},
@@ -185,6 +201,10 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 	if err != nil {
 		return err
 	}
+	if !exporter.MetricIsDisabled("hypervisor_count") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_count"].Metric,
+			prometheus.GaugeValue, float64(len(allHypervisors)))
+	}
 
 	allPagesAggregates, err := aggregates.List(exporter.ClientV2).AllPages(ctx)
 	if err != nil {
@@ -212,6 +232,7 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		}
 	}
 
+	var computeVCPUs, computeMemoryBytes, computeDiskAvailableBytes float64
 	for _, hypervisor := range allHypervisors {
 		availabilityZone := ""
 		if val, ok := hostToAzMap[hypervisor.Service.Host]; ok {
@@ -229,15 +250,33 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_available"].Metric,
 			prometheus.GaugeValue, float64(vcpus), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeVCPUs += float64(vcpus)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		if !exporter.MetricIsDisabled("hypervisor_cpu_utilization") {
+			utilization := float64(0)
+			if vcpus > 0 {
+				utilization = float64(hypervisor.VCPUsUsed) / float64(vcpus)
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_cpu_utilization"].Metric,
+				prometheus.GaugeValue, utilization, hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeMemoryBytes += float64(hypervisor.MemoryMB * MEGABYTE)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		if !exporter.MetricIsDisabled("hypervisor_memory_utilization") {
+			utilization := float64(0)
+			if hypervisor.MemoryMB > 0 {
+				utilization = float64(hypervisor.MemoryMBUsed) / float64(hypervisor.MemoryMB)
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_memory_utilization"].Metric,
+				prometheus.GaugeValue, utilization, hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
@@ -247,7 +286,20 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["free_disk_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.FreeDiskGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		computeDiskAvailableBytes += float64(hypervisor.FreeDiskGB * GIGABYTE)
 
+	}
+	if !exporter.MetricIsDisabled("compute_vcpus") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_vcpus"].Metric,
+			prometheus.GaugeValue, computeVCPUs)
+	}
+	if !exporter.MetricIsDisabled("compute_memory_bytes") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_memory_bytes"].Metric,
+			prometheus.GaugeValue, computeMemoryBytes)
+	}
+	if !exporter.MetricIsDisabled("compute_disk_available_bytes") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["compute_disk_available_bytes"].Metric,
+			prometheus.GaugeValue, computeDiskAvailableBytes)
 	}
 
 	return nil
@@ -391,6 +443,62 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
 
+	statusCounts := make(map[string]int)
+	instanceErrors := 0
+	instanceBuild := 0
+	instanceActive := 0
+	for _, server := range allServers {
+		statusCounts[server.Status]++
+		switch server.Status {
+		case "ERROR":
+			instanceErrors++
+		case "BUILD":
+			instanceBuild++
+		case "ACTIVE":
+			instanceActive++
+		}
+		if !exporter.MetricIsDisabled("instance_vcpu") {
+			if vcpus, ok := server.Flavor["vcpus"].(float64); ok {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_vcpu"].Metric,
+					prometheus.GaugeValue, vcpus, server.ID, server.TenantID)
+			}
+		}
+		if !exporter.MetricIsDisabled("instance_memory_mb") {
+			if memory, ok := server.Flavor["ram"].(float64); ok {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_memory_mb"].Metric,
+					prometheus.GaugeValue, memory, server.ID, server.TenantID)
+			}
+		}
+	}
+	if !exporter.MetricIsDisabled("instance_errors") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_errors"].Metric, prometheus.GaugeValue, float64(instanceErrors))
+	}
+	if !exporter.MetricIsDisabled("instance_build") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_build"].Metric, prometheus.GaugeValue, float64(instanceBuild))
+	}
+	if !exporter.MetricIsDisabled("instance_active") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_active"].Metric, prometheus.GaugeValue, float64(instanceActive))
+	}
+	if !exporter.MetricIsDisabled("instance_status") {
+		for status, count := range statusCounts {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_status"].Metric,
+				prometheus.GaugeValue, float64(count), status)
+		}
+	}
+	if !exporter.MetricIsDisabled("instance_deleted") {
+		allPagesDeleted, err := servers.List(exporter.ClientV2, deletedServerListOptions(exporter.TenantID)).AllPages(ctx)
+		if err != nil {
+			return err
+		}
+
+		var deletedServers []ServerWithExt
+		if err = servers.ExtractServersInto(allPagesDeleted, &deletedServers); err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_deleted"].Metric,
+			prometheus.GaugeValue, float64(len(deletedServers)))
+	}
+
 	if !exporter.MetricIsDisabled("running_vms") {
 		runningVMs := map[novaRunningVMLabels]int{}
 		for _, server := range allServers {
@@ -413,6 +521,13 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			securityGroups := make([]string, 0, len(server.SecurityGroups))
+			for _, securityGroup := range server.SecurityGroups {
+				if name, ok := securityGroup["name"].(string); ok {
+					securityGroups = append(securityGroups, name)
+				}
+			}
+			securityGroupsLabel := strings.Join(securityGroups, ",")
 			labelValues := func() []string {
 				if flavorIDMapper == nil {
 					return []string{
@@ -430,9 +545,41 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, server.TaskState, securityGroupsLabel), metadataValues...)...)
 		}
 	}
+	return nil
+}
+
+func ListServerGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPages, err := servergroups.List(exporter.ClientV2, servergroups.ListOpts{
+		AllProjects: exporter.TenantID == "",
+	}).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+
+	allGroups, err := servergroups.ExtractServerGroups(allPages)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_groups"].Metric,
+		prometheus.GaugeValue, float64(len(allGroups)))
+
+	if exporter.MetricIsDisabled("server_group_members") {
+		return nil
+	}
+
+	for _, group := range allGroups {
+		policy := strings.Join(group.Policies, ",")
+		if group.Policy != nil {
+			policy = *group.Policy
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_group_members"].Metric,
+			prometheus.GaugeValue, float64(len(group.Members)), group.ID, group.Name, policy, group.ProjectID)
+	}
+
 	return nil
 }
 
@@ -510,6 +657,25 @@ func getServerListOptions(tenantID string) servers.ListOpts {
 		return servers.ListOpts{AllTenants: true}
 	}
 	return servers.ListOpts{TenantID: tenantID}
+}
+
+type deletedServerListOpts struct {
+	AllTenants bool   `q:"all_tenants"`
+	TenantID   string `q:"tenant_id"`
+	Deleted    bool   `q:"deleted"`
+}
+
+func (opts deletedServerListOpts) ToServerListQuery() (string, error) {
+	query, err := gophercloud.BuildQueryString(opts)
+	return query.String(), err
+}
+
+func deletedServerListOptions(tenantID string) deletedServerListOpts {
+	return deletedServerListOpts{
+		AllTenants: tenantID == "",
+		TenantID:   tenantID,
+		Deleted:    true,
+	}
 }
 
 // Help function to determine if this aggregate has only the 'availability_zone' metadata

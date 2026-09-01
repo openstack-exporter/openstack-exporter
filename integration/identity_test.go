@@ -31,4 +31,8 @@ func TestIdentityIntegration(t *testing.T) {
 			failMetrics(t, metrics.body, "Expected openstack_identity_project_info metric to include parent_id label")
 		}
 	})
+
+	t.Run("identity_project_enabled_metric_present", func(t *testing.T) {
+		metrics.requireSampleWithLabels(t, "openstack_identity_project_enabled", "id")
+	})
 }

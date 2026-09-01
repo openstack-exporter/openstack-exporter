@@ -48,9 +48,10 @@ func mapVolumeStatus(volStatus string) int {
 var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
+	{Name: "snapshots_by_tenant", Labels: []string{"tenant_id"}},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
 	{Name: "volume_gb", Labels: []string{"id", "name", "status", "availability_zone", "bootable", "tenant_id", "user_id", "volume_type", "server_id"}, Fn: nil},
-	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
+	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id", "host"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
 	{Name: "volume_status_counter", Labels: []string{"status"}, Fn: nil},
 	{Name: "pool_capacity_free_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: ListCinderPoolCapacityFree},
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
@@ -107,7 +108,7 @@ func ListVolumesStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_status"].Metric,
 			prometheus.GaugeValue, float64(mapVolumeStatus(volume.Status)), volume.ID, volume.Name,
-			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, serverID)
+			volume.Status, volume.Bootable, volume.TenantID, strconv.Itoa(volume.Size), volume.VolumeType, serverID, volume.Host)
 	}
 
 	return nil
@@ -180,6 +181,17 @@ func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots"].Metric,
 		prometheus.GaugeValue, float64(len(allSnapshots)))
+
+	if !exporter.MetricIsDisabled("snapshots_by_tenant") {
+		counts := make(map[string]int)
+		for _, snapshot := range allSnapshots {
+			counts[snapshot.ProjectID]++
+		}
+		for tenantID, count := range counts {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshots_by_tenant"].Metric,
+				prometheus.GaugeValue, float64(count), tenantID)
+		}
+	}
 
 	return nil
 }

@@ -61,7 +61,7 @@ type NovaExporter struct {
 
 var (
 	defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "task_state"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
 	defaultNovaLimitsLabels     = []string{"tenant", "tenant_id"}
@@ -413,7 +413,7 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(labelValues, metadataValues...)...)
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, server.TaskState), metadataValues...)...)
 		}
 	}
 	return nil

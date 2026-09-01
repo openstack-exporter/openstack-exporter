@@ -48,6 +48,7 @@ func TestComputeIntegration(t *testing.T) {
 		metrics.requireLabels(t, "openstack_nova_server_status", labels{
 			"id": server.ID, "name": server.Name, "status": "ACTIVE", "uuid": server.ID,
 		}, "flavor_id", "tenant_id", "user_id", "host_id", "hypervisor_hostname")
+		metrics.requirePresentLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "task_state")
 	})
 
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {

@@ -27,6 +27,7 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
 	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name", "parent_id", "tags"}},
+	{Name: "project_enabled", Labels: []string{"id"}},
 	{Name: "regions", Fn: ListRegions},
 }
 
@@ -93,6 +94,16 @@ func ListProjects(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<
 				prometheus.GaugeValue, 1.0, strconv.FormatBool(p.IsDomain),
 				p.Description, p.DomainID, strconv.FormatBool(p.Enabled), p.ID, p.Name,
 				p.ParentID, strings.Join(p.Tags, ","))
+		}
+	}
+	if !exporter.MetricIsDisabled("project_enabled") {
+		for _, p := range allProjects {
+			value := 0.0
+			if p.Enabled {
+				value = 1.0
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["project_enabled"].Metric,
+				prometheus.GaugeValue, value, p.ID)
 		}
 	}
 

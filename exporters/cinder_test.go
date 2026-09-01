@@ -66,6 +66,9 @@ openstack_cinder_pool_capacity_total_gb{name="i666testhost@FastPool01",vendor_na
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
 openstack_cinder_snapshots 1
+# HELP openstack_cinder_snapshots_by_tenant snapshots_by_tenant
+# TYPE openstack_cinder_snapshots_by_tenant gauge
+openstack_cinder_snapshots_by_tenant{tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978"} 1
 # HELP openstack_cinder_up up
 # TYPE openstack_cinder_up gauge
 openstack_cinder_up 1
@@ -75,8 +78,8 @@ openstack_cinder_volume_gb{availability_zone="nova",bootable="false",id="6edbc2f
 openstack_cinder_volume_gb{availability_zone="nova",bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",user_id="32779452fcd34ae1a53a797ac8a1e064",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status volume_status
 # TYPE openstack_cinder_volume_status gauge
-openstack_cinder_volume_status{bootable="false",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
-openstack_cinder_volume_status{bootable="true",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
+openstack_cinder_volume_status{bootable="false",host="difleming@lvmdriver-1#lvmdriver-1",id="6edbc2f4-1507-44f8-ac0d-eed1d2608d38",name="test-volume-attachments",server_id="f4fda93b-06e0-4743-8117-bc8bcecd651b",size="2",status="in-use",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 5
+openstack_cinder_volume_status{bootable="true",host="difleming@lvmdriver-1#lvmdriver-1",id="173f7b48-c4c1-4e70-9acc-086b39073506",name="test-volume",server_id="",size="1",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_type="lvmdriver-1"} 1
 # HELP openstack_cinder_volume_status_counter volume_status_counter
 # TYPE openstack_cinder_volume_status_counter gauge
 openstack_cinder_volume_status_counter{status="attaching"} 0

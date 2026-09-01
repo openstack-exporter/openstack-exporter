@@ -57,6 +57,12 @@ var defaultCinderMetrics = []Metric{
 	{Name: "pool_capacity_total_gb", Labels: []string{"name", "volume_backend_name", "vendor_name"}, Fn: nil},
 	{Name: "limits_volume_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: ListVolumeLimits, Slow: true},
 	{Name: "limits_volume_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_volumes_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_volumes_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_snapshots_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_snapshots_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backups_max", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
+	{Name: "limits_backups_used", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_max_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "limits_backup_used_gb", Labels: []string{"tenant", "tenant_id"}, Fn: nil, Slow: true},
 	{Name: "volume_type_quota_gigabytes", Labels: []string{"tenant", "tenant_id", "volume_type"}, Fn: nil, Slow: true},
@@ -289,6 +295,24 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volumes_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Volumes.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volumes_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Volumes.InUse), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_snapshots_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Snapshots.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_snapshots_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Snapshots.InUse), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backups_max"].Metric,
+			prometheus.GaugeValue, float64(limits.Backups.Limit), p.Name, p.ID)
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backups_used"].Metric,
+			prometheus.GaugeValue, float64(limits.Backups.InUse), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_max_gb"].Metric,
 			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), p.Name, p.ID)

@@ -12,6 +12,13 @@ type CinderTestSuite struct {
 }
 
 var cinderExpectedUp = `
+# HELP openstack_cinder_backup_gb backup_gb
+# TYPE openstack_cinder_backup_gb gauge
+openstack_cinder_backup_gb{id="2ef47aee-8844-490c-804d-2a8efe561c65",incremental="false",name="test-volume-backup",snapshot_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_id="173f7b48-c4c1-4e70-9acc-086b39073506"} 1
+openstack_cinder_backup_gb{id="4dbf0ec2-0b57-4669-9823-9f7c76f2b4f8",incremental="true",name="test-volume-backup-incremental",snapshot_id="b1323cda-8e4b-41c1-afc5-2fc791809c8c",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_id="173f7b48-c4c1-4e70-9acc-086b39073506"} 1
+# HELP openstack_cinder_backups backups
+# TYPE openstack_cinder_backups gauge
+openstack_cinder_backups 2
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state gauge
 openstack_cinder_agent_state{adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"} 1
@@ -123,6 +130,9 @@ openstack_cinder_pool_capacity_free_gb{name="i666testhost@FastPool01",vendor_nam
 # HELP openstack_cinder_pool_capacity_total_gb pool_capacity_total_gb
 # TYPE openstack_cinder_pool_capacity_total_gb gauge
 openstack_cinder_pool_capacity_total_gb{name="i666testhost@FastPool01",vendor_name="EMC",volume_backend_name="VNX_Pool"} 1692.429
+# HELP openstack_cinder_snapshot_gb snapshot_gb
+# TYPE openstack_cinder_snapshot_gb gauge
+openstack_cinder_snapshot_gb{id="b1323cda-8e4b-41c1-afc5-2fc791809c8c",name="test-volume-snapshot",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_id="173f7b48-c4c1-4e70-9acc-086b39073506"} 1
 # HELP openstack_cinder_snapshots snapshots
 # TYPE openstack_cinder_snapshots gauge
 openstack_cinder_snapshots 1

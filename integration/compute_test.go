@@ -56,6 +56,14 @@ func TestComputeIntegration(t *testing.T) {
 		metrics.requireAnyFamily(t, "openstack_nova_server_groups", "openstack_nova_server_group_members")
 	})
 
+	t.Run("nova_running_vms_grouped_by_server_tenant", func(t *testing.T) {
+		metrics.requireMinValue(t, "openstack_nova_running_vms", labels{
+			"hostname":          server.HypervisorHostname,
+			"availability_zone": server.AvailabilityZone,
+			"tenant_id":         server.TenantID,
+		}, 1)
+	})
+
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {
 		metrics.requireMinValueWithLabels(t, "openstack_nova_quota_instances", labels{
 			"tenant": "admin",

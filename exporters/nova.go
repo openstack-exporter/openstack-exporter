@@ -65,6 +65,7 @@ var (
 		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "task_state", "security_groups"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
+	defaultNovaRunningVMLabels  = []string{"hostname", "availability_zone", "aggregates", "tenant_id"}
 	defaultNovaLimitsLabels     = []string{"tenant", "tenant_id"}
 	defaultNovaQuotaLabels      = []string{"type", "tenant", "tenant_id"}
 )
@@ -76,8 +77,8 @@ var defaultNovaMetrics = []Metric{
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListNovaAgentState},
-	{Name: "running_vms", Labels: defaultNovaHypervisorLabels, Fn: ListHypervisors},
-	{Name: "current_workload", Labels: defaultNovaHypervisorLabels},
+	{Name: "running_vms", Labels: defaultNovaRunningVMLabels},
+	{Name: "current_workload", Labels: defaultNovaHypervisorLabels, Fn: ListHypervisors},
 	{Name: "vcpus_available", Labels: defaultNovaHypervisorLabels},
 	{Name: "vcpus_used", Labels: defaultNovaHypervisorLabels},
 	{Name: "memory_available_bytes", Labels: defaultNovaHypervisorLabels},
@@ -233,9 +234,6 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 			availabilityZone = val
 		}
 		aggregates := aggregatesLabel(hypervisor.Service.Host, hostToAggrMap)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
-			prometheus.GaugeValue, float64(hypervisor.RunningVMs), hypervisor.HypervisorHostname, availabilityZone, aggregates)
-
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["current_workload"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.CurrentWorkload), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
@@ -468,6 +466,25 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 
+	if !exporter.MetricIsDisabled("running_vms") {
+		runningVMs := map[novaRunningVMLabels]int{}
+		for _, server := range allServers {
+			if !strings.EqualFold(server.Status, "ACTIVE") {
+				continue
+			}
+			labels := novaRunningVMLabels{
+				hostname:         server.HypervisorHostname,
+				availabilityZone: server.AvailabilityZone,
+				tenantID:         server.TenantID,
+			}
+			runningVMs[labels]++
+		}
+		for labels, count := range runningVMs {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["running_vms"].Metric,
+				prometheus.GaugeValue, float64(count), labels.hostname, labels.availabilityZone, "", labels.tenantID)
+		}
+	}
+
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
@@ -531,6 +548,12 @@ func ListServerGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 	}
 
 	return nil
+}
+
+type novaRunningVMLabels struct {
+	hostname         string
+	availabilityZone string
+	tenantID         string
 }
 
 func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {

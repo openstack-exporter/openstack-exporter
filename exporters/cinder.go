@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/backups"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/quotasets"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/schedulerstats"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/services"
@@ -17,6 +18,10 @@ import (
 type CinderExporter struct {
 	BaseOpenStackExporter
 }
+
+// Microversion required for the os-backup-project-attr:project_id attribute
+// in backup listings, available since Pike (2017).
+const backupProjectIDMicroversion = "3.18"
 
 var knownVolumeStatuses = map[string]int{
 	"creating":          0,
@@ -49,6 +54,10 @@ var defaultCinderMetrics = []Metric{
 	{Name: "volumes", Fn: ListVolumes},
 	{Name: "snapshots", Fn: ListSnapshots},
 	{Name: "snapshots_by_tenant", Labels: []string{"tenant_id"}},
+	{Name: "snapshot_gb", Labels: []string{"id", "name", "status", "tenant_id", "volume_id"}, Fn: nil},
+	{Name: "backups", Fn: ListBackups},
+	{Name: "backup_gb", Labels: []string{"id", "name", "status", "tenant_id", "volume_id",
+		"snapshot_id", "incremental"}, Fn: nil},
 	{Name: "agent_state", Labels: []string{"uuid", "hostname", "service", "adminState", "zone", "disabledReason"}, Fn: ListCinderAgentState},
 	{Name: "volume_gb", Labels: []string{"id", "name", "status", "availability_zone", "bootable", "tenant_id", "user_id", "volume_type", "server_id"}, Fn: nil},
 	{Name: "volume_status", Labels: []string{"id", "name", "status", "bootable", "tenant_id", "size", "volume_type", "server_id", "host"}, Fn: ListVolumesStatus, Slow: false, DeprecatedVersion: "1.4"},
@@ -175,7 +184,8 @@ func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan
 	var allSnapshots []snapshots.Snapshot
 	snapshotListOption := getSnapshotListOptions(exporter.TenantID)
 
-	allPagesSnapshot, err := snapshots.List(exporter.ClientV2, snapshotListOption).AllPages(ctx)
+	// The detail listing is required to get the snapshot project ID.
+	allPagesSnapshot, err := snapshots.ListDetail(exporter.ClientV2, snapshotListOption).AllPages(ctx)
 	if err != nil {
 		return err
 	}
@@ -198,6 +208,54 @@ func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan
 				prometheus.GaugeValue, float64(count), tenantID)
 		}
 	}
+
+	for _, snapshot := range allSnapshots {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["snapshot_gb"].Metric,
+			prometheus.GaugeValue, float64(snapshot.Size), snapshot.ID, snapshot.Name,
+			snapshot.Status, snapshot.ProjectID, snapshot.VolumeID)
+	}
+
+	return nil
+}
+
+func ListBackups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allBackups []backups.Backup
+
+	// The detail listing is required to get size, status and project ID of
+	// each backup. ListDetailOpts cannot filter on a project, so when the
+	// exporter is scoped to a single tenant the result is filtered below.
+	listOpts := backups.ListDetailOpts{AllTenants: exporter.TenantID == ""}
+
+	// The project ID attribute is only returned with microversion 3.18 or
+	// later; a copy of the client is used to not affect other metrics.
+	client := *exporter.ClientV2
+	client.Microversion = backupProjectIDMicroversion
+
+	allPagesBackup, err := backups.ListDetail(&client, listOpts).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+
+	allBackups, err = backups.ExtractBackups(allPagesBackup)
+	if err != nil {
+		return err
+	}
+
+	count := 0
+	for _, backup := range allBackups {
+		if exporter.TenantID != "" && backup.ProjectID != exporter.TenantID {
+			continue
+		}
+		count++
+
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["backup_gb"].Metric,
+			prometheus.GaugeValue, float64(backup.Size), backup.ID, backup.Name,
+			backup.Status, backup.ProjectID, backup.VolumeID, backup.SnapshotID,
+			strconv.FormatBool(backup.IsIncremental))
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["backups"].Metric,
+		prometheus.GaugeValue, float64(count))
 
 	return nil
 }

@@ -35,4 +35,8 @@ func TestIdentityIntegration(t *testing.T) {
 	t.Run("identity_project_enabled_metric_present", func(t *testing.T) {
 		metrics.requireSampleWithLabels(t, "openstack_identity_project_enabled", "id")
 	})
+
+	t.Run("identity_user_info_metric_present", func(t *testing.T) {
+		metrics.requireSampleWithLabels(t, "openstack_identity_user_info", "id", "name", "domain_id", "enabled")
+	})
 }

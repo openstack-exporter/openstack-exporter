@@ -16,6 +16,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/limits"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/quotasets"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/secgroups"
+	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servergroups"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
@@ -61,7 +62,7 @@ type NovaExporter struct {
 
 var (
 	defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "task_state"}
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt", "task_state", "security_groups"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
 	defaultNovaLimitsLabels     = []string{"tenant", "tenant_id"}
@@ -85,6 +86,8 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_used_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "free_disk_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
+	{Name: "server_groups", Fn: ListServerGroups},
+	{Name: "server_group_members", Labels: []string{"id", "name", "policy", "project_id"}},
 	{Name: "limits_vcpus_max", Labels: defaultNovaLimitsLabels, Fn: ListComputeLimits, Slow: true},
 	{Name: "limits_vcpus_used", Labels: defaultNovaLimitsLabels},
 	{Name: "limits_memory_max", Labels: defaultNovaLimitsLabels},
@@ -396,6 +399,13 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			securityGroups := make([]string, 0, len(server.SecurityGroups))
+			for _, securityGroup := range server.SecurityGroups {
+				if name, ok := securityGroup["name"].(string); ok {
+					securityGroups = append(securityGroups, name)
+				}
+			}
+			securityGroupsLabel := strings.Join(securityGroups, ",")
 			labelValues := func() []string {
 				if flavorIDMapper == nil {
 					return []string{
@@ -413,9 +423,41 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, server.TaskState), metadataValues...)...)
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, server.TaskState, securityGroupsLabel), metadataValues...)...)
 		}
 	}
+	return nil
+}
+
+func ListServerGroups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPages, err := servergroups.List(exporter.ClientV2, servergroups.ListOpts{
+		AllProjects: exporter.TenantID == "",
+	}).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+
+	allGroups, err := servergroups.ExtractServerGroups(allPages)
+	if err != nil {
+		return err
+	}
+
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_groups"].Metric,
+		prometheus.GaugeValue, float64(len(allGroups)))
+
+	if exporter.MetricIsDisabled("server_group_members") {
+		return nil
+	}
+
+	for _, group := range allGroups {
+		policy := strings.Join(group.Policies, ",")
+		if group.Policy != nil {
+			policy = *group.Policy
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_group_members"].Metric,
+			prometheus.GaugeValue, float64(len(group.Members)), group.ID, group.Name, policy, group.ProjectID)
+	}
+
 	return nil
 }
 

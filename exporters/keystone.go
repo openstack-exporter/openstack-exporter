@@ -24,6 +24,7 @@ var defaultKeystoneMetrics = []Metric{
 	{Name: "domains", Fn: ListDomains},
 	{Name: "domain_info", Labels: []string{"description", "enabled", "id", "name"}},
 	{Name: "users", Fn: ListUsers},
+	{Name: "user_info", Labels: []string{"id", "name", "default_project_id", "domain_id", "email", "enabled"}},
 	{Name: "groups", Fn: ListGroups},
 	{Name: "projects", Fn: ListProjects},
 	{Name: "project_info", Labels: []string{"is_domain", "description", "domain_id", "enabled", "id", "name", "parent_id", "tags"}},
@@ -144,6 +145,15 @@ func ListUsers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["users"].Metric,
 		prometheus.GaugeValue, float64(len(allUsers)))
+
+	if !exporter.MetricIsDisabled("user_info") {
+		for _, user := range allUsers {
+			email, _ := user.Extra["email"].(string)
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["user_info"].Metric,
+				prometheus.GaugeValue, 1, user.ID, user.Name, user.DefaultProjectID,
+				user.DomainID, email, strconv.FormatBool(user.Enabled))
+		}
+	}
 
 	return nil
 }

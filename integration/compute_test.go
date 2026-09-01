@@ -49,6 +49,11 @@ func TestComputeIntegration(t *testing.T) {
 			"id": server.ID, "name": server.Name, "status": "ACTIVE", "uuid": server.ID,
 		}, "flavor_id", "tenant_id", "user_id", "host_id", "hypervisor_hostname")
 		metrics.requirePresentLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "task_state")
+		metrics.requirePresentLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "security_groups")
+	})
+
+	t.Run("nova_server_groups_metric_present", func(t *testing.T) {
+		metrics.requireAnyFamily(t, "openstack_nova_server_groups", "openstack_nova_server_group_members")
 	})
 
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {

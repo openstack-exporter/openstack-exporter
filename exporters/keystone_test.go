@@ -50,6 +50,10 @@ openstack_identity_regions 1
 # HELP openstack_identity_up up
 # TYPE openstack_identity_up gauge
 openstack_identity_up 1
+# HELP openstack_identity_user_info user_info
+# TYPE openstack_identity_user_info gauge
+openstack_identity_user_info{default_project_id="",domain_id="default",email="glance@localhost",enabled="true",id="2844b2a08be147a08ef58317d6471f1f",name="glance"} 1
+openstack_identity_user_info{default_project_id="263fd9",domain_id="1789d1",email="jsmith@example.com",enabled="true",id="9fe1d3",name="jsmith"} 1
 # HELP openstack_identity_users users
 # TYPE openstack_identity_users gauge
 openstack_identity_users 2

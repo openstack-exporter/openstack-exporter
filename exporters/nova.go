@@ -85,6 +85,9 @@ var defaultNovaMetrics = []Metric{
 	{Name: "local_storage_available_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "local_storage_used_bytes", Labels: defaultNovaHypervisorLabels},
 	{Name: "free_disk_bytes", Labels: defaultNovaHypervisorLabels},
+	{Name: "hypervisor_count"},
+	{Name: "hypervisor_cpu_utilization", Labels: defaultNovaHypervisorLabels},
+	{Name: "hypervisor_memory_utilization", Labels: defaultNovaHypervisorLabels},
 	{Name: "server_status", Labels: defaultNovaServerStatusLabels},
 	{Name: "server_groups", Fn: ListServerGroups},
 	{Name: "server_group_members", Labels: []string{"id", "name", "policy", "project_id"}},
@@ -95,6 +98,12 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_used", Labels: defaultNovaLimitsLabels},
 	{Name: "limits_instances_max", Labels: defaultNovaLimitsLabels},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
+	{Name: "instance_errors"},
+	{Name: "instance_build"},
+	{Name: "instance_active"},
+	{Name: "instance_status", Labels: []string{"status"}},
+	{Name: "instance_vcpu", Labels: []string{"id", "tenant_id"}},
+	{Name: "instance_memory_mb", Labels: []string{"id", "tenant_id"}},
 	{Name: "quota_cores", Labels: defaultNovaQuotaLabels, Fn: ListQuotas},
 	{Name: "quota_instances", Labels: defaultNovaQuotaLabels},
 	{Name: "quota_key_pairs", Labels: defaultNovaQuotaLabels},
@@ -187,6 +196,10 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 	if err != nil {
 		return err
 	}
+	if !exporter.MetricIsDisabled("hypervisor_count") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_count"].Metric,
+			prometheus.GaugeValue, float64(len(allHypervisors)))
+	}
 
 	allPagesAggregates, err := aggregates.List(exporter.ClientV2).AllPages(ctx)
 	if err != nil {
@@ -237,12 +250,28 @@ func ListHypervisors(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["vcpus_used"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.VCPUsUsed), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		if !exporter.MetricIsDisabled("hypervisor_cpu_utilization") {
+			utilization := float64(0)
+			if vcpus > 0 {
+				utilization = float64(hypervisor.VCPUsUsed) / float64(vcpus)
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_cpu_utilization"].Metric,
+				prometheus.GaugeValue, utilization, hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMB*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["memory_used_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.MemoryMBUsed*MEGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		if !exporter.MetricIsDisabled("hypervisor_memory_utilization") {
+			utilization := float64(0)
+			if hypervisor.MemoryMB > 0 {
+				utilization = float64(hypervisor.MemoryMBUsed) / float64(hypervisor.MemoryMB)
+			}
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["hypervisor_memory_utilization"].Metric,
+				prometheus.GaugeValue, utilization, hypervisor.HypervisorHostname, availabilityZone, aggregates)
+		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["local_storage_available_bytes"].Metric,
 			prometheus.GaugeValue, float64(hypervisor.LocalGB*GIGABYTE), hypervisor.HypervisorHostname, availabilityZone, aggregates)
@@ -395,6 +424,49 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
 		prometheus.GaugeValue, float64(len(allServers)))
+
+	statusCounts := make(map[string]int)
+	instanceErrors := 0
+	instanceBuild := 0
+	instanceActive := 0
+	for _, server := range allServers {
+		statusCounts[server.Status]++
+		switch server.Status {
+		case "ERROR":
+			instanceErrors++
+		case "BUILD":
+			instanceBuild++
+		case "ACTIVE":
+			instanceActive++
+		}
+		if !exporter.MetricIsDisabled("instance_vcpu") {
+			if vcpus, ok := server.Flavor["vcpus"].(float64); ok {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_vcpu"].Metric,
+					prometheus.GaugeValue, vcpus, server.ID, server.TenantID)
+			}
+		}
+		if !exporter.MetricIsDisabled("instance_memory_mb") {
+			if memory, ok := server.Flavor["ram"].(float64); ok {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_memory_mb"].Metric,
+					prometheus.GaugeValue, memory, server.ID, server.TenantID)
+			}
+		}
+	}
+	if !exporter.MetricIsDisabled("instance_errors") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_errors"].Metric, prometheus.GaugeValue, float64(instanceErrors))
+	}
+	if !exporter.MetricIsDisabled("instance_build") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_build"].Metric, prometheus.GaugeValue, float64(instanceBuild))
+	}
+	if !exporter.MetricIsDisabled("instance_active") {
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_active"].Metric, prometheus.GaugeValue, float64(instanceActive))
+	}
+	if !exporter.MetricIsDisabled("instance_status") {
+		for status, count := range statusCounts {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_status"].Metric,
+				prometheus.GaugeValue, float64(count), status)
+		}
+	}
 
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {

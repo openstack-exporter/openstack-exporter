@@ -40,6 +40,33 @@ openstack_nova_flavors 8
 # HELP openstack_nova_free_disk_bytes free_disk_bytes
 # TYPE openstack_nova_free_disk_bytes gauge
 openstack_nova_free_disk_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
+# HELP openstack_nova_hypervisor_count hypervisor_count
+# TYPE openstack_nova_hypervisor_count gauge
+openstack_nova_hypervisor_count 1
+# HELP openstack_nova_hypervisor_cpu_utilization hypervisor_cpu_utilization
+# TYPE openstack_nova_hypervisor_cpu_utilization gauge
+openstack_nova_hypervisor_cpu_utilization{aggregates="",availability_zone="",hostname="host1"} 0
+# HELP openstack_nova_hypervisor_memory_utilization hypervisor_memory_utilization
+# TYPE openstack_nova_hypervisor_memory_utilization gauge
+openstack_nova_hypervisor_memory_utilization{aggregates="",availability_zone="",hostname="host1"} 0.0625
+# HELP openstack_nova_instance_active instance_active
+# TYPE openstack_nova_instance_active gauge
+openstack_nova_instance_active 1
+# HELP openstack_nova_instance_build instance_build
+# TYPE openstack_nova_instance_build gauge
+openstack_nova_instance_build 0
+# HELP openstack_nova_instance_errors instance_errors
+# TYPE openstack_nova_instance_errors gauge
+openstack_nova_instance_errors 0
+# HELP openstack_nova_instance_memory_mb instance_memory_mb
+# TYPE openstack_nova_instance_memory_mb gauge
+openstack_nova_instance_memory_mb{id="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9",tenant_id="6f70656e737461636b20342065766572"} 512
+# HELP openstack_nova_instance_status instance_status
+# TYPE openstack_nova_instance_status gauge
+openstack_nova_instance_status{status="ACTIVE"} 1
+# HELP openstack_nova_instance_vcpu instance_vcpu
+# TYPE openstack_nova_instance_vcpu gauge
+openstack_nova_instance_vcpu{id="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9",tenant_id="6f70656e737461636b20342065766572"} 1
 # HELP openstack_nova_limits_instances_max limits_instances_max
 # TYPE openstack_nova_limits_instances_max gauge
 openstack_nova_limits_instances_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 10

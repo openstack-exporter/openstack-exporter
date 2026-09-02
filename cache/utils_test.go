@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -31,6 +32,7 @@ func mockEnableExporter(
 	tenantID string,
 	novaMetadataMapping *utils.LabelMappingFlag,
 	dnsConcurrentCount int,
+	placementProviderTraitRegex *regexp.Regexp,
 	uuidGenFunc func() (string, error),
 	logger *slog.Logger,
 ) (*exporters.OpenStackExporter, error) {
@@ -87,6 +89,7 @@ func TestCollectCache(t *testing.T) {
 	tenantID := ""
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	dnsConcurrentCount := 10
+	placementProviderTraitRegex := regexp.MustCompile("CUSTOM_")
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
 	err := CollectCache(
@@ -105,6 +108,7 @@ func TestCollectCache(t *testing.T) {
 		tenantID,
 		novaMetadataMapping,
 		dnsConcurrentCount,
+		placementProviderTraitRegex,
 		nil,
 		logger,
 	)

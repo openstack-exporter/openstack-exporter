@@ -3,8 +3,10 @@ package exporters
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
+	"github.com/gophercloud/gophercloud/v2/openstack/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -13,7 +15,9 @@ type PlacementExporter struct {
 }
 
 var placementResourceLabels = []string{"hostname", "resourcetype"}
+var placementResourceProviderTraits = []string{"hostname", "trait"}
 var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
+var resourceProviderTraitsEnabled = false
 
 var defaultPlacementMetrics = []Metric{
 	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
@@ -22,6 +26,7 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_reserved", Labels: placementResourceLabels},
 	{Name: "resource_usage", Labels: placementResourceLabels},
 	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
+	{Name: "resource_provider_trait", Labels: placementResourceProviderTraits, Slow: true},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -32,6 +37,10 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			logger:         logger,
 		},
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	for _, metric := range defaultPlacementMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -40,6 +49,29 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
+	// If the resource_provider_trait is in the metrics list,
+	// then it is not disabled, and the slow metrics are not disabled either
+	if _, ok := exporter.Metrics["resource_provider_trait"]; ok {
+
+		// Verify if the required microversion is supported
+		if microVersions, err := utils.GetSupportedMicroversions(ctx, exporter.ClientV2); err == nil {
+			traitsMicroversion := "1.6"
+			if supported, err := microVersions.IsSupported(traitsMicroversion); err == nil {
+				if supported {
+					exporter.ClientV2.Microversion = traitsMicroversion
+					resourceProviderTraitsEnabled = true
+				} else {
+					logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", traitsMicroversion)
+				}
+			} else {
+				logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", traitsMicroversion, "error", err)
+			}
+		} else {
+			logger.Warn("Error while retrieving placement microversion support, the resource provider traits info will not be exported", "error", err)
+		}
+	}
+
 	return &exporter, nil
 }
 
@@ -59,6 +91,19 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
+		}
+
+		if resourceProviderTraitsEnabled {
+			if traitsResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
+				for _, v := range traitsResult.Traits {
+					if !exporter.PlacementProviderTraitRegex.MatchString(v) {
+						continue
+					}
+					emitPlacementResourceMetric(exporter, ch, "resource_provider_trait", 1, resourceprovider.Name, v)
+				}
+			} else {
+				exporter.logger.Error("Could not get resource provider traits list", "resource_provider", resourceprovider.Name, "error", err)
+			}
 		}
 
 		for k, v := range inventoryResult.Inventories {

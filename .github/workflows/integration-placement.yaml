@@ -1,0 +1,67 @@
+name: integration-placement
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  integration-placement:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "master"
+            openstack_version: "master"
+            ubuntu_version: "24.04"
+            additional_services: "openstack-cli-server"
+    runs-on: ubuntu-${{ matrix.ubuntu_version }}
+    name: Deploy OpenStack ${{ matrix.name }} and run Placement integration tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Create traits.yaml
+        run: |
+          sudo mkdir -p /etc/nova/provider_config
+          sudo tee /etc/nova/provider_config/traits.yaml << EOF
+          meta:
+            schema_version: "1.0"
+          providers:
+          - identification:
+              name: "\$COMPUTE_NODE"
+            traits:
+              additional:
+              - CUSTOM_MY_TRAIT
+          EOF
+      - name: Deploy devstack
+        uses: gophercloud/devstack-action@60ca1042045c0c9e3e001c64575d381654ffcba1
+        with:
+          branch: ${{ matrix.openstack_version }}
+          enabled_services: "${{ matrix.additional_services }}"
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: 'go.mod'
+      - name: Display clouds.yaml configuration
+        run: |
+          echo "Contents of /etc/openstack/clouds.yaml:"
+          cat /etc/openstack/clouds.yaml || echo "File /etc/openstack/clouds.yaml not found"
+      - name: Display traits.yaml configuration
+        run: |
+          echo "Contents of /etc/nova/provider_config/traits.yaml:"
+          cat /etc/nova/provider_config/traits.yaml || echo "File /etc/nova/provider_config/traits.yaml not found"
+      - name: Run Openstack Integration Tests
+        run: bash ./script/integration-suites/placement
+        env:
+          DEVSTACK_PATH: ${{ github.workspace }}/devstack
+          OS_BRANCH: ${{ matrix.openstack_version }}
+      - name: Generate logs on failure
+        run: ./script/collectlogs
+        if: failure()
+      - name: Upload logs artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-networking-${{ matrix.name }}-${{ github.run_id }}
+          path: /tmp/devstack-logs/*

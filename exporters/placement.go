@@ -41,22 +41,6 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if microVersions, err := utils.GetSupportedMicroversions(ctx, exporter.ClientV2); err == nil {
-		traitsMicroversion := "1.6"
-		if supported, err := microVersions.IsSupported(traitsMicroversion); err == nil {
-			if supported {
-				exporter.ClientV2.Microversion = traitsMicroversion
-				resourceProviderTraitsEnabled = true
-			} else {
-				logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", traitsMicroversion)
-			}
-		} else {
-			logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", traitsMicroversion, "error", err)
-		}
-	} else {
-		logger.Warn("Error while retrieving placement microversion support, the resource provider traits info will not be exported", "error", err)
-	}
-
 	for _, metric := range defaultPlacementMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -65,6 +49,29 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
+	// If the resource_provider_trait is in the metrics list,
+	// then it is not disabled, and the slow metrics are not disabled either
+	if _, ok := exporter.Metrics["resource_provider_trait"]; ok {
+
+		// Verify if the required microversion is supported
+		if microVersions, err := utils.GetSupportedMicroversions(ctx, exporter.ClientV2); err == nil {
+			traitsMicroversion := "1.6"
+			if supported, err := microVersions.IsSupported(traitsMicroversion); err == nil {
+				if supported {
+					exporter.ClientV2.Microversion = traitsMicroversion
+					resourceProviderTraitsEnabled = true
+				} else {
+					logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", traitsMicroversion)
+				}
+			} else {
+				logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", traitsMicroversion, "error", err)
+			}
+		} else {
+			logger.Warn("Error while retrieving placement microversion support, the resource provider traits info will not be exported", "error", err)
+		}
+	}
+
 	return &exporter, nil
 }
 
@@ -78,12 +85,6 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 
 	if allResourceProviders, err = resourceproviders.ExtractResourceProviders(allPagesResourceProviders); err != nil {
 		return err
-	}
-
-	// If the resource_provider_trait is not in the metrics list,
-	// then its either disabled, or the slow metrics are disabled
-	if _, ok := exporter.Metrics["resource_provider_trait"]; !ok {
-		resourceProviderTraitsEnabled = false
 	}
 
 	for _, resourceprovider := range allResourceProviders {

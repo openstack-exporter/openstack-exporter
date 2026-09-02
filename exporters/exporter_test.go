@@ -141,6 +141,8 @@ var fixtures map[string]string = map[string]string{
 	"/orchestration/stacks":         "heat_stacks",
 	"/placement/":                   "placement_api_discovery",
 	"/placement/resource_providers": "resource_providers",
+	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/traits": "resource_provider_1_traits",
+	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/traits": "resource_provider_2_traits",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/inventories": "resource_provider_1_inventory",
 	"/placement/resource_providers/328c9f0a-5a3c-4ad6-9347-689eb7632d7b/inventories": "resource_provider_2_inventory",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/usages":      "resource_provider_1_usage",
@@ -181,8 +183,17 @@ func (suite *BaseOpenStackTestSuite) SetupTest() {
 
 	novaMetadataMapping := new(utils.LabelMappingFlag)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, []string{}, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
-		return DEFAULT_UUID, nil
+	exporter, err := NewExporter(ExporterOptions{
+		Service:             suite.ServiceName,
+		Prefix:              suite.Prefix,
+		Cloud:               cloudName,
+		DisabledMetrics:     []string{},
+		EndpointType:        "public",
+		NovaMetadataMapping: novaMetadataMapping,
+		DnsConcurrentCount:  10,
+		UUIDGenFunc: func() (string, error) {
+			return DEFAULT_UUID, nil
+		},
 	}, logger)
 
 	if err != nil {

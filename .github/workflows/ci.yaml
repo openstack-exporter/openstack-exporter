@@ -128,6 +128,22 @@ jobs:
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
 
+      - name: Set up Helm
+        if: contains(github.ref, 'refs/tags/')
+        uses: azure/setup-helm@v4
+
+      - name: Publish Helm chart
+        if: contains(github.ref, 'refs/tags/')
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          package_dir="$(mktemp -d)"
+          helm package helmcharts \
+            --destination "$package_dir" \
+            --version "$version" \
+            --app-version "$version"
+          helm push "$package_dir/prometheus-openstack-exporter-$version.tgz" \
+            "oci://ghcr.io/${{ github.repository_owner }}/charts"
+
       # This step runs ONLY when a tag is pushed
       - name: Run GoReleaser (Tag Release)
         if: contains(github.ref, 'refs/tags/')

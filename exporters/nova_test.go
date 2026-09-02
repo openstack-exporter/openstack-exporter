@@ -34,6 +34,36 @@ openstack_nova_flavor{disk="0",id="5",is_public="true",name="m1.xlarge",ram="163
 openstack_nova_flavor{disk="0",id="6",is_public="true",name="m1.tiny.specs",ram="512",vcpus="1"} 1
 openstack_nova_flavor{disk="0",id="7",is_public="true",name="m1.small.description",ram="2048",vcpus="1"} 1
 openstack_nova_flavor{disk="0",id="8",is_public="false",name="m1.tiny.private",ram="512",vcpus="1"} 1
+# HELP openstack_nova_flavor_vcpus flavor_vcpus
+# TYPE openstack_nova_flavor_vcpus gauge
+openstack_nova_flavor_vcpus{id="1",is_public="true",name="m1.tiny"} 1
+openstack_nova_flavor_vcpus{id="2",is_public="true",name="m1.small"} 1
+openstack_nova_flavor_vcpus{id="3",is_public="true",name="m1.medium"} 2
+openstack_nova_flavor_vcpus{id="4",is_public="true",name="m1.large"} 4
+openstack_nova_flavor_vcpus{id="5",is_public="true",name="m1.xlarge"} 8
+openstack_nova_flavor_vcpus{id="6",is_public="true",name="m1.tiny.specs"} 1
+openstack_nova_flavor_vcpus{id="7",is_public="true",name="m1.small.description"} 1
+openstack_nova_flavor_vcpus{id="8",is_public="false",name="m1.tiny.private"} 1
+# HELP openstack_nova_flavor_ram flavor_ram
+# TYPE openstack_nova_flavor_ram gauge
+openstack_nova_flavor_ram{id="1",is_public="true",name="m1.tiny"} 512
+openstack_nova_flavor_ram{id="2",is_public="true",name="m1.small"} 2048
+openstack_nova_flavor_ram{id="3",is_public="true",name="m1.medium"} 4096
+openstack_nova_flavor_ram{id="4",is_public="true",name="m1.large"} 8192
+openstack_nova_flavor_ram{id="5",is_public="true",name="m1.xlarge"} 16384
+openstack_nova_flavor_ram{id="6",is_public="true",name="m1.tiny.specs"} 512
+openstack_nova_flavor_ram{id="7",is_public="true",name="m1.small.description"} 2048
+openstack_nova_flavor_ram{id="8",is_public="false",name="m1.tiny.private"} 512
+# HELP openstack_nova_flavor_disk flavor_disk
+# TYPE openstack_nova_flavor_disk gauge
+openstack_nova_flavor_disk{id="1",is_public="true",name="m1.tiny"} 0
+openstack_nova_flavor_disk{id="2",is_public="true",name="m1.small"} 0
+openstack_nova_flavor_disk{id="3",is_public="true",name="m1.medium"} 0
+openstack_nova_flavor_disk{id="4",is_public="true",name="m1.large"} 0
+openstack_nova_flavor_disk{id="5",is_public="true",name="m1.xlarge"} 0
+openstack_nova_flavor_disk{id="6",is_public="true",name="m1.tiny.specs"} 0
+openstack_nova_flavor_disk{id="7",is_public="true",name="m1.small.description"} 0
+openstack_nova_flavor_disk{id="8",is_public="false",name="m1.tiny.private"} 0
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors 8

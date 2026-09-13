@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -291,7 +293,34 @@ func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- 
 	for _, p := range allProjects {
 		quotaSet, err := quotasets.GetDetail(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
-			return err
+			if !gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				return err
+			}
+
+			qs, err := quotasets.Get(ctx, exporter.ClientV2, p.ID).Extract()
+			if err != nil {
+				if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+					continue
+				}
+				return err
+			}
+
+			quotaSet = quotasets.QuotaDetailSet{
+				Cores:                    quotasets.QuotaDetail{Limit: qs.Cores},
+				Instances:                quotasets.QuotaDetail{Limit: qs.Instances},
+				KeyPairs:                 quotasets.QuotaDetail{Limit: qs.KeyPairs},
+				MetadataItems:            quotasets.QuotaDetail{Limit: qs.MetadataItems},
+				RAM:                      quotasets.QuotaDetail{Limit: qs.RAM},
+				ServerGroups:             quotasets.QuotaDetail{Limit: qs.ServerGroups},
+				ServerGroupMembers:       quotasets.QuotaDetail{Limit: qs.ServerGroupMembers},
+				FixedIPs:                 quotasets.QuotaDetail{Limit: qs.FixedIPs},
+				FloatingIPs:              quotasets.QuotaDetail{Limit: qs.FloatingIPs},
+				SecurityGroupRules:       quotasets.QuotaDetail{Limit: qs.SecurityGroupRules},
+				SecurityGroups:           quotasets.QuotaDetail{Limit: qs.SecurityGroups},
+				InjectedFileContentBytes: quotasets.QuotaDetail{Limit: qs.InjectedFileContentBytes},
+				InjectedFilePathBytes:    quotasets.QuotaDetail{Limit: qs.InjectedFilePathBytes},
+				InjectedFiles:            quotasets.QuotaDetail{Limit: qs.InjectedFiles},
+			}
 		}
 
 		collectNovaQuotaDetail(ch, exporter.Metrics["quota_cores"].Metric, quotaSet.Cores, p.Name, p.ID)
@@ -357,6 +386,10 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	serverListOption := getServerListOptions(exporter.TenantID)
 
 	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
+	if err != nil && serverListOption.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		serverListOption.AllTenants = false
+		allPagesServers, err = servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -455,28 +488,31 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 			limitGetOpts = limits.GetOpts{}
 		}
 
-		limits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
+		computeLimits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
 		if err != nil {
+			if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				continue
+			}
 			return err
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalCores), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalCoresUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalRAMUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.TotalInstancesUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalInstancesUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
+			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalInstances), p.Name, p.ID)
 	}
 
 	return nil
@@ -484,14 +520,37 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 
 // ListUsage add metrics about usage
 func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allTenantsUsage []usage.TenantUsage
+
 	allPagesUsage, err := usage.AllTenants(exporter.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(ctx)
 	if err != nil {
-		return err
-	}
+		if !gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+			return err
+		}
 
-	allTenantsUsage, err := usage.ExtractAllTenants(allPagesUsage)
-	if err != nil {
-		return err
+		allProjects, err := GetProjects(ctx, exporter)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range allProjects {
+			singleTenantUsage, err := getSingleTenantUsage(ctx, exporter.ClientV2, p.ID)
+			if err != nil {
+				if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+					continue
+				}
+				return err
+			}
+
+			if singleTenantUsage != nil {
+				allTenantsUsage = append(allTenantsUsage, *singleTenantUsage)
+			}
+		}
+	} else {
+		allTenantsUsage, err = usage.ExtractAllTenants(allPagesUsage)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Server status metrics
@@ -503,6 +562,16 @@ func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	}
 
 	return nil
+}
+
+func getSingleTenantUsage(ctx context.Context, client *gophercloud.ServiceClient, tenantID string) (*usage.TenantUsage, error) {
+	var singleUsage *usage.TenantUsage
+	err := usage.SingleTenant(client, tenantID, usage.SingleTenantOpts{}).EachPage(ctx, func(_ context.Context, page pagination.Page) (bool, error) {
+		var err error
+		singleUsage, err = usage.ExtractSingleTenant(page)
+		return false, err
+	})
+	return singleUsage, err
 }
 
 func getServerListOptions(tenantID string) servers.ListOpts {

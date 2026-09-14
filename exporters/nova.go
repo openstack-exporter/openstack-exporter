@@ -488,7 +488,7 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 			limitGetOpts = limits.GetOpts{}
 		}
 
-		computeLimits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
+		limits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
 		if err != nil {
 			if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
 				continue
@@ -497,22 +497,22 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 		}
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_max"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalCores), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalCores), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_vcpus_used"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalCoresUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalCoresUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_max"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalRAMSize), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_memory_used"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalRAMUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalRAMUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_used"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.TotalInstancesUsed), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.TotalInstancesUsed), p.Name, p.ID)
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_instances_max"].Metric,
-			prometheus.GaugeValue, float64(computeLimits.Absolute.MaxTotalInstances), p.Name, p.ID)
+			prometheus.GaugeValue, float64(limits.Absolute.MaxTotalInstances), p.Name, p.ID)
 	}
 
 	return nil

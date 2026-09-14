@@ -352,51 +352,53 @@ func probeHandler(configuredServices []string, logger *slog.Logger) http.Handler
 	}
 }
 
+// metricHandler builds the exporters and their registry once at startup and
+// reuses them across every scrape, instead of re-authenticating to Keystone
+// and reconstructing every exporter per request.
 func metricHandler(configuredServices []string, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
-		logger.Info("Build context", "build_context", version.BuildContext())
+	logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
+	logger.Info("Build context", "build_context", version.BuildContext())
 
-		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
-			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
-		}
+	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
+		logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
+		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
+	}
 
-		enabledServices := configuredServices
+	enabledServices := configuredServices
 
-		// Get data from cache
-		if *cacheEnable {
+	// Get data from cache
+	if *cacheEnable {
+		return func(w http.ResponseWriter, r *http.Request) {
 			if err := cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger); err != nil {
 				logger.Error("Write cache to response failed", "error", err)
 			}
-			return
 		}
-
-		registry := prometheus.NewPedanticRegistry()
-		enabledExporters := 0
-		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
-			if err != nil {
-				// Log error and continue with enabling other exporters
-				logger.Error("enabling exporter for service failed", "service", service, "error", err)
-				continue
-			}
-			registry.MustRegister(*exp)
-			logger.Info("Enabled exporter for service", "service", service)
-			enabledExporters++
-		}
-
-		if enabledExporters == 0 {
-			logger.Error("No exporter has been enabled, exiting")
-			os.Exit(-1)
-		}
-
-		// expose program version
-		registry.MustRegister(pver.NewCollector("openstack_exporter"))
-
-		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
 	}
+
+	registry := prometheus.NewPedanticRegistry()
+	enabledExporters := 0
+	for _, service := range enabledServices {
+		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		if err != nil {
+			// Log error and continue with enabling other exporters
+			logger.Error("enabling exporter for service failed", "service", service, "error", err)
+			continue
+		}
+		registry.MustRegister(*exp)
+		logger.Info("Enabled exporter for service", "service", service)
+		enabledExporters++
+	}
+
+	if enabledExporters == 0 {
+		logger.Error("No exporter has been enabled, exiting")
+		os.Exit(-1)
+	}
+
+	// expose program version
+	registry.MustRegister(pver.NewCollector("openstack_exporter"))
+
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	return h.ServeHTTP
 }
 
 func selectServicesForRequest(configuredServices []string, r *http.Request) ([]string, error) {

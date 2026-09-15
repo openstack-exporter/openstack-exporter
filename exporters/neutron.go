@@ -123,6 +123,10 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "adminState", "availability_zone"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: defaultNeutronNetIPsLabels, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: defaultNeutronNetIPsLabels},
+	{Name: "network_ip_availabilities_subnet_total", Labels: defaultNeutronNetIPsLabels},
+	{Name: "network_ip_availabilities_subnet_used", Labels: defaultNeutronNetIPsLabels},
+	{Name: "network_ip_availabilities_allocation_pool_total", Labels: defaultNeutronNetIPsLabels},
+	{Name: "network_ip_availabilities_allocation_pool_used", Labels: defaultNeutronNetIPsLabels},
 	{Name: "subnets_total", Labels: defaultNeutronSubnetsLabels, Fn: ListSubnetsPerPool},
 	{Name: "subnets_used", Labels: defaultNeutronSubnetsLabels},
 	{Name: "subnets_free", Labels: defaultNeutronSubnetsLabels},
@@ -390,12 +394,20 @@ func ListPorts(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 
 // ListNetworkIPAvailabilities : count total number of used IPs per Network
 func ListNetworkIPAvailabilities(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	type customIPAvailabilityDetails struct {
+		TotalIPsInSubnet         json.Number `json:"total_ips_in_subnet"`
+		TotalIPsInAllocationPool json.Number `json:"total_ips_in_allocation_pool"`
+		UsedIPsInSubnet          json.Number `json:"used_ips_in_subnet"`
+		UsedIPsInAllocationPool  json.Number `json:"used_ips_in_allocation_pool"`
+	}
+
 	type customSubnetIPAvailability struct {
-		SubnetName string      `json:"subnet_name"`
-		CIDR       string      `json:"cidr"`
-		IPVersion  int         `json:"ip_version"`
-		TotalIPs   json.Number `json:"total_ips"`
-		UsedIPs    json.Number `json:"used_ips"`
+		SubnetName            string                       `json:"subnet_name"`
+		CIDR                  string                       `json:"cidr"`
+		IPVersion             int                          `json:"ip_version"`
+		TotalIPs              json.Number                  `json:"total_ips"`
+		UsedIPs               json.Number                  `json:"used_ips"`
+		IPAvailabilityDetails *customIPAvailabilityDetails `json:"ip_availability_details"`
 	}
 
 	type customNetworkIPAvailability struct {
@@ -439,30 +451,94 @@ func ListNetworkIPAvailabilities(ctx context.Context, exporter *BaseOpenStackExp
 		}
 
 		for _, subnet := range network.SubnetIPAvailabilities {
-			// Use big.Float to parse TotalIPs
-			totalBig := new(big.Float)
-			_, ok := totalBig.SetString(subnet.TotalIPs.String())
-			if !ok {
-				return fmt.Errorf("failed to parse total IPs: %s", subnet.TotalIPs.String())
+			// parseIPCount converts a json.Number to float64 using big.Float to
+			// avoid overflow on large (e.g. IPv6) subnet sizes. Empty/missing
+			// values decode to 0.
+			parseIPCount := func(name string, n json.Number) (float64, error) {
+				s := n.String()
+				if s == "" {
+					return 0, nil
+				}
+				big := new(big.Float)
+				if _, ok := big.SetString(s); !ok {
+					return 0, fmt.Errorf("failed to parse %s: %s", name, s)
+				}
+				f, _ := big.Float64()
+				return f, nil
 			}
-			totalFloat64, _ := totalBig.Float64()
 
-			usedBig := new(big.Float)
-			_, ok = usedBig.SetString(subnet.UsedIPs.String())
-			if !ok {
-				return fmt.Errorf("failed to parse used IPs: %s", subnet.UsedIPs.String())
+			totalFloat64, err := parseIPCount("total IPs", subnet.TotalIPs)
+			if err != nil {
+				return err
 			}
-			usedFloat64, _ := usedBig.Float64()
+			usedFloat64, err := parseIPCount("used IPs", subnet.UsedIPs)
+			if err != nil {
+				return err
+			}
 
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
-				prometheus.GaugeValue, totalFloat64, network.NetworkID,
-				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
-				subnet.SubnetName, projectID)
+			if !exporter.MetricIsDisabled("network_ip_availabilities_total") {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_total"].Metric,
+					prometheus.GaugeValue, totalFloat64, network.NetworkID,
+					network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+					subnet.SubnetName, projectID)
+			}
 
-			ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
-				prometheus.GaugeValue, usedFloat64, network.NetworkID,
-				network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
-				subnet.SubnetName, projectID)
+			if !exporter.MetricIsDisabled("network_ip_availabilities_used") {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_used"].Metric,
+					prometheus.GaugeValue, usedFloat64, network.NetworkID,
+					network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+					subnet.SubnetName, projectID)
+			}
+
+			// Older Neutron omits ip_availability_details entirely. Only parse
+			// and emit the per-subnet/allocation-pool detail metrics when the
+			// nested object is present so missing data is not reported as zero.
+			if subnet.IPAvailabilityDetails != nil {
+				totalSubnetFloat64, err := parseIPCount("total IPs in subnet", subnet.IPAvailabilityDetails.TotalIPsInSubnet)
+				if err != nil {
+					return err
+				}
+				totalPoolFloat64, err := parseIPCount("total IPs in allocation pool", subnet.IPAvailabilityDetails.TotalIPsInAllocationPool)
+				if err != nil {
+					return err
+				}
+				usedSubnetFloat64, err := parseIPCount("used IPs in subnet", subnet.IPAvailabilityDetails.UsedIPsInSubnet)
+				if err != nil {
+					return err
+				}
+				usedPoolFloat64, err := parseIPCount("used IPs in allocation pool", subnet.IPAvailabilityDetails.UsedIPsInAllocationPool)
+				if err != nil {
+					return err
+				}
+
+				if !exporter.MetricIsDisabled("network_ip_availabilities_subnet_total") {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_subnet_total"].Metric,
+						prometheus.GaugeValue, totalSubnetFloat64, network.NetworkID,
+						network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+						subnet.SubnetName, projectID)
+				}
+
+				if !exporter.MetricIsDisabled("network_ip_availabilities_subnet_used") {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_subnet_used"].Metric,
+						prometheus.GaugeValue, usedSubnetFloat64, network.NetworkID,
+						network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+						subnet.SubnetName, projectID)
+				}
+
+				if !exporter.MetricIsDisabled("network_ip_availabilities_allocation_pool_total") {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_allocation_pool_total"].Metric,
+						prometheus.GaugeValue, totalPoolFloat64, network.NetworkID,
+						network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+						subnet.SubnetName, projectID)
+				}
+
+				if !exporter.MetricIsDisabled("network_ip_availabilities_allocation_pool_used") {
+					ch <- prometheus.MustNewConstMetric(exporter.Metrics["network_ip_availabilities_allocation_pool_used"].Metric,
+						prometheus.GaugeValue, usedPoolFloat64, network.NetworkID,
+						network.NetworkName, strconv.Itoa(subnet.IPVersion), subnet.CIDR,
+						subnet.SubnetName, projectID)
+				}
+			}
 		}
 	}
 

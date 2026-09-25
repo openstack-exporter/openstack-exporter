@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -16,7 +15,6 @@ import (
 	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 	"github.com/hashicorp/go-uuid"
-	"github.com/mitchellh/go-homedir"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/sync/errgroup"
@@ -230,89 +228,16 @@ func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
 	return exporter.DnsConcurrentCount
 }
 
-// took from here:
-// https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L87
-func pathOrContents(poc string) ([]byte, bool, error) {
-	if len(poc) == 0 {
-		return nil, false, nil
-	}
-
-	path := poc
-	if path[0] == '~' {
-		var err error
-		path, err = homedir.Expand(path)
-		if err != nil {
-			return []byte(path), true, err
-		}
-	}
-
-	if _, err := os.Stat(path); err == nil {
-		contents, err := os.ReadFile(path)
-		if err != nil {
-			return contents, true, err
-		}
-		return contents, true, nil
-	}
-
-	return []byte(poc), false, nil
-}
-
 func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport http.RoundTripper
-	var tlsConfig tls.Config
 
 	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
 
-	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
-	if err != nil {
-		return nil, err
-	}
-
-	var configureTransport = false
-	if !*config.Verify {
-		logger.Info("SSL verification disabled on transport")
-		tlsConfig.InsecureSkipVerify = true
-		configureTransport = true
-	} else if config.CACertFile != "" {
-		certPool, err := additionalTLSTrust(config.CACertFile, logger)
-		if err != nil {
-			logger.Error("Failed to include additional certificates to ca-trust", "err", err)
-		}
-		tlsConfig.RootCAs = certPool
-		configureTransport = true
-	}
-
-	// took from here:
-	// https://github.com/gophercloud/utils/blob/4c0f6d93d3a9b027a21d9206b6bdd09123de7a09/internal/util.go#L65
-	if config.ClientCertFile != "" && config.ClientKeyFile != "" {
-		clientCert, _, err := pathOrContents(config.ClientCertFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading Client Cert: %s", err)
-		}
-		clientKey, _, err := pathOrContents(config.ClientKeyFile)
-		if err != nil {
-			return nil, fmt.Errorf("error reading Client Key: %s", err)
-		}
-		cert, err := tls.X509KeyPair(clientCert, clientKey)
-		if err != nil {
-			return nil, err
-		}
-		tlsConfig.Certificates = []tls.Certificate{cert}
-		configureTransport = true
-	}
-	if configureTransport {
-		transport = &http.Transport{TLSClientConfig: &tlsConfig}
-	}
-
 	if _, ok := os.LookupEnv("OS_DEBUG"); ok {
-		if transport == nil {
-			transport = http.DefaultTransport
-		}
-
 		transport = &clientutilsv2.RoundTripper{
-			Rt:     transport,
+			Rt:     getNewHttpTransport(),
 			Logger: &clientutilsv2.DefaultLogger{},
 		}
 	}

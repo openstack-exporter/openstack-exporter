@@ -13,21 +13,22 @@ To use your own Secret instead, set `clouds_yaml_secret_name` to an existing Sec
 
 ## Usage
 
-```bash
-# Package the chart
-cd charts/prometheus-openstack-exporter/
-helm package .
+Helm charts are published to GitHub Container Registry with each OpenStack
+Exporter release. The chart version and application version match the released
+container image tag.
 
-# Get chart version & install
-version="$(awk '/^version:/{ print $NF }' Chart.yaml)"
-helm install prometheus-openstack-exporter prometheus-openstack-exporter-${version}.tgz
+```bash
+# Install a released version (for example, exporter image 1.6.0)
+helm install prometheus-openstack-exporter \
+  oci://ghcr.io/openstack-exporter/charts/prometheus-openstack-exporter \
+  --version 1.6.0
 ```
 
 To render manifests for GitOps workflows such as Argo CD:
 
 ```bash
 # From the repository root
-helm template prometheus-openstack-exporter ./charts/prometheus-openstack-exporter \
+helm template prometheus-openstack-exporter ./helmcharts \
   --namespace openstack \
   --set clouds_yaml_secret_name=my-openstack-config \
   > prometheus-openstack-exporter.yaml

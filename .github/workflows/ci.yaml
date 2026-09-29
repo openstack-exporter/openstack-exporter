@@ -107,6 +107,12 @@ jobs:
           mapfile -t packages < <(go list ./... | grep -v '/integration')
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
+      - name: Set up Helm
+        uses: azure/setup-helm@v5
+
+      - name: Check Helm chart
+        run: bash script/check-helm
+
       - name: Extract metadata from ghcr image
         id: meta-github-image
         uses: docker/metadata-action@v6
@@ -115,7 +121,8 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=ref,event=pr
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=edge,enable=${{ github.ref == 'refs/heads/main' }}
 
       - name: Build docker image
         uses: docker/build-push-action@v7
@@ -128,19 +135,26 @@ jobs:
           build-args: |
             GO_VERSION=${{ steps.go-version.outputs.version }}
 
-      - name: Set up Helm
-        if: contains(github.ref, 'refs/tags/')
-        uses: azure/setup-helm@v5
-
       - name: Publish Helm chart
-        if: contains(github.ref, 'refs/tags/')
+        if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v'))
+        env:
+          HELM_USERNAME: ${{ secrets.CI_USERNAME }}
+          HELM_PASSWORD: ${{ secrets.CI_PAT }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
+          if [[ "$GITHUB_REF" == refs/heads/main ]]; then
+            version="0.0.0-edge"
+            app_version="edge"
+          else
+            version="${GITHUB_REF_NAME#v}"
+            app_version="$version"
+          fi
+          printf '%s' "$HELM_PASSWORD" | helm registry login ghcr.io \
+            --username "$HELM_USERNAME" --password-stdin
           package_dir="$(mktemp -d)"
           helm package helmcharts \
             --destination "$package_dir" \
             --version "$version" \
-            --app-version "$version"
+            --app-version "$app_version"
           helm push "$package_dir/prometheus-openstack-exporter-$version.tgz" \
             "oci://ghcr.io/${{ github.repository_owner }}/charts"
 

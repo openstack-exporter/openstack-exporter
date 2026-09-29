@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: openstack-exporter
-        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
         - --endpoint-type

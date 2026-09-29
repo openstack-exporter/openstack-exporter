@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+package_dir="$(mktemp -d)"
+trap 'rm -rf "$package_dir"' EXIT
+
+helm lint helmcharts
+helm template check helmcharts > "$package_dir/default.yaml"
+grep -Fq 'image: "ghcr.io/openstack-exporter/openstack-exporter:1.6.0"' "$package_dir/default.yaml"
+
+for version in 1.6.0 2.0.0-alpha 0.0.0-edge; do
+  app_version="$version"
+  if [[ "$version" == 0.0.0-edge ]]; then
+    app_version="edge"
+  fi
+  helm package helmcharts --destination "$package_dir" \
+    --version "$version" --app-version "$app_version"
+  helm template check "$package_dir/prometheus-openstack-exporter-$version.tgz" \
+    > "$package_dir/rendered.yaml"
+  grep -Fq "image: \"ghcr.io/openstack-exporter/openstack-exporter:$app_version\"" "$package_dir/rendered.yaml"
+done
+
+helm template check "$package_dir/prometheus-openstack-exporter-0.0.0-edge.tgz" \
+  --set-string image.tag=custom > "$package_dir/override.yaml"
+grep -Fq 'image: "ghcr.io/openstack-exporter/openstack-exporter:custom"' "$package_dir/override.yaml"

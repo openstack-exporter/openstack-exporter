@@ -8,7 +8,8 @@ replicaCount: 1
 
 image:
   repository: ghcr.io/openstack-exporter/openstack-exporter
-  tag: 1.6.0
+  # Defaults to the chart appVersion. Set to override the published image tag.
+  tag: ""
   pullPolicy: Always
 
 # imagePullSecrets:

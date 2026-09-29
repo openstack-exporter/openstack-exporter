@@ -15,13 +15,25 @@ To use your own Secret instead, set `clouds_yaml_secret_name` to an existing Sec
 
 Helm charts are published to GitHub Container Registry with each OpenStack
 Exporter release. The chart version and application version match the released
-container image tag.
+container image tag. The image defaults to the chart application version; set
+`image.tag` to override it.
 
 ```bash
 # Install a released version (for example, exporter image 1.6.0)
 helm install prometheus-openstack-exporter \
   oci://ghcr.io/openstack-exporter/charts/prometheus-openstack-exporter \
   --version 1.6.0
+```
+
+Every push to `main` also publishes Docker images tagged `latest` and `edge`,
+and replaces the rolling Helm chart version `0.0.0-edge` with application version
+`edge`. Helm OCI chart versions must be semantic versions, so the chart uses
+`0.0.0-edge` rather than a literal `edge` tag.
+
+```bash
+helm upgrade --install prometheus-openstack-exporter \
+  oci://ghcr.io/openstack-exporter/charts/prometheus-openstack-exporter \
+  --version 0.0.0-edge
 ```
 
 To render manifests for GitOps workflows such as Argo CD:

@@ -115,7 +115,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	services, err := resolveServiceConfig(*multiCloud, *cloud, *disableServiceAutodetect, serviceStates, logger)
+	services, err := resolveServiceConfig(ResolveServiceConfigParams{
+		MultiCloud:        *multiCloud,
+		Cloud:             *cloud,
+		DisableAutodetect: *disableServiceAutodetect,
+		ServiceStates:     serviceStates,
+	}, logger)
 	if err != nil {
 		logger.Error("Failed to resolve service configuration", "error", err)
 		os.Exit(1)
@@ -133,7 +138,10 @@ func main() {
 	}
 
 	// Start the HTTP server.
-	go startHTTPServer(ctx2, services, toolkitFlags, cancel1, logger)
+	go startHTTPServer(ctx2, StartHTTPServerParams{
+		Services:     services,
+		ToolkitFlags: toolkitFlags,
+	}, cancel1, logger)
 
 	<-ctx2.Done()
 	if err := context.Cause(ctx2); err != nil && !errors.Is(err, context.Canceled) {
@@ -144,19 +152,21 @@ func main() {
 	}
 }
 
-func resolveServiceConfig(
-	isMultiCloud bool,
-	cloud string,
-	disableAutodetect bool,
-	serviceStates map[string]serviceState,
-	logger *slog.Logger,
-) ([]string, error) {
-	if isMultiCloud || disableAutodetect {
-		setAutoServicesState(serviceStates, serviceEnabled)
-		if disableAutodetect && !isMultiCloud {
+// ResolveServiceConfigParams holds the arguments for resolveServiceConfig.
+type ResolveServiceConfigParams struct {
+	MultiCloud        bool
+	Cloud             string
+	DisableAutodetect bool
+	ServiceStates     map[string]serviceState
+}
+
+func resolveServiceConfig(params ResolveServiceConfigParams, logger *slog.Logger) ([]string, error) {
+	if params.MultiCloud || params.DisableAutodetect {
+		setAutoServicesState(params.ServiceStates, serviceEnabled)
+		if params.DisableAutodetect && !params.MultiCloud {
 			logger.Info("Service autodetection is disabled for single-cloud mode")
 		}
-		enabledServices := getEnabledServicesFromStates(serviceStates)
+		enabledServices := getEnabledServicesFromStates(params.ServiceStates)
 		if len(enabledServices) == 0 {
 			return nil, errors.New("no services enabled by explicit flags")
 		}
@@ -164,14 +174,14 @@ func resolveServiceConfig(
 	}
 
 	logger.Info("Autodetecting available services")
-	detectedServices, err := autodetectServices(cloud, logger)
+	detectedServices, err := autodetectServices(params.Cloud, logger)
 	if err != nil {
 		return nil, err
 	}
 	logger.Info("Autodetected services", "detected_services", detectedServices)
 
-	applyAutodetection(serviceStates, detectedServices)
-	enabledServices := getEnabledServicesFromStates(serviceStates)
+	applyAutodetection(params.ServiceStates, detectedServices)
+	enabledServices := getEnabledServicesFromStates(params.ServiceStates)
 	logger.Info("Final enabled services", "enabled_services", enabledServices)
 	if len(enabledServices) == 0 {
 		return nil, errors.New("no services enabled after autodetection and flag filtering")
@@ -250,11 +260,17 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	}
 }
 
-func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.FlagConfig, cancel context.CancelCauseFunc, logger *slog.Logger) {
+// StartHTTPServerParams holds the arguments for startHTTPServer.
+type StartHTTPServerParams struct {
+	Services     []string
+	ToolkitFlags *web.FlagConfig
+}
+
+func startHTTPServer(ctx context.Context, params StartHTTPServerParams, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
-		http.HandleFunc("/probe", probeHandler(services, logger))
+		http.HandleFunc("/probe", probeHandler(params.Services, logger))
 		http.Handle(*metrics, promhttp.Handler())
 		logger.Info("openstack exporter started in multi cloud mode (/probe?cloud=)")
 		links = append(links, web.LandingLinks{
@@ -266,7 +282,7 @@ func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.F
 		})
 	} else {
 		logger.Info("openstack exporter started in legacy mode")
-		http.HandleFunc(*metrics, metricHandler(services, logger))
+		http.HandleFunc(*metrics, metricHandler(params.Services, logger))
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
 			Text:    "Metrics",
@@ -304,7 +320,7 @@ func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.F
 		},
 	}
 	go func() {
-		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
+		if err := web.ListenAndServe(srv, params.ToolkitFlags, logger); err != nil {
 			logger.Error("Failed to start webserver", "error", err)
 			cancel(err)
 		}

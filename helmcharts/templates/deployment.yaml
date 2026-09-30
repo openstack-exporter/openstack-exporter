@@ -34,6 +34,9 @@ spec:
         volumeMounts:
           - name: openstack-config
             mountPath: /etc/openstack
+        {{- if .Values.extraVolumeMounts }}
+          {{- toYaml .Values.extraVolumeMounts | nindent 10 }}
+        {{- end }}
         ports:
         - name: metrics
           containerPort: 9180
@@ -46,6 +49,9 @@ spec:
       - name: openstack-config
         secret:
           secretName: {{ include "openstack-exporter.cloudsYamlSecretName" . }}
+      {{- if .Values.extraVolumes }}
+        {{- toYaml .Values.extraVolumes | nindent 6 }}
+      {{- end }}
     {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
 {{ toYaml . | indent 8 }}

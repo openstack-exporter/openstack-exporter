@@ -6,6 +6,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/openstack-exporter/openstack-exporter/exporters"
@@ -86,6 +87,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	domainID := ""
 	tenantID := ""
 	dnsConcurrentCount := 10
+	placementProviderTraitRegex := regexp.MustCompile("CUSTOM_")
 
 	// Logger similar to main.go
 	promlogConfig := &promslog.Config{}
@@ -117,6 +119,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			tenantID,
 			novaMetadataMapping, // non-nil here
 			dnsConcurrentCount,
+			placementProviderTraitRegex,
 			nil,
 			logger,
 		)

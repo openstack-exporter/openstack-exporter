@@ -36,6 +36,9 @@ openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.locald
 openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 80
 openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 8192
 openstack_placement_resource_provider_allocations{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU",uuid="b3c94dec-88e6-4e6a-9a82-7f10a81b5a5e"} 4
+# HELP openstack_placement_resource_provider_trait resource_provider_trait
+# TYPE openstack_placement_resource_provider_trait gauge
+openstack_placement_resource_provider_trait{hostname="cmp-1-svr8204.localdomain",trait="CUSTOM_MY_TRAIT1"} 1
 # HELP openstack_placement_resource_reserved resource_reserved
 # TYPE openstack_placement_resource_reserved gauge
 openstack_placement_resource_reserved{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 0

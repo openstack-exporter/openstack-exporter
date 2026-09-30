@@ -107,6 +107,9 @@ jobs:
           mapfile -t packages < <(go list ./... | grep -v '/integration')
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
+      - name: Compile integration tests without cloud resources
+        run: go test -short -tags "fixtures acceptance" ./integration/...
+
       - name: Extract metadata from ghcr image
         id: meta-github-image
         uses: docker/metadata-action@v6

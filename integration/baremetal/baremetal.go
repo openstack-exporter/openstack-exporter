@@ -1,3 +1,4 @@
+// Adapted from Gophercloud: import the local acceptance helper subtrees.
 package v1
 
 import (
@@ -6,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/gophercloud/v2/internal/acceptance/tools"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/allocations"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/ports"
+	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
 
 // CreateNode creates a basic node with a randomly generated name.
@@ -152,7 +153,6 @@ func DeployFakeNode(t *testing.T, client *gophercloud.ServiceClient, node *nodes
 			return node, err
 		}
 
-		currentState = string(nodes.Available)
 	}
 
 	t.Logf("deploying fake node %s", node.UUID)

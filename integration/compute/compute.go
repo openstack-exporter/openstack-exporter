@@ -1,19 +1,16 @@
+// Adapted from Gophercloud: import the local acceptance helper subtrees.
 // Package v2 contains common functions for creating compute-based resources
 // for use in acceptance tests. See the `*_test.go` files for example usages.
 package v2
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
-	"github.com/gophercloud/gophercloud/v2/internal/acceptance/clients"
-	"github.com/gophercloud/gophercloud/v2/internal/acceptance/tools"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v2/volumes"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/aggregates"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/attachinterfaces"
@@ -27,8 +24,8 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/volumeattach"
 	neutron "github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
 	th "github.com/gophercloud/gophercloud/v2/testhelper"
-
-	"golang.org/x/crypto/ssh"
+	"github.com/openstack-exporter/openstack-exporter/integration/clients"
+	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
 
 // AttachInterface will create and attach an interface on a given server.
@@ -177,23 +174,6 @@ func CreateFlavor(t *testing.T, client *gophercloud.ServiceClient) (*flavors.Fla
 	th.AssertEquals(t, flavorDescription, flavor.Description)
 
 	return flavor, nil
-}
-
-func createKey() (string, error) {
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", err
-	}
-
-	publicKey := privateKey.PublicKey
-	pub, err := ssh.NewPublicKey(&publicKey)
-	if err != nil {
-		return "", err
-	}
-
-	pubBytes := ssh.MarshalAuthorizedKey(pub)
-	pk := string(pubBytes)
-	return pk, nil
 }
 
 // CreateKeyPair will create a KeyPair with a random name. An error will occur

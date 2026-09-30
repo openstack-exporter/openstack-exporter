@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
-	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
+	compute "github.com/openstack-exporter/openstack-exporter/integration/compute"
 )
 
 func TestComputeIntegration(t *testing.T) {
@@ -15,11 +15,11 @@ func TestComputeIntegration(t *testing.T) {
 		t.Fatalf("Failed to build compute client: %v", err)
 	}
 
-	server, err := funcs.CreateServer(t, computeClient)
+	server, err := compute.CreateServer(t, computeClient)
 	if err != nil {
 		t.Fatalf("Could not create test server: %v", err)
 	}
-	defer funcs.DeleteServer(t, computeClient, server)
+	defer compute.DeleteServer(t, computeClient, server)
 
 	cleanup := startExporter(t, "compute")
 	defer cleanup()

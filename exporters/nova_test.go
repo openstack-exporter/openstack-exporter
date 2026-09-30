@@ -1,8 +1,10 @@
 package exporters
 
 import (
+	"net/http"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -507,5 +509,55 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *NovaTestSuite) TestNovaHypervisorsFallbackToVCPUsWhenCPUInfoIsMissing() {
+	response := &http.Response{
+		Body: httpmock.NewRespBodyFromBytes([]byte(`{
+		"hypervisors": [
+			{
+				"id": 2,
+				"hypervisor_hostname": "host-without-cpu-info",
+				"state": "up",
+				"status": "enabled",
+				"hypervisor_type": "fake",
+				"hypervisor_version": 1000,
+				"host_ip": "1.1.1.1",
+				"service": {
+					"id": 7,
+					"host": "host-without-cpu-info",
+					"disabled_reason": null
+				},
+				"vcpus": 8,
+				"memory_mb": 8192,
+				"local_gb": 1028,
+				"vcpus_used": 0,
+				"memory_mb_used": 512,
+				"local_gb_used": 0,
+				"free_ram_mb": 7680,
+				"free_disk_gb": 1028,
+				"current_workload": 0,
+				"running_vms": 0,
+				"disk_available_least": 0
+			}
+		]
+	}`)),
+		Header: http.Header{
+			"Content-Type": []string{"application/json"},
+		},
+		StatusCode: http.StatusOK,
+	}
+	httpmock.RegisterResponder("GET", suite.MakeURL("/compute/os-hypervisors/detail", ""), httpmock.ResponderFromResponse(response).Times(2))
+
+	err := testutil.CollectAndCompare(
+		*suite.Exporter,
+		strings.NewReader(`
+# HELP openstack_nova_vcpus_available vcpus_available
+# TYPE openstack_nova_vcpus_available gauge
+openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host-without-cpu-info"} 8
+`),
+		"openstack_nova_vcpus_available",
+	)
 	assert.NoError(suite.T(), err)
 }

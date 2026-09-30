@@ -54,8 +54,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          submodules: true
       - uses: reviewdog/action-golangci-lint@c76cceaaab89abe74e649d2e34c6c9adc26662d2 # v2.10.0
         with:
+          fail_level: any
+          filter_mode: nofilter
+
+      - name: Lint integration module
+        uses: reviewdog/action-golangci-lint@c76cceaaab89abe74e649d2e34c6c9adc26662d2 # v2.10.0
+        with:
+          workdir: integration
+          go_version_file: go.mod
           fail_level: any
           filter_mode: nofilter
 
@@ -70,6 +79,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          submodules: true
 
       - name: Login to GitHub Container Registry
         if: ${{ github.event_name != 'pull_request' }}
@@ -108,7 +118,7 @@ jobs:
           go test -v -covermode=atomic -coverprofile=coverage.out "${packages[@]}"
 
       - name: Compile integration tests without cloud resources
-        run: go test -short -tags "fixtures acceptance" ./integration/...
+        run: go -C integration test -short -tags "fixtures acceptance" ./...
 
       - name: Extract metadata from ghcr image
         id: meta-github-image

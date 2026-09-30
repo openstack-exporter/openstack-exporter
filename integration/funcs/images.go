@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/internal/acceptance/tools"
 	"github.com/gophercloud/gophercloud/v2/openstack/image/v2/images"
-	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
 
 // CreateImage creates an image with a randomly generated name and the given

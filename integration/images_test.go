@@ -3,8 +3,8 @@ package integration
 import (
 	"testing"
 
-	"github.com/openstack-exporter/openstack-exporter/integration/clients"
-	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/clients"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/funcs"
 )
 
 func TestImagesIntegration(t *testing.T) {

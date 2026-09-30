@@ -3,8 +3,9 @@ package integration
 import (
 	"testing"
 
-	"github.com/openstack-exporter/openstack-exporter/integration/clients"
-	compute "github.com/openstack-exporter/openstack-exporter/integration/compute"
+	compute "github.com/gophercloud/gophercloud/v2/internal/acceptance/openstack/compute/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/clients"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/funcs"
 )
 
 func TestComputeIntegration(t *testing.T) {
@@ -15,7 +16,7 @@ func TestComputeIntegration(t *testing.T) {
 		t.Fatalf("Failed to build compute client: %v", err)
 	}
 
-	server, err := compute.CreateServer(t, computeClient)
+	server, err := funcs.CreateServer(t, computeClient)
 	if err != nil {
 		t.Fatalf("Could not create test server: %v", err)
 	}

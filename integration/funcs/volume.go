@@ -7,10 +7,10 @@ import (
 	"testing"
 
 	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/internal/acceptance/tools"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/backups"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/snapshots"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/volumes"
-	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
 
 // CreateVolume creates a 1 GB volume with a randomly generated name and

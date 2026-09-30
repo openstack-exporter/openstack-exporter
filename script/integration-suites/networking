@@ -23,4 +23,4 @@ if [[ -z "${LOG_DIR}" ]]; then
 fi
 mkdir -p "${LOG_DIR}"
 
-go test -v -timeout $timeout -tags "fixtures acceptance" ./integration -run '^TestNetworking' |& tee -a "${LOG_DIR}/acceptance_tests.log"
+go -C integration test -v -timeout $timeout -tags "fixtures acceptance" . -run '^TestNetworking' |& tee -a "${LOG_DIR}/acceptance_tests.log"

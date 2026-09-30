@@ -1,0 +1,3 @@
+[submodule "gophercloud"]
+	path = integration/gophercloud
+	url = https://github.com/gophercloud/gophercloud.git

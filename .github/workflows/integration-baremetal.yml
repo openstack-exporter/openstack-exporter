@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+          submodules: true
 
       # NOTE(Sharpz7): Should be reverted + tested before 2027-05-06
       - name: Configure apt mirror and network retries
@@ -85,7 +86,7 @@ jobs:
         run: ./script/integration-suites/baremetal
         env:
           DEVSTACK_PATH: ${{ github.workspace }}/devstack
-          PACKAGE: "./integration/..."
+          PACKAGE: "./..."
           OS_BRANCH: ${{ matrix.openstack_version }}
 
       - name: Generate logs on failure

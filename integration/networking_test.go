@@ -7,12 +7,12 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/clients"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/funcs"
 	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/vpnaas/endpointgroups"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
-	"github.com/openstack-exporter/openstack-exporter/integration/clients"
-	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
 )
 
 func TestNetworkingIntegration(t *testing.T) {

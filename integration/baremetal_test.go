@@ -3,9 +3,9 @@ package integration
 import (
 	"testing"
 
+	baremetal "github.com/gophercloud/gophercloud/v2/internal/acceptance/openstack/baremetal/v1"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/clients"
 	th "github.com/gophercloud/gophercloud/v2/testhelper"
-	baremetal "github.com/openstack-exporter/openstack-exporter/integration/baremetal"
-	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 )
 
 func TestBaremetalIntegration(t *testing.T) {

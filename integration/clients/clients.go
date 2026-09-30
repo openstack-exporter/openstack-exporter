@@ -1,4 +1,3 @@
-// Adapted from Gophercloud: share bounded authentication and retain redacted logging.
 // Package clients contains functions for creating OpenStack service clients
 // for use in acceptance tests. It also manages the required environment
 // variables to run the tests.
@@ -6,10 +5,8 @@ package clients
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
@@ -50,122 +47,6 @@ func newServiceClient(newClient func(*gophercloud.ProviderClient, gophercloud.En
 		return nil, err
 	}
 	return newClient(client, regionOpts())
-}
-
-// AcceptanceTestChoices contains image and flavor selections for use by the acceptance tests.
-type AcceptanceTestChoices struct {
-	// ImageID contains the ID of a valid image.
-	ImageID string
-
-	// FlavorID contains the ID of a valid flavor.
-	FlavorID string
-
-	// FlavorIDResize contains the ID of a different flavor available on the same OpenStack installation, that is distinct
-	// from FlavorID.
-	FlavorIDResize string
-
-	// FloatingIPPool contains the name of the pool from where to obtain floating IPs.
-	FloatingIPPoolName string
-
-	// MagnumKeypair contains the ID of a valid key pair.
-	MagnumKeypair string
-
-	// MagnumImageID contains the ID of a valid magnum image.
-	MagnumImageID string
-
-	// NetworkName is the name of a network to launch the instance on.
-	NetworkName string
-
-	// NetworkID is the ID of a network to launch the instance on.
-	NetworkID string
-
-	// SubnetID is the ID of a subnet to launch the instance on.
-	SubnetID string
-
-	// ExternalNetworkID is the network ID of the external network.
-	ExternalNetworkID string
-
-	// DBDatastoreType is the datastore type for DB tests.
-	DBDatastoreType string
-
-	// DBDatastoreTypeID is the datastore type version for DB tests.
-	DBDatastoreVersion string
-}
-
-// AcceptanceTestChoicesFromEnv populates a ComputeChoices struct from environment variables.
-// If any required state is missing, an `error` will be returned that enumerates the missing properties.
-func AcceptanceTestChoicesFromEnv() (*AcceptanceTestChoices, error) {
-	imageID := os.Getenv("OS_IMAGE_ID")
-	flavorID := os.Getenv("OS_FLAVOR_ID")
-	flavorIDResize := os.Getenv("OS_FLAVOR_ID_RESIZE")
-	magnumImageID := os.Getenv("OS_MAGNUM_IMAGE_ID")
-	magnumKeypair := os.Getenv("OS_MAGNUM_KEYPAIR")
-	networkName := os.Getenv("OS_NETWORK_NAME")
-	networkID := os.Getenv("OS_NETWORK_ID")
-	subnetID := os.Getenv("OS_SUBNET_ID")
-	floatingIPPoolName := os.Getenv("OS_POOL_NAME")
-	externalNetworkID := os.Getenv("OS_EXTGW_ID")
-	dbDatastoreType := os.Getenv("OS_DB_DATASTORE_TYPE")
-	dbDatastoreVersion := os.Getenv("OS_DB_DATASTORE_VERSION")
-
-	missing := make([]string, 0, 3)
-	if imageID == "" {
-		missing = append(missing, "OS_IMAGE_ID")
-	}
-	if flavorID == "" {
-		missing = append(missing, "OS_FLAVOR_ID")
-	}
-	if flavorIDResize == "" {
-		missing = append(missing, "OS_FLAVOR_ID_RESIZE")
-	}
-	if floatingIPPoolName == "" {
-		missing = append(missing, "OS_POOL_NAME")
-	}
-	if externalNetworkID == "" {
-		missing = append(missing, "OS_EXTGW_ID")
-	}
-
-	/* // Temporarily disabled, see https://github.com/gophercloud/gophercloud/issues/1345
-	if networkID == "" {
-		missing = append(missing, "OS_NETWORK_ID")
-	}
-	if subnetID == "" {
-		missing = append(missing, "OS_SUBNET_ID")
-	}
-	*/
-
-	if networkName == "" {
-		networkName = "private"
-	}
-	notDistinct := ""
-	if flavorID == flavorIDResize {
-		notDistinct = "OS_FLAVOR_ID and OS_FLAVOR_ID_RESIZE must be distinct"
-	}
-
-	if len(missing) > 0 {
-		text := "you're missing some important setup:\n * these environment variables must be provided: %s"
-		return nil, fmt.Errorf(text, strings.Join(missing, ", "))
-	}
-
-	if notDistinct != "" {
-		text := "you're missing some important setup:\n * %s"
-		return nil, fmt.Errorf(text, notDistinct)
-	}
-
-	return &AcceptanceTestChoices{
-		ImageID:            imageID,
-		FlavorID:           flavorID,
-		FlavorIDResize:     flavorIDResize,
-		FloatingIPPoolName: floatingIPPoolName,
-		MagnumImageID:      magnumImageID,
-		MagnumKeypair:      magnumKeypair,
-		NetworkName:        networkName,
-		NetworkID:          networkID,
-		SubnetID:           subnetID,
-		ExternalNetworkID:  externalNetworkID,
-		DBDatastoreType:    dbDatastoreType,
-		DBDatastoreVersion: dbDatastoreVersion,
-	}, nil
 }
 
 // NewBlockStorageV3Client returns a *ServiceClient for making calls

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2"
+	"github.com/gophercloud/gophercloud/v2/internal/acceptance/tools"
+	"github.com/gophercloud/gophercloud/v2/openstack-exporter-integration/clients"
 	"github.com/gophercloud/gophercloud/v2/openstack/common/extensions"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/layer3/routers"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/extensions/mtu"
@@ -20,8 +22,6 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/networks"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/ports"
 	"github.com/gophercloud/gophercloud/v2/openstack/networking/v2/subnets"
-	"github.com/openstack-exporter/openstack-exporter/integration/clients"
-	"github.com/openstack-exporter/openstack-exporter/integration/tools"
 )
 
 type NetworkWithMTU struct {

@@ -29,4 +29,4 @@ openstack endpoint list -f yaml || true
 
 
 # shellcheck disable=SC2068
-go test -v -timeout $timeout -tags "fixtures acceptance" ./integration -run '^TestBaremetalIntegration$' |& tee -a "${LOG_DIR}/acceptance_tests.log"
+go -C integration test -v -timeout $timeout -tags "fixtures acceptance" . -run '^TestBaremetalIntegration$' |& tee -a "${LOG_DIR}/acceptance_tests.log"

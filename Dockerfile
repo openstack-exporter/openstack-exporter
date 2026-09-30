@@ -1,4 +1,4 @@
-ARG GO_VERSION=1.26.3
+ARG GO_VERSION=1.26.5
 FROM golang:${GO_VERSION} AS build
 
 WORKDIR /
@@ -7,7 +7,7 @@ COPY . .
 
 RUN go mod download && CGO_ENABLED=0 go build -o /openstack-exporter .
 
-FROM gcr.io/distroless/base:nonroot as openstack-exporter
+FROM gcr.io/distroless/base:nonroot AS openstack-exporter
 
 LABEL maintainer="Jorge Niedbalski <j@bearmetal.xyz>"
 

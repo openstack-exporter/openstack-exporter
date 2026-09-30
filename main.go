@@ -15,6 +15,7 @@ import (
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
+	"github.com/jpillora/backoff"
 	"gopkg.in/yaml.v3"
 
 	"github.com/hashicorp/vault-client-go"
@@ -33,6 +34,12 @@ import (
 )
 
 const DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
+
+const (
+	enableExporterMaxAttempts  = 10
+	enableExporterRetryMinWait = 500 * time.Millisecond
+	enableExporterRetryMaxWait = 5 * time.Second
+)
 
 type serviceState int
 
@@ -378,10 +385,10 @@ func metricHandler(configuredServices []string, logger *slog.Logger) http.Handle
 	registry := prometheus.NewPedanticRegistry()
 	enabledExporters := 0
 	for _, service := range enabledServices {
-		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		exp, err := enableExporterWithRetry(service, logger)
 		if err != nil {
 			// Log error and continue with enabling other exporters
-			logger.Error("enabling exporter for service failed", "service", service, "error", err)
+			logger.Error("enabling exporter for service failed after retries", "service", service, "error", err)
 			continue
 		}
 		registry.MustRegister(*exp)
@@ -399,6 +406,28 @@ func metricHandler(configuredServices []string, logger *slog.Logger) http.Handle
 
 	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
 	return h.ServeHTTP
+}
+
+// enableExporterWithRetry retries EnableExporter with exponential backoff so a
+// service that is transiently unavailable at startup (e.g. a brief 503 during
+// discovery) does not stay permanently disabled for the life of the process.
+func enableExporterWithRetry(service string, logger *slog.Logger) (*exporters.OpenStackExporter, error) {
+	b := &backoff.Backoff{Min: enableExporterRetryMinWait, Max: enableExporterRetryMaxWait, Factor: 2, Jitter: true}
+
+	var lastErr error
+	for attempt := 1; attempt <= enableExporterMaxAttempts; attempt++ {
+		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		if err == nil {
+			return exp, nil
+		}
+		lastErr = err
+		if attempt == enableExporterMaxAttempts {
+			break
+		}
+		logger.Warn("enabling exporter for service failed, retrying", "service", service, "attempt", attempt, "error", err)
+		time.Sleep(b.Duration())
+	}
+	return nil, lastErr
 }
 
 func selectServicesForRequest(configuredServices []string, r *http.Request) ([]string, error) {

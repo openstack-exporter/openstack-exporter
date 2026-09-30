@@ -196,6 +196,30 @@
       "rxtx_factor": 1,
       "description": null,
       "extra_specs": {}
+    },
+    {
+      "OS-FLV-DISABLED:disabled": false,
+      "disk": 20,
+      "OS-FLV-EXT-DATA:ephemeral": 10,
+      "os-flavor-access:is_public": true,
+      "id": "9",
+      "links": [
+        {
+          "href": "http://openstack.example.com/v2/6f70656e737461636b20342065766572/flavors/9",
+          "rel": "self"
+        },
+        {
+          "href": "http://openstack.example.com/6f70656e737461636b20342065766572/flavors/9",
+          "rel": "bookmark"
+        }
+      ],
+      "name": "m1.small.disk",
+      "ram": 2048,
+      "swap": 1024,
+      "vcpus": 1,
+      "rxtx_factor": 1,
+      "description": null,
+      "extra_specs": {}
     }
   ]
 }

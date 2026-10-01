@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -170,6 +171,59 @@ func TestCollectCacheFailsWhenNoExporterCanBeEnabled(t *testing.T) {
 	assert.Error(t, err)
 	_, exists := cache.GetCloudCache("testCloud")
 	assert.False(t, exists)
+}
+
+func TestCollectCacheMultiCloudFailure(t *testing.T) {
+	cache := GetCache()
+	defer newSingleCache()
+	configPath := filepath.Join(t.TempDir(), "clouds.yaml")
+	if err := os.WriteFile(configPath, []byte("clouds:\n  healthy: {}\n  broken: {}\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("OS_CLIENT_CONFIG_FILE", configPath)
+	logger := slog.Default()
+	enable := func(service, prefix, cloud string, disabledMetrics []string, endpointType string,
+		collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID bool,
+		domainID, tenantID string, mapping *utils.LabelMappingFlag, dnsCount int,
+		uuidGen func() (string, error), logger *slog.Logger) (*exporters.OpenStackExporter, error) {
+		if cloud == "broken" {
+			return nil, errors.New("temporary authentication failure")
+		}
+		return mockEnableExporter(service, prefix, cloud, disabledMetrics, endpointType,
+			collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID,
+			domainID, tenantID, mapping, dnsCount, uuidGen, logger)
+	}
+	collect := func() error {
+		return CollectCache(enable, true, []string{"service-a"}, "test", "", nil, "public",
+			false, false, false, false, "", "", new(utils.LabelMappingFlag), 10, nil, logger)
+	}
+	assert.NoError(t, collect())
+	healthy, exists := cache.GetCloudCache("healthy")
+	assert.True(t, exists)
+	assert.NotEmpty(t, healthy.MetricFamilyCaches)
+	_, exists = cache.GetCloudCache("broken")
+	assert.False(t, exists, "failed first collection must not store an empty cache")
+
+	// A later outage must preserve old data without extending its TTL.
+	cache.SetCloudCache("broken", healthy)
+	previous, _ := cache.GetCloudCache("broken")
+	assert.NoError(t, collect())
+	retained, exists := cache.GetCloudCache("broken")
+	assert.True(t, exists)
+	assert.Equal(t, previous, retained)
+	refreshed, _ := cache.GetCloudCache("healthy")
+	assert.True(t, refreshed.Time.After(healthy.Time))
+}
+
+func TestWriteCacheToResponseWithoutCache(t *testing.T) {
+	GetCache()
+	newSingleCache()
+	defer newSingleCache()
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/probe?cloud=broken", nil)
+	err := WriteCacheToResponse(recorder, request, "broken", []string{"service-a"}, slog.Default())
+	assert.Error(t, err)
+	assert.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
 
 func TestBufferFromCache(t *testing.T) {

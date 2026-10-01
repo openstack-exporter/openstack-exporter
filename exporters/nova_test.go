@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -553,4 +554,16 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *NovaTestSuite) TestDeletedServersFailurePreservesServerMetrics() {
+	httpmock.RegisterResponder("GET", suite.MakeURL("/compute/servers/detail?all_tenants=true&deleted=true", ""),
+		httpmock.NewStringResponder(403, `{"forbidden": {"message": "Policy does not allow deleted servers"}}`))
+	expected := `
+# HELP openstack_nova_running_vms running_vms
+# TYPE openstack_nova_running_vms gauge
+openstack_nova_running_vms{aggregates="",availability_zone="nova",hostname="fake-mini",tenant_id="6f70656e737461636b20342065766572"} 1
+`
+	suite.NoError(testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(expected),
+		"openstack_nova_running_vms", "openstack_nova_instance_deleted"))
 }

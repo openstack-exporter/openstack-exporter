@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -90,4 +91,26 @@ openstack_sharev2_up 1
 func (suite *ManilaTestSuite) TestManilaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(manilaExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *ManilaTestSuite) TestDisabledShareLimits() {
+	base := (*suite.Exporter).(*ManilaExporter)
+	config := base.ExporterConfig
+	config.DisabledMetrics = []string{
+		"sharev2-limits_shares_used_gb", "sharev2-limits_shares_max_instances", "sharev2-limits_shares_used_instances",
+	}
+	exporter, err := NewManilaExporter(&config, base.logger)
+	suite.Require().NoError(err)
+	registry := prometheus.NewPedanticRegistry()
+	suite.Require().NoError(registry.Register(exporter))
+	metrics, err := registry.Gather()
+	suite.Require().NoError(err)
+	quotaSamples := 0
+	for _, metric := range metrics {
+		suite.NotContains(config.DisabledMetrics, "sharev2-"+strings.TrimPrefix(metric.GetName(), "openstack_sharev2_"))
+		if metric.GetName() == "openstack_sharev2_limits_shares_max_gb" {
+			quotaSamples = len(metric.Metric)
+		}
+	}
+	suite.Equal(8, quotaSamples)
 }

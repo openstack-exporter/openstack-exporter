@@ -103,7 +103,7 @@ var defaultNovaMetrics = []Metric{
 	{Name: "limits_instances_max", Labels: defaultNovaLimitsLabels},
 	{Name: "server_local_gb", Labels: []string{"name", "id", "tenant_id"}, Fn: ListUsage, Slow: true},
 	{Name: "instance_errors"},
-	{Name: "instance_deleted"},
+	{Name: "instance_deleted", Fn: ListDeletedServers},
 	{Name: "instance_build"},
 	{Name: "instance_active"},
 	{Name: "instance_status", Labels: []string{"status"}},
@@ -444,19 +444,8 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		prometheus.GaugeValue, float64(len(allServers)))
 
 	statusCounts := make(map[string]int)
-	instanceErrors := 0
-	instanceBuild := 0
-	instanceActive := 0
 	for _, server := range allServers {
 		statusCounts[server.Status]++
-		switch server.Status {
-		case "ERROR":
-			instanceErrors++
-		case "BUILD":
-			instanceBuild++
-		case "ACTIVE":
-			instanceActive++
-		}
 		if !exporter.MetricIsDisabled("instance_vcpu") {
 			if vcpus, ok := server.Flavor["vcpus"].(float64); ok {
 				ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_vcpu"].Metric,
@@ -471,13 +460,13 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 	if !exporter.MetricIsDisabled("instance_errors") {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_errors"].Metric, prometheus.GaugeValue, float64(instanceErrors))
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_errors"].Metric, prometheus.GaugeValue, float64(statusCounts["ERROR"]))
 	}
 	if !exporter.MetricIsDisabled("instance_build") {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_build"].Metric, prometheus.GaugeValue, float64(instanceBuild))
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_build"].Metric, prometheus.GaugeValue, float64(statusCounts["BUILD"]))
 	}
 	if !exporter.MetricIsDisabled("instance_active") {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_active"].Metric, prometheus.GaugeValue, float64(instanceActive))
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_active"].Metric, prometheus.GaugeValue, float64(statusCounts["ACTIVE"]))
 	}
 	if !exporter.MetricIsDisabled("instance_status") {
 		for status, count := range statusCounts {
@@ -485,20 +474,6 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 				prometheus.GaugeValue, float64(count), status)
 		}
 	}
-	if !exporter.MetricIsDisabled("instance_deleted") {
-		allPagesDeleted, err := servers.List(exporter.ClientV2, deletedServerListOptions(exporter.TenantID)).AllPages(ctx)
-		if err != nil {
-			return err
-		}
-
-		var deletedServers []ServerWithExt
-		if err = servers.ExtractServersInto(allPagesDeleted, &deletedServers); err != nil {
-			return err
-		}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_deleted"].Metric,
-			prometheus.GaugeValue, float64(len(deletedServers)))
-	}
-
 	if !exporter.MetricIsDisabled("running_vms") {
 		runningVMs := map[novaRunningVMLabels]int{}
 		for _, server := range allServers {
@@ -543,11 +518,27 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 				}
 			}()
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
+			labelValues = append(labelValues, server.TaskState, securityGroupsLabel)
+			labelValues = append(labelValues, metadataValues...)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
-				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), append(append(labelValues, server.TaskState, securityGroupsLabel), metadataValues...)...)
+				prometheus.GaugeValue, float64(mapServerStatus(server.Status)), labelValues...)
 		}
 	}
+	return nil
+}
+
+func ListDeletedServers(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	allPages, err := servers.List(exporter.ClientV2, deletedServerListOptions(exporter.TenantID)).AllPages(ctx)
+	if err != nil {
+		return err
+	}
+	deletedServers, err := servers.ExtractServers(allPages)
+	if err != nil {
+		return err
+	}
+	ch <- prometheus.MustNewConstMetric(exporter.Metrics["instance_deleted"].Metric,
+		prometheus.GaugeValue, float64(len(deletedServers)))
 	return nil
 }
 

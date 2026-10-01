@@ -168,15 +168,17 @@ func ListShareLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		}
 
 		projectUsage := used[project.ID]
-		labels := []string{project.Name, project.ID}
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_shares_max_gb"].Metric,
-			prometheus.GaugeValue, float64(response.QuotaSet.Gigabytes), labels...)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_shares_used_gb"].Metric,
-			prometheus.GaugeValue, float64(projectUsage.gigabytes), labels...)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_shares_max_instances"].Metric,
-			prometheus.GaugeValue, float64(response.QuotaSet.Shares), labels...)
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_shares_used_instances"].Metric,
-			prometheus.GaugeValue, float64(projectUsage.shares), labels...)
+		for name, value := range map[string]int{
+			"limits_shares_max_gb":         response.QuotaSet.Gigabytes,
+			"limits_shares_used_gb":        projectUsage.gigabytes,
+			"limits_shares_max_instances":  response.QuotaSet.Shares,
+			"limits_shares_used_instances": projectUsage.shares,
+		} {
+			if !exporter.MetricIsDisabled(name) {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics[name].Metric,
+					prometheus.GaugeValue, float64(value), project.Name, project.ID)
+			}
+		}
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -190,4 +191,29 @@ openstack_cinder_volumes 2
 func (suite *CinderTestSuite) TestCinderExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *CinderTestSuite) TestDisabledVolumeLimits() {
+	base := (*suite.Exporter).(*CinderExporter)
+	config := base.ExporterConfig
+	config.DisabledMetrics = []string{
+		"cinder-limits_volume_used_gb", "cinder-limits_volumes_max", "cinder-limits_volumes_used",
+		"cinder-limits_snapshots_max", "cinder-limits_snapshots_used",
+		"cinder-limits_backups_max", "cinder-limits_backups_used",
+		"cinder-limits_backup_max_gb", "cinder-limits_backup_used_gb", "cinder-volume_type_quota_gigabytes",
+	}
+	exporter, err := NewCinderExporter(&config, base.logger)
+	suite.Require().NoError(err)
+	registry := prometheus.NewPedanticRegistry()
+	suite.Require().NoError(registry.Register(exporter))
+	metrics, err := registry.Gather()
+	suite.Require().NoError(err)
+	quotaSamples := 0
+	for _, metric := range metrics {
+		suite.NotContains(config.DisabledMetrics, "cinder-"+strings.TrimPrefix(metric.GetName(), "openstack_cinder_"))
+		if metric.GetName() == "openstack_cinder_limits_volume_max_gb" {
+			quotaSamples = len(metric.Metric)
+		}
+	}
+	suite.Equal(8, quotaSamples)
 }

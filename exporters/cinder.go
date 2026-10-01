@@ -341,42 +341,30 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 		for key, value := range quotas.Extra {
 			if strings.HasPrefix(key, "gigabytes_") {
 				volumeType := strings.TrimPrefix(key, "gigabytes_")
-				if quotaValue, ok := value.(float64); ok {
+				if quotaValue, ok := value.(float64); ok && !exporter.MetricIsDisabled("volume_type_quota_gigabytes") {
 					ch <- prometheus.MustNewConstMetric(exporter.Metrics["volume_type_quota_gigabytes"].Metric,
 						prometheus.GaugeValue, quotaValue, p.Name, p.ID, volumeType)
 				}
 			}
 		}
 
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_max_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.Gigabytes.Limit), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volume_used_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.Gigabytes.InUse), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volumes_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Volumes.Limit), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_volumes_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Volumes.InUse), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_snapshots_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Snapshots.Limit), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_snapshots_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Snapshots.InUse), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backups_max"].Metric,
-			prometheus.GaugeValue, float64(limits.Backups.Limit), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backups_used"].Metric,
-			prometheus.GaugeValue, float64(limits.Backups.InUse), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_max_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.BackupGigabytes.Limit), p.Name, p.ID)
-
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["limits_backup_used_gb"].Metric,
-			prometheus.GaugeValue, float64(limits.BackupGigabytes.InUse), p.Name, p.ID)
+		for name, value := range map[string]int{
+			"limits_volume_max_gb":  limits.Gigabytes.Limit,
+			"limits_volume_used_gb": limits.Gigabytes.InUse,
+			"limits_volumes_max":    limits.Volumes.Limit,
+			"limits_volumes_used":   limits.Volumes.InUse,
+			"limits_snapshots_max":  limits.Snapshots.Limit,
+			"limits_snapshots_used": limits.Snapshots.InUse,
+			"limits_backups_max":    limits.Backups.Limit,
+			"limits_backups_used":   limits.Backups.InUse,
+			"limits_backup_max_gb":  limits.BackupGigabytes.Limit,
+			"limits_backup_used_gb": limits.BackupGigabytes.InUse,
+		} {
+			if !exporter.MetricIsDisabled(name) {
+				ch <- prometheus.MustNewConstMetric(exporter.Metrics[name].Metric,
+					prometheus.GaugeValue, float64(value), p.Name, p.ID)
+			}
+		}
 	}
 
 	return nil

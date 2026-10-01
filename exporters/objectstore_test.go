@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -30,6 +31,26 @@ openstack_object_store_up 1
 `
 
 func (suite *ObjectStoreTestSuite) TestObjectStoreExporter() {
+	base := (*suite.Exporter).(*ObjectStoreExporter)
+	endpoint := base.ClientV2.Endpoint
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(swiftExpectedUp))
 	assert.NoError(suite.T(), err)
+	suite.Equal(endpoint, base.ClientV2.Endpoint)
+}
+
+func (suite *ObjectStoreTestSuite) TestScopedContainersWithBytesDisabled() {
+	base := (*suite.Exporter).(*ObjectStoreExporter)
+	config := base.ExporterConfig
+	config.TenantID = "0c4e939acacf4376bdcd1129f1a054ad"
+	config.DisabledMetrics = []string{"object_store-bytes"}
+	client := *config.ClientV2
+	client.Endpoint = suite.MakeURL("/object-store/v1/AUTH_"+config.TenantID, "")
+	endpoint := client.Endpoint
+	config.ClientV2 = &client
+	exporter, err := NewObjectStoreExporter(&config, base.logger)
+	suite.Require().NoError(err)
+	expected := swiftExpectedUp[strings.Index(swiftExpectedUp, "# HELP openstack_object_store_objects"):]
+	suite.NoError(testutil.CollectAndCompare(exporter, strings.NewReader(expected)))
+	suite.Equal(endpoint, exporter.ClientV2.Endpoint)
+	suite.Zero(httpmock.GetCallCountInfo()["GET "+suite.MakeURL("/identity/v3/projects", "")])
 }

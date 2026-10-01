@@ -36,13 +36,7 @@ func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statu
 		StatusCode: statusCode,
 	}
 
-	responder := httpmock.ResponderFromResponse(response)
-	if file == suite.FixturePath("manila_shares") {
-		responder = responder.Times(3)
-	} else {
-		responder = responder.Times(2)
-	}
-	httpmock.RegisterResponder(method, url, responder)
+	httpmock.RegisterResponder(method, url, httpmock.ResponderFromResponse(response))
 }
 
 func (suite *BaseOpenStackTestSuite) MakeURL(resource string, port string) string {

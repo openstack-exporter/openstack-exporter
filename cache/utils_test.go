@@ -18,8 +18,8 @@ import (
 )
 
 func mockEnableExporter(
-	service string,
-	prefix string,
+	service,
+	prefix,
 	cloud string,
 	disabledMetrics []string,
 	endpointType string,

@@ -1,6 +1,7 @@
 package exporters
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
@@ -13,12 +14,10 @@ type NovaTestSuite struct {
 }
 
 func (suite *NovaTestSuite) TestServerAddressesFallback() {
-	server := servers.Server{Addresses: map[string]any{
-		"private": []any{
-			map[string]any{"addr": "192.0.2.10", "version": 4},
-			map[string]any{"addr": "2001:db8::10", "version": 6},
-		},
-	}}
+	var server servers.Server
+	suite.Require().NoError(json.Unmarshal([]byte(`{"addresses":{"private":[
+  {"addr":"192.0.2.10","version":4},{"addr":"2001:db8::10","version":6}
+ ]}}`), &server))
 
 	ipv4, ipv6 := serverAddresses(server)
 	assert.Equal(suite.T(), "192.0.2.10", ipv4)

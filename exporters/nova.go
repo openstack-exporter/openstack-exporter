@@ -2,7 +2,6 @@ package exporters
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"maps"
@@ -449,24 +448,22 @@ func serverAddresses(server servers.Server) (string, string) {
 	}
 
 	for _, network := range slices.Sorted(maps.Keys(server.Addresses)) {
-		rawAddresses := server.Addresses[network]
-		data, err := json.Marshal(rawAddresses)
-		if err != nil {
-			continue
-		}
-		var addresses []struct {
-			Address string `json:"addr"`
-			Version int    `json:"version"`
-		}
-		if json.Unmarshal(data, &addresses) != nil {
-			continue
-		}
-		for _, address := range addresses {
-			if address.Version == 4 && ipv4 == "" {
-				ipv4 = address.Address
+		addresses, _ := server.Addresses[network].([]any)
+		for _, raw := range addresses {
+			address, ok := raw.(map[string]any)
+			if !ok {
+				continue
 			}
-			if address.Version == 6 && ipv6 == "" {
-				ipv6 = address.Address
+			ip, _ := address["addr"].(string)
+			switch address["version"] {
+			case 4, float64(4):
+				if ipv4 == "" {
+					ipv4 = ip
+				}
+			case 6, float64(6):
+				if ipv6 == "" {
+					ipv6 = ip
+				}
 			}
 		}
 	}

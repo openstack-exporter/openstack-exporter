@@ -1,14 +1,26 @@
 package exporters
 
 import (
+	"context"
+	"net/http"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
 
 type NovaTestSuite struct {
 	BaseOpenStackTestSuite
+}
+
+func (suite *NovaTestSuite) TestSecurityGroupsEndpointNotFound() {
+	httpmock.RegisterResponder("GET", suite.MakeURL("/compute/os-security-groups", ""), httpmock.NewStringResponder(http.StatusNotFound, ""))
+
+	exporter := (*suite.Exporter).(*NovaExporter)
+	err := ListComputeSecGroups(context.Background(), &exporter.BaseOpenStackExporter, make(chan prometheus.Metric, 1))
+	assert.NoError(suite.T(), err)
 }
 
 var novaExpectedUp = `

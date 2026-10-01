@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -84,9 +83,6 @@ func (suite *PlacementTestSuite) TestPlacementExporter() {
 		suite.Require().NoError(err)
 		httpmock.RegisterResponder("GET", suite.MakeURL("/placement/resource_providers/"+fixture.uuid+"/traits", ""), func(req *http.Request) (*http.Response, error) {
 			suite.Equal("placement 1.6", req.Header.Get("OpenStack-API-Version"))
-			if req.Header.Get("OpenStack-API-Version") != "placement 1.6" {
-				return httpmock.NewStringResponse(http.StatusNotAcceptable, ""), nil
-			}
 			return httpmock.NewStringResponse(http.StatusOK, string(data)), nil
 		})
 	}
@@ -100,23 +96,10 @@ func (suite *PlacementTestSuite) TestDisabledPlacementMetrics() {
 	config.DisabledMetrics = []string{"placement-resource_traits", "placement-resource_usage"}
 	exporter, err := NewPlacementExporter(&config, (*suite.Exporter).(*PlacementExporter).logger)
 	suite.Require().NoError(err)
-	registry := prometheus.NewRegistry()
-	registry.MustRegister(exporter)
-	metrics, err := registry.Gather()
-	suite.Require().NoError(err)
-	foundTotal := false
-	for _, metric := range metrics {
-		suite.NotEqual("openstack_placement_resource_traits", metric.GetName())
-		suite.NotEqual("openstack_placement_resource_usage", metric.GetName())
-		if metric.GetName() == "openstack_placement_resource_total" {
-			foundTotal = true
-			suite.Len(metric.Metric, 6)
-		}
-		if metric.GetName() == "openstack_placement_up" {
-			suite.Equal(float64(1), metric.Metric[0].GetGauge().GetValue())
-		}
-	}
-	suite.True(foundTotal, "enabled inventory metrics must still be collected")
+	count := testutil.CollectAndCount(exporter, "openstack_placement_resource_traits", "openstack_placement_resource_usage")
+	suite.Zero(count)
+	suite.NoError(testutil.CollectAndCompare(exporter, strings.NewReader(placementExpected),
+		"openstack_placement_resource_total", "openstack_placement_up"))
 }
 
 func (suite *PlacementTestSuite) TestLegacyPlacementMicroversion() {

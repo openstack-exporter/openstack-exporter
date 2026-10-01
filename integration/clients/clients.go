@@ -187,6 +187,13 @@ func AcceptanceTestChoicesFromEnv() (*AcceptanceTestChoices, error) {
 	}, nil
 }
 
+// NewBlockStorageV3Client returns a *ServiceClient for making calls
+// to the OpenStack Block Storage v3 API. An error will be returned
+// if authentication or client creation was not possible.
+func NewBlockStorageV3Client() (*gophercloud.ServiceClient, error) {
+	return newServiceClient(openstack.NewBlockStorageV3)
+}
+
 // NewBlockStorageV3NoAuthClient returns a noauth *ServiceClient for
 // making calls to the OpenStack Block Storage v3 API. An error will be
 // returned if client creation was not possible.

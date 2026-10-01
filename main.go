@@ -15,6 +15,7 @@ import (
 
 	kingpin "github.com/alecthomas/kingpin/v2"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
+	"github.com/jpillora/backoff"
 	"gopkg.in/yaml.v3"
 
 	"github.com/hashicorp/vault-client-go"
@@ -33,6 +34,12 @@ import (
 )
 
 const DEFAULT_OS_CLIENT_CONFIG = "/etc/openstack/clouds.yaml"
+
+const (
+	enableExporterMaxAttempts  = 10
+	enableExporterRetryMinWait = 500 * time.Millisecond
+	enableExporterRetryMaxWait = 5 * time.Second
+)
 
 type serviceState int
 
@@ -108,7 +115,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	services, err := resolveServiceConfig(*multiCloud, *cloud, *disableServiceAutodetect, serviceStates, logger)
+	services, err := resolveServiceConfig(ResolveServiceConfigParams{
+		MultiCloud:        *multiCloud,
+		Cloud:             *cloud,
+		DisableAutodetect: *disableServiceAutodetect,
+		ServiceStates:     serviceStates,
+	}, logger)
 	if err != nil {
 		logger.Error("Failed to resolve service configuration", "error", err)
 		os.Exit(1)
@@ -126,7 +138,10 @@ func main() {
 	}
 
 	// Start the HTTP server.
-	go startHTTPServer(ctx2, services, toolkitFlags, cancel1, logger)
+	go startHTTPServer(ctx2, StartHTTPServerParams{
+		Services:     services,
+		ToolkitFlags: toolkitFlags,
+	}, cancel1, logger)
 
 	<-ctx2.Done()
 	if err := context.Cause(ctx2); err != nil && !errors.Is(err, context.Canceled) {
@@ -137,19 +152,21 @@ func main() {
 	}
 }
 
-func resolveServiceConfig(
-	isMultiCloud bool,
-	cloud string,
-	disableAutodetect bool,
-	serviceStates map[string]serviceState,
-	logger *slog.Logger,
-) ([]string, error) {
-	if isMultiCloud || disableAutodetect {
-		setAutoServicesState(serviceStates, serviceEnabled)
-		if disableAutodetect && !isMultiCloud {
+// ResolveServiceConfigParams holds the arguments for resolveServiceConfig.
+type ResolveServiceConfigParams struct {
+	MultiCloud        bool
+	Cloud             string
+	DisableAutodetect bool
+	ServiceStates     map[string]serviceState
+}
+
+func resolveServiceConfig(params ResolveServiceConfigParams, logger *slog.Logger) ([]string, error) {
+	if params.MultiCloud || params.DisableAutodetect {
+		setAutoServicesState(params.ServiceStates, serviceEnabled)
+		if params.DisableAutodetect && !params.MultiCloud {
 			logger.Info("Service autodetection is disabled for single-cloud mode")
 		}
-		enabledServices := getEnabledServicesFromStates(serviceStates)
+		enabledServices := getEnabledServicesFromStates(params.ServiceStates)
 		if len(enabledServices) == 0 {
 			return nil, errors.New("no services enabled by explicit flags")
 		}
@@ -157,14 +174,14 @@ func resolveServiceConfig(
 	}
 
 	logger.Info("Autodetecting available services")
-	detectedServices, err := autodetectServices(cloud, logger)
+	detectedServices, err := autodetectServices(params.Cloud, logger)
 	if err != nil {
 		return nil, err
 	}
 	logger.Info("Autodetected services", "detected_services", detectedServices)
 
-	applyAutodetection(serviceStates, detectedServices)
-	enabledServices := getEnabledServicesFromStates(serviceStates)
+	applyAutodetection(params.ServiceStates, detectedServices)
+	enabledServices := getEnabledServicesFromStates(params.ServiceStates)
 	logger.Info("Final enabled services", "enabled_services", enabledServices)
 	if len(enabledServices) == 0 {
 		return nil, errors.New("no services enabled after autodetection and flag filtering")
@@ -243,11 +260,17 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	}
 }
 
-func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.FlagConfig, cancel context.CancelCauseFunc, logger *slog.Logger) {
+// StartHTTPServerParams holds the arguments for startHTTPServer.
+type StartHTTPServerParams struct {
+	Services     []string
+	ToolkitFlags *web.FlagConfig
+}
+
+func startHTTPServer(ctx context.Context, params StartHTTPServerParams, cancel context.CancelCauseFunc, logger *slog.Logger) {
 	links := []web.LandingLinks{}
 
 	if *multiCloud {
-		http.HandleFunc("/probe", probeHandler(services, logger))
+		http.HandleFunc("/probe", probeHandler(params.Services, logger))
 		http.Handle(*metrics, promhttp.Handler())
 		logger.Info("openstack exporter started in multi cloud mode (/probe?cloud=)")
 		links = append(links, web.LandingLinks{
@@ -259,7 +282,7 @@ func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.F
 		})
 	} else {
 		logger.Info("openstack exporter started in legacy mode")
-		http.HandleFunc(*metrics, metricHandler(services, logger))
+		http.HandleFunc(*metrics, metricHandler(params.Services, logger))
 		links = append(links, web.LandingLinks{
 			Address: *metrics,
 			Text:    "Metrics",
@@ -297,7 +320,7 @@ func startHTTPServer(ctx context.Context, services []string, toolkitFlags *web.F
 		},
 	}
 	go func() {
-		if err := web.ListenAndServe(srv, toolkitFlags, logger); err != nil {
+		if err := web.ListenAndServe(srv, params.ToolkitFlags, logger); err != nil {
 			logger.Error("Failed to start webserver", "error", err)
 			cancel(err)
 		}
@@ -352,51 +375,75 @@ func probeHandler(configuredServices []string, logger *slog.Logger) http.Handler
 	}
 }
 
+// metricHandler builds the exporters and their registry once at startup and
+// reuses them across every scrape, instead of re-authenticating to Keystone
+// and reconstructing every exporter per request.
 func metricHandler(configuredServices []string, logger *slog.Logger) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
-		logger.Info("Build context", "build_context", version.BuildContext())
+	logger.Info("Starting openstack exporter version for cloud", "version", version.Info(), "cloud", *cloud)
+	logger.Info("Build context", "build_context", version.BuildContext())
 
-		if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
-			logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
-			os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
-		}
+	if *osClientConfig != DEFAULT_OS_CLIENT_CONFIG {
+		logger.Debug("Setting Env var OS_CLIENT_CONFIG_FILE", "os_client_config_file", *osClientConfig)
+		os.Setenv("OS_CLIENT_CONFIG_FILE", *osClientConfig)
+	}
 
-		enabledServices := configuredServices
+	enabledServices := configuredServices
 
-		// Get data from cache
-		if *cacheEnable {
+	// Get data from cache
+	if *cacheEnable {
+		return func(w http.ResponseWriter, r *http.Request) {
 			if err := cache.WriteCacheToResponse(w, r, *cloud, enabledServices, logger); err != nil {
 				logger.Error("Write cache to response failed", "error", err)
 			}
-			return
 		}
-
-		registry := prometheus.NewPedanticRegistry()
-		enabledExporters := 0
-		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
-			if err != nil {
-				// Log error and continue with enabling other exporters
-				logger.Error("enabling exporter for service failed", "service", service, "error", err)
-				continue
-			}
-			registry.MustRegister(*exp)
-			logger.Info("Enabled exporter for service", "service", service)
-			enabledExporters++
-		}
-
-		if enabledExporters == 0 {
-			logger.Error("No exporter has been enabled, exiting")
-			os.Exit(-1)
-		}
-
-		// expose program version
-		registry.MustRegister(pver.NewCollector("openstack_exporter"))
-
-		h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
-		h.ServeHTTP(w, r)
 	}
+
+	registry := prometheus.NewPedanticRegistry()
+	enabledExporters := 0
+	for _, service := range enabledServices {
+		exp, err := enableExporterWithRetry(service, logger)
+		if err != nil {
+			// Log error and continue with enabling other exporters
+			logger.Error("enabling exporter for service failed after retries", "service", service, "error", err)
+			continue
+		}
+		registry.MustRegister(*exp)
+		logger.Info("Enabled exporter for service", "service", service)
+		enabledExporters++
+	}
+
+	if enabledExporters == 0 {
+		logger.Error("No exporter has been enabled, exiting")
+		os.Exit(-1)
+	}
+
+	// expose program version
+	registry.MustRegister(pver.NewCollector("openstack_exporter"))
+
+	h := promhttp.HandlerFor(registry, promhttp.HandlerOpts{})
+	return h.ServeHTTP
+}
+
+// enableExporterWithRetry retries EnableExporter with exponential backoff so a
+// service that is transiently unavailable at startup (e.g. a brief 503 during
+// discovery) does not stay permanently disabled for the life of the process.
+func enableExporterWithRetry(service string, logger *slog.Logger) (*exporters.OpenStackExporter, error) {
+	b := &backoff.Backoff{Min: enableExporterRetryMinWait, Max: enableExporterRetryMaxWait, Factor: 2, Jitter: true}
+
+	var lastErr error
+	for attempt := 1; attempt <= enableExporterMaxAttempts; attempt++ {
+		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		if err == nil {
+			return exp, nil
+		}
+		lastErr = err
+		if attempt == enableExporterMaxAttempts {
+			break
+		}
+		logger.Warn("enabling exporter for service failed, retrying", "service", service, "attempt", attempt, "error", err)
+		time.Sleep(b.Duration())
+	}
+	return nil, lastErr
 }
 
 func selectServicesForRequest(configuredServices []string, r *http.Request) ([]string, error) {

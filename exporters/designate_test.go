@@ -12,6 +12,10 @@ type DesignateTestSuite struct {
 }
 
 var designateExpectedUp = `
+# HELP openstack_designate_agent_state agent_state
+# TYPE openstack_designate_agent_state gauge
+openstack_designate_agent_state{hostname="dns-1",id="service-1",service="central",status="UP"} 1
+openstack_designate_agent_state{hostname="dns-2",id="service-2",service="worker",status="DOWN"} 0
 # HELP openstack_designate_recordsets recordsets
 # TYPE openstack_designate_recordsets gauge
 openstack_designate_recordsets{tenant_id="4335d1f0-f793-11e2-b778-0800200c9a66",zone_id="a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",zone_name="example.org."} 1

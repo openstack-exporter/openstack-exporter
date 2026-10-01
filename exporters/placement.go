@@ -19,32 +19,14 @@ type cachedMetricEntry struct {
 
 type cachedProviderData struct {
 	generation int
+	name       string
+	traits     string
 	metrics    []cachedMetricEntry
 }
 
 type placementCache struct {
 	mu        sync.Mutex
 	providers map[string]*cachedProviderData
-}
-
-var globalPlacementCaches = struct {
-	mu     sync.Mutex
-	caches map[string]*placementCache
-}{caches: make(map[string]*placementCache)}
-
-func getPlacementCache(endpoint string, collectTraits bool) *placementCache {
-	globalPlacementCaches.mu.Lock()
-	defer globalPlacementCaches.mu.Unlock()
-	cacheKey := endpoint
-	if collectTraits {
-		cacheKey += "|traits"
-	}
-	if c, ok := globalPlacementCaches.caches[cacheKey]; ok {
-		return c
-	}
-	c := &placementCache{providers: make(map[string]*cachedProviderData)}
-	globalPlacementCaches.caches[cacheKey] = c
-	return c
 }
 
 type PlacementExporter struct {
@@ -73,7 +55,7 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			ExporterConfig: *config,
 			logger:         logger,
 		},
-		cache: getPlacementCache(config.ClientV2.Endpoint, config.CollectPlacementTraits),
+		cache: &placementCache{providers: make(map[string]*cachedProviderData)},
 	}
 
 	for _, metric := range defaultPlacementMetrics {
@@ -105,18 +87,9 @@ func (pe *PlacementExporter) listWithCache(ctx context.Context, exporter *BaseOp
 	}
 
 	currentProviderUUIDs := make(map[string]struct{}, len(allResourceProviders))
-	var providersToFetch []resourceproviders.ResourceProvider
-
 	pe.cache.mu.Lock()
 	for _, rp := range allResourceProviders {
 		currentProviderUUIDs[rp.UUID] = struct{}{}
-
-		cached, exists := pe.cache.providers[rp.UUID]
-		if exists && cached.generation == rp.Generation {
-			emitCachedMetrics(exporter, ch, cached)
-		} else {
-			providersToFetch = append(providersToFetch, rp)
-		}
 	}
 
 	for uuid := range pe.cache.providers {
@@ -126,21 +99,11 @@ func (pe *PlacementExporter) listWithCache(ctx context.Context, exporter *BaseOp
 	}
 	pe.cache.mu.Unlock()
 
-	exporter.logger.Info("Placement cache status",
-		"total_providers", len(allResourceProviders),
-		"cache_hits", len(allResourceProviders)-len(providersToFetch),
-		"providers_to_fetch", len(providersToFetch),
-	)
-
-	if len(providersToFetch) == 0 {
-		return nil
-	}
-
 	concurrency := 1
 	if exporter.CompletePlacementInParallel {
 		concurrency = maxConcurrentPlacementRequests
 	}
-	return collectAndCachePlacementProviders(ctx, exporter, ch, providersToFetch, concurrency, pe.cache)
+	return collectAndCachePlacementProviders(ctx, exporter, ch, allResourceProviders, concurrency, pe.cache)
 }
 
 // ListPlacementResourceProviders is the non-cached version used by tests and as fallback.
@@ -186,38 +149,73 @@ func collectAndCachePlacementProviders(ctx context.Context, exporter *BaseOpenSt
 			semaphore <- struct{}{}
 			defer func() { <-semaphore }()
 
-			var entries []cachedMetricEntry
+			var cached *cachedProviderData
+			if cache != nil {
+				cache.mu.Lock()
+				cached = cache.providers[resourceprovider.UUID]
+				cache.mu.Unlock()
+			}
+			if cached != nil && (cached.generation != resourceprovider.Generation || cached.name != resourceprovider.Name) {
+				cached = nil
+			}
 
-			traitsStr := ""
-			if exporter.CollectPlacementTraits {
-				if traitResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
-					traits := make([]string, 0, len(traitResult.Traits))
-					for _, trait := range traitResult.Traits {
-						if strings.HasPrefix(trait, "CUSTOM_") {
-							traits = append(traits, trait)
+			if cached == nil {
+				var entries []cachedMetricEntry
+				cacheable := true
+				traitsStr := ""
+				if exporter.CollectPlacementTraits {
+					if traitResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
+						cacheable = traitResult.ResourceProviderGeneration == resourceprovider.Generation
+						traits := make([]string, 0, len(traitResult.Traits))
+						for _, trait := range traitResult.Traits {
+							if strings.HasPrefix(trait, "CUSTOM_") {
+								traits = append(traits, trait)
+							}
 						}
+						sort.Strings(traits)
+						traitsStr = strings.Join(traits, ",")
+					} else {
+						setError(err)
+						return
 					}
-					sort.Strings(traits)
-					traitsStr = strings.Join(traits, ",")
-				} else {
-					exporter.logger.Warn("failed to retrieve placement resource provider traits", "resource_provider", resourceprovider.UUID, "error", err)
+				}
+
+				inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
+				if err != nil {
+					setError(err)
+					return
+				}
+
+				for k, v := range inventoryResult.Inventories {
+					entries = append(entries,
+						cachedMetricEntry{"resource_total", float64(v.Total), []string{resourceprovider.Name, k, traitsStr}},
+						cachedMetricEntry{"resource_allocation_ratio", float64(v.AllocationRatio), []string{resourceprovider.Name, k, traitsStr}},
+						cachedMetricEntry{"resource_generation", float64(inventoryResult.ResourceProviderGeneration), []string{resourceprovider.Name, k, traitsStr}},
+						cachedMetricEntry{"resource_reserved", float64(v.Reserved), []string{resourceprovider.Name, k, traitsStr}},
+					)
+				}
+
+				entries = append(entries, cachedMetricEntry{"resource_traits", 1.0, []string{resourceprovider.Name, traitsStr}})
+				cached = &cachedProviderData{
+					generation: resourceprovider.Generation,
+					name:       resourceprovider.Name,
+					traits:     traitsStr,
+					metrics:    entries,
+				}
+				// Only cache static data when its API generations agree with the list.
+				if cache != nil && cacheable && inventoryResult.ResourceProviderGeneration == resourceprovider.Generation {
+					cache.mu.Lock()
+					if existing := cache.providers[resourceprovider.UUID]; existing == nil || existing.generation <= cached.generation {
+						cache.providers[resourceprovider.UUID] = cached
+					}
+					cache.mu.Unlock()
 				}
 			}
+			emitPlacementMetrics(exporter, ch, cached.metrics)
 
-			inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
-			if err != nil {
-				setError(err)
-				return
-			}
-
-			for k, v := range inventoryResult.Inventories {
-				entries = append(entries,
-					cachedMetricEntry{"resource_total", float64(v.Total), []string{resourceprovider.Name, k, traitsStr}},
-					cachedMetricEntry{"resource_allocation_ratio", float64(v.AllocationRatio), []string{resourceprovider.Name, k, traitsStr}},
-					cachedMetricEntry{"resource_generation", float64(inventoryResult.ResourceProviderGeneration), []string{resourceprovider.Name, k, traitsStr}},
-					cachedMetricEntry{"resource_reserved", float64(v.Reserved), []string{resourceprovider.Name, k, traitsStr}},
-				)
-			}
+			// Allocation changes may leave the provider generation unchanged.
+			// Read usage and allocations on every scrape.
+			traitsStr := cached.traits
 
 			usagesResult, err := resourceproviders.GetUsages(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 			if err != nil {
@@ -226,14 +224,10 @@ func collectAndCachePlacementProviders(ctx context.Context, exporter *BaseOpenSt
 			}
 
 			for k, v := range usagesResult.Usages {
-				entries = append(entries,
-					cachedMetricEntry{"resource_usage", float64(v), []string{resourceprovider.Name, k, traitsStr}},
-				)
+				emitPlacementMetrics(exporter, ch, []cachedMetricEntry{
+					{"resource_usage", float64(v), []string{resourceprovider.Name, k, traitsStr}},
+				})
 			}
-
-			entries = append(entries,
-				cachedMetricEntry{"resource_traits", 1.0, []string{resourceprovider.Name, traitsStr}},
-			)
 
 			if _, ok := exporter.Metrics["resource_provider_allocations"]; ok {
 				allocationsResult, err := resourceproviders.GetAllocations(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
@@ -244,22 +238,11 @@ func collectAndCachePlacementProviders(ctx context.Context, exporter *BaseOpenSt
 
 				for consumerID, allocation := range allocationsResult.Allocations {
 					for resourceClass, amount := range allocation.Resources {
-						entries = append(entries,
-							cachedMetricEntry{"resource_provider_allocations", float64(amount), []string{resourceprovider.Name, consumerID, resourceClass}},
-						)
+						emitPlacementMetrics(exporter, ch, []cachedMetricEntry{
+							{"resource_provider_allocations", float64(amount), []string{resourceprovider.Name, consumerID, resourceClass}},
+						})
 					}
 				}
-			}
-
-			emitCachedMetrics(exporter, ch, &cachedProviderData{metrics: entries})
-
-			if cache != nil {
-				cache.mu.Lock()
-				cache.providers[resourceprovider.UUID] = &cachedProviderData{
-					generation: resourceprovider.Generation,
-					metrics:    entries,
-				}
-				cache.mu.Unlock()
 			}
 		}()
 	}
@@ -268,8 +251,8 @@ func collectAndCachePlacementProviders(ctx context.Context, exporter *BaseOpenSt
 	return errCollect
 }
 
-func emitCachedMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric, data *cachedProviderData) {
-	for _, entry := range data.metrics {
+func emitPlacementMetrics(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric, entries []cachedMetricEntry) {
+	for _, entry := range entries {
 		if desc, ok := exporter.Metrics[entry.metricName]; ok {
 			ch <- prometheus.MustNewConstMetric(
 				desc.Metric,

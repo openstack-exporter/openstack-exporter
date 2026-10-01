@@ -100,7 +100,12 @@ func CollectCache(
 			lg2.Info("Finish update cache data")
 		}
 		if successfulServices == 0 {
-			return fmt.Errorf("failed to collect cache for cloud %q: no exporters produced metrics", cloud)
+			err := fmt.Errorf("failed to collect cache for cloud %q: no exporters produced metrics", cloud)
+			if !multiCloud {
+				return err
+			}
+			lg.Error("Cache refresh failed; keeping previous cache until expiry", "error", err)
+			continue
 		}
 
 		cacheBackend.SetCloudCache(cloud, cloudCache)
@@ -123,7 +128,7 @@ func encodeFromCache(cloud string, services []string, format expfmt.Format, logg
 	cloudCache, exists := cacheBackend.GetCloudCache(cloud)
 	if !exists {
 		logger.Debug("Cache not exists", "cloud", cloud)
-		return buf, nil
+		return buf, fmt.Errorf("no cached metrics available for cloud %q", cloud)
 	}
 
 	enc := expfmt.NewEncoder(&buf, format)

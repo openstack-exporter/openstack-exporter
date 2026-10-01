@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -440,13 +441,15 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 
 // serverAddresses falls back to the standard Nova addresses map when the
 // optional accessIPv4/accessIPv6 fields are not populated.
+// Networks are considered by name, and addresses retain their API array order.
 func serverAddresses(server servers.Server) (string, string) {
 	ipv4, ipv6 := server.AccessIPv4, server.AccessIPv6
 	if ipv4 != "" && ipv6 != "" {
 		return ipv4, ipv6
 	}
 
-	for _, rawAddresses := range server.Addresses {
+	for _, network := range slices.Sorted(maps.Keys(server.Addresses)) {
+		rawAddresses := server.Addresses[network]
 		data, err := json.Marshal(rawAddresses)
 		if err != nil {
 			continue

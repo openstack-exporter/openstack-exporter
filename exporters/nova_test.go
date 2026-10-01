@@ -25,6 +25,41 @@ func (suite *NovaTestSuite) TestServerAddressesFallback() {
 	assert.Equal(suite.T(), "2001:db8::10", ipv6)
 }
 
+func (suite *NovaTestSuite) TestServerAddressesStableFallback() {
+	server := servers.Server{Addresses: map[string]any{
+		"z-network": []any{
+			map[string]any{"addr": "192.0.2.20", "version": 4},
+			map[string]any{"addr": "2001:db8::20", "version": 6},
+		},
+		"a-network": []any{
+			map[string]any{"addr": "192.0.2.10", "version": 4},
+			map[string]any{"addr": "192.0.2.11", "version": 4},
+			map[string]any{"addr": "2001:db8::10", "version": 6},
+			map[string]any{"addr": "2001:db8::11", "version": 6},
+		},
+	}}
+
+	for range 100 {
+		ipv4, ipv6 := serverAddresses(server)
+		assert.Equal(suite.T(), "192.0.2.10", ipv4)
+		assert.Equal(suite.T(), "2001:db8::10", ipv6)
+	}
+
+	for _, access := range []struct {
+		ipv4, ipv6   string
+		want4, want6 string
+	}{
+		{"198.51.100.10", "", "198.51.100.10", "2001:db8::10"},
+		{"", "2001:db8:1::10", "192.0.2.10", "2001:db8:1::10"},
+		{"198.51.100.10", "2001:db8:1::10", "198.51.100.10", "2001:db8:1::10"},
+	} {
+		server.AccessIPv4, server.AccessIPv6 = access.ipv4, access.ipv6
+		ipv4, ipv6 := serverAddresses(server)
+		assert.Equal(suite.T(), access.want4, ipv4)
+		assert.Equal(suite.T(), access.want6, ipv6)
+	}
+}
+
 var novaExpectedUp = `
 # HELP openstack_nova_agent_state agent_state
 # TYPE openstack_nova_agent_state gauge

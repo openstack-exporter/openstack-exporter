@@ -43,6 +43,8 @@
       "os_hash_value": "ea3e20140df1cc65f53d4c5b9ee3b38d0d6868f61bbe2230417b0f98cef0e0c7c37f0ebc5c6456fa47f013de48b452617d56c15fdba25e100379bd0e81ee15ec",
       "os_hidden": false,
       "owner": "5ef70662f8b34079a6eddb8da9d75fe8",
+      "image_type": "snapshot",
+      "instance_uuid": "2d1029d0-05f9-4b57-bbf2-e294732f7b15",
       "size": 476704768,
       "min_ram": 0,
       "schema": "/v2/schemas/image",

@@ -1,7 +1,12 @@
 package exporters
 
 import (
+	"net/http"
+	"os"
 	"strings"
+
+	"github.com/jarcoal/httpmock"
+	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -70,6 +75,74 @@ openstack_placement_up 1
 `
 
 func (suite *PlacementTestSuite) TestPlacementExporter() {
+	// Real Placement rejects traits requests using the default microversion 1.0.
+	for _, fixture := range []struct{ uuid, name string }{
+		{"b985be15-99bf-4baf-9ef7-3ef166cd7f31", "resource_provider_1_traits"},
+		{"328c9f0a-5a3c-4ad6-9347-689eb7632d7b", "resource_provider_2_traits"},
+	} {
+		data, err := os.ReadFile(suite.FixturePath(fixture.name))
+		suite.Require().NoError(err)
+		httpmock.RegisterResponder("GET", suite.MakeURL("/placement/resource_providers/"+fixture.uuid+"/traits", ""), func(req *http.Request) (*http.Response, error) {
+			suite.Equal("placement 1.6", req.Header.Get("OpenStack-API-Version"))
+			if req.Header.Get("OpenStack-API-Version") != "placement 1.6" {
+				return httpmock.NewStringResponse(http.StatusNotAcceptable, ""), nil
+			}
+			return httpmock.NewStringResponse(http.StatusOK, string(data)), nil
+		})
+	}
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(placementExpected))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *PlacementTestSuite) TestDisabledPlacementMetrics() {
+	suite.SetResponseFromFixture("GET", 200, suite.MakeURL("/placement/", ""), suite.FixturePath("placement_api_discovery"))
+	config := (*suite.Exporter).(*PlacementExporter).ExporterConfig
+	config.DisabledMetrics = []string{"placement-resource_traits", "placement-resource_usage"}
+	exporter, err := NewPlacementExporter(&config, (*suite.Exporter).(*PlacementExporter).logger)
+	suite.Require().NoError(err)
+	registry := prometheus.NewRegistry()
+	registry.MustRegister(exporter)
+	metrics, err := registry.Gather()
+	suite.Require().NoError(err)
+	foundTotal := false
+	for _, metric := range metrics {
+		suite.NotEqual("openstack_placement_resource_traits", metric.GetName())
+		suite.NotEqual("openstack_placement_resource_usage", metric.GetName())
+		if metric.GetName() == "openstack_placement_resource_total" {
+			foundTotal = true
+			suite.Len(metric.Metric, 6)
+		}
+		if metric.GetName() == "openstack_placement_up" {
+			suite.Equal(float64(1), metric.Metric[0].GetGauge().GetValue())
+		}
+	}
+	suite.True(foundTotal, "enabled inventory metrics must still be collected")
+}
+
+func (suite *PlacementTestSuite) TestLegacyPlacementMicroversion() {
+	data, err := os.ReadFile(suite.FixturePath("placement_api_discovery"))
+	suite.Require().NoError(err)
+	httpmock.RegisterResponder("GET", suite.MakeURL("/placement/", ""), httpmock.NewStringResponder(200, strings.ReplaceAll(string(data), "1.39", "1.0")))
+	suite.checkPlacementWithoutTraits()
+}
+
+func (suite *PlacementTestSuite) TestPlacementMicroversionOverride() {
+	suite.T().Setenv("OS_PLACEMENT_API_VERSION", "1.0")
+	suite.SetResponseFromFixture("GET", 200, suite.MakeURL("/placement/", ""), suite.FixturePath("placement_api_discovery"))
+	suite.checkPlacementWithoutTraits()
+}
+
+func (suite *PlacementTestSuite) checkPlacementWithoutTraits() {
+	config := (*suite.Exporter).(*PlacementExporter).ExporterConfig
+	exporter, err := NewPlacementExporter(&config, (*suite.Exporter).(*PlacementExporter).logger)
+	suite.Require().NoError(err)
+	suite.Equal("1.0", exporter.ClientV2.Microversion)
+	for _, uuid := range []string{"b985be15-99bf-4baf-9ef7-3ef166cd7f31", "328c9f0a-5a3c-4ad6-9347-689eb7632d7b"} {
+		httpmock.RegisterResponder("GET", suite.MakeURL("/placement/resource_providers/"+uuid+"/traits", ""), func(req *http.Request) (*http.Response, error) {
+			suite.Fail("traits endpoint must not be requested below microversion 1.6")
+			return httpmock.NewStringResponse(404, ""), nil
+		})
+	}
+	expected := strings.NewReplacer("CUSTOM_HW_FPGA_CLASS1,CUSTOM_HW_FPGA_CLASS3", "", "CUSTOM_GPU", "").Replace(placementExpected)
+	suite.NoError(testutil.CollectAndCompare(exporter, strings.NewReader(expected)))
 }

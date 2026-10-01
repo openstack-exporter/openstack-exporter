@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -29,6 +30,11 @@ var defaultPlacementMetrics = []Metric{
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
+	// Resource provider traits require Placement microversion 1.6.
+	if err := utils.SetupClientMicroversionV2(context.TODO(), config.ClientV2, "OS_PLACEMENT_API_VERSION", "1.6", logger); err != nil {
+		return nil, err
+	}
+
 	exporter := PlacementExporter{
 		BaseOpenStackExporter{
 			Name:           "placement",
@@ -59,19 +65,22 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		return err
 	}
 
+	traitsSupported, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "1.6")
 	for _, resourceprovider := range allResourceProviders {
 		traitsStr := ""
-		if traitResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
-			traits := make([]string, 0, len(traitResult.Traits))
-			for _, trait := range traitResult.Traits {
-				if strings.HasPrefix(trait, "CUSTOM_") {
-					traits = append(traits, trait)
+		if traitsSupported {
+			if traitResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
+				traits := make([]string, 0, len(traitResult.Traits))
+				for _, trait := range traitResult.Traits {
+					if strings.HasPrefix(trait, "CUSTOM_") {
+						traits = append(traits, trait)
+					}
 				}
+				sort.Strings(traits)
+				traitsStr = strings.Join(traits, ",")
+			} else {
+				exporter.logger.Warn("failed to retrieve placement resource provider traits", "resource_provider", resourceprovider.UUID, "error", err)
 			}
-			sort.Strings(traits)
-			traitsStr = strings.Join(traits, ",")
-		} else {
-			exporter.logger.Warn("failed to retrieve placement resource provider traits", "resource_provider", resourceprovider.UUID, "error", err)
 		}
 
 		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
@@ -95,13 +104,15 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 			emitPlacementResourceMetric(exporter, ch, "resource_usage", float64(v), resourceprovider.Name, k, traitsStr)
 		}
 
-		ch <- prometheus.MustNewConstMetric(
-			exporter.Metrics["resource_traits"].Metric,
-			prometheus.GaugeValue,
-			1.0,
-			resourceprovider.Name,
-			traitsStr,
-		)
+		if metric, ok := exporter.Metrics["resource_traits"]; ok {
+			ch <- prometheus.MustNewConstMetric(
+				metric.Metric,
+				prometheus.GaugeValue,
+				1.0,
+				resourceprovider.Name,
+				traitsStr,
+			)
+		}
 
 		if _, ok := exporter.Metrics["resource_provider_allocations"]; ok {
 			allocationsResult, err := resourceproviders.GetAllocations(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
@@ -136,8 +147,12 @@ func emitPlacementResourceMetric(
 	resourceType string,
 	traits string,
 ) {
+	metric, ok := exporter.Metrics[metricName]
+	if !ok {
+		return
+	}
 	ch <- prometheus.MustNewConstMetric(
-		exporter.Metrics[metricName].Metric,
+		metric.Metric,
 		prometheus.GaugeValue,
 		value,
 		hostname,

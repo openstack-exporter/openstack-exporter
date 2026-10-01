@@ -4,7 +4,6 @@ import (
 	"strings"
 
 	"github.com/jarcoal/httpmock"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
@@ -42,66 +41,35 @@ func (suite *GlanceTestSuite) TestGlanceExporter() {
 
 func (suite *GlanceTestSuite) TestImageCountAndInfo() {
 	for _, tc := range []struct {
-		name     string
-		disabled []string
-		empty    bool
+		name, disabled, count string
+		empty                 bool
+		info                  int
 	}{
-		{name: "populated catalog"},
-		{name: "empty catalog", empty: true},
-		{name: "count disabled", disabled: []string{"glance-images"}},
-		{name: "info disabled", disabled: []string{"glance-image_info"}},
+		{"populated catalog", "", "2", false, 2},
+		{"empty catalog", "", "0", true, 0},
+		{"count disabled", "glance-images", "", false, 2},
+		{"info disabled", "glance-image_info", "2", false, 0},
 	} {
 		suite.Run(tc.name, func() {
 			if tc.empty {
 				httpmock.RegisterResponder("GET", suite.MakeURL("/glance/v2/images", ""),
-					httpmock.NewJsonResponderOrPanic(200, map[string]interface{}{"images": []interface{}{}}))
+					httpmock.NewJsonResponderOrPanic(200, map[string]any{"images": []any{}}))
 			} else {
 				suite.SetResponseFromFixture("GET", 200, suite.MakeURL("/glance/v2/images", ""), suite.FixturePath("glance_images"))
 			}
 			base := (*suite.Exporter).(*GlanceExporter)
 			config := base.ExporterConfig
-			config.DisabledMetrics = tc.disabled
+			config.DisabledMetrics = []string{tc.disabled}
 			config.DisableSlowMetrics = true
 			exporter, err := NewGlanceExporter(&config, base.logger)
 			suite.Require().NoError(err)
-			registry := prometheus.NewRegistry()
-			suite.Require().NoError(registry.Register(exporter))
-			families, err := registry.Gather()
-			suite.Require().NoError(err)
-			var count, infoSum float64
-			var countSamples, infoSamples int
-			for _, family := range families {
-				switch family.GetName() {
-				case "openstack_glance_images":
-					countSamples = len(family.Metric)
-					for _, metric := range family.Metric {
-						count += metric.GetGauge().GetValue()
-						suite.Empty(metric.Label)
-					}
-				case "openstack_glance_image_info":
-					infoSamples = len(family.Metric)
-					for _, metric := range family.Metric {
-						infoSum += metric.GetGauge().GetValue()
-						suite.Equal(float64(1), metric.GetGauge().GetValue())
-					}
-				}
+			expected := ""
+			if tc.count != "" {
+				expected = "# HELP openstack_glance_images images\n# TYPE openstack_glance_images gauge\nopenstack_glance_images " + tc.count + "\n"
 			}
-			wantCount := float64(2)
-			if tc.empty {
-				wantCount = 0
-			}
-			if exporter.MetricIsDisabled("images") {
-				suite.Zero(countSamples)
-			} else {
-				suite.Equal(1, countSamples)
-				suite.Equal(wantCount, count)
-			}
-			if exporter.MetricIsDisabled("image_info") {
-				suite.Zero(infoSamples)
-			} else {
-				suite.Equal(int(wantCount), infoSamples)
-				suite.Equal(wantCount, infoSum)
-			}
+			suite.NoError(testutil.CollectAndCompare(exporter, strings.NewReader(expected), "openstack_glance_images"))
+			count := testutil.CollectAndCount(exporter, "openstack_glance_image_info")
+			suite.Equal(tc.info, count)
 		})
 	}
 }

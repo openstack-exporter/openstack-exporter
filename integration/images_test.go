@@ -3,6 +3,8 @@ package integration
 import (
 	"testing"
 
+	"github.com/gophercloud/gophercloud/v2/openstack/image/v2/images"
+
 	"github.com/openstack-exporter/openstack-exporter/integration/clients"
 	"github.com/openstack-exporter/openstack-exporter/integration/funcs"
 )
@@ -40,14 +42,25 @@ func TestImagesIntegration(t *testing.T) {
 	t.Run("openstack_glance_core_metrics_present", func(t *testing.T) {
 		metrics.requireAnyFamily(t,
 			"openstack_glance_images",
+			"openstack_glance_image_info",
 			"openstack_glance_image_bytes",
 			"openstack_glance_image_created_at",
 		)
 	})
 
-	t.Run("glance_images_labels_present", func(t *testing.T) {
-		metrics.requirePresentLabels(t, "openstack_glance_images", nil,
-			"id", "name", "image_stats", "disk_format", "tags", "project_id")
+	t.Run("glance_image_info_labels_present", func(t *testing.T) {
+		for _, image := range []*images.Image{snapshotImage, plainImage} {
+			match := labels{"id": image.ID}
+			metrics.requirePresentLabels(t, "openstack_glance_image_info", match,
+				"id", "name", "status", "disk_format", "tags", "project_id")
+			metrics.requireLabelValue(t, "openstack_glance_image_info", match, "name", image.Name)
+			metrics.requireLabelValue(t, "openstack_glance_image_info", match, "status", string(image.Status))
+			metrics.requireLabelValue(t, "openstack_glance_image_info", match, "disk_format", image.DiskFormat)
+			metrics.requireLabelValue(t, "openstack_glance_image_info", match, "project_id", image.Owner)
+			if sample := metrics.requireMetric(t, "openstack_glance_image_info", match); sample.value != 1 {
+				t.Errorf("image info value = %v, want 1", sample.value)
+			}
+		}
 	})
 
 	t.Run("glance_image_bytes_labels_present", func(t *testing.T) {

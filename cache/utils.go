@@ -14,7 +14,6 @@ import (
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/expfmt"
 )
 
@@ -153,15 +152,12 @@ func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, 
 		return err
 	}
 
-	opts := promhttp.HandlerOpts{}
-
-	// Follow the way how promehttp package set up the contentType
-	var contentType expfmt.Format
-	if opts.EnableOpenMetrics {
-		contentType = expfmt.NegotiateIncludingOpenMetrics(r.Header)
-	} else {
-		contentType = expfmt.Negotiate(r.Header)
-	}
+	contentType := expfmt.NegotiateAccept(r.Header,
+		expfmt.NewFormat(expfmt.TypeProtoDelim),
+		expfmt.NewFormat(expfmt.TypeProtoText),
+		expfmt.NewFormat(expfmt.TypeProtoCompact),
+		expfmt.NewFormat(expfmt.TypeTextPlain),
+	)
 	w.Header().Set("Content-Type", string(contentType))
 
 	if _, err = w.Write(buf.Bytes()); err != nil {

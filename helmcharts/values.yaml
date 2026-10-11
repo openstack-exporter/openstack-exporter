@@ -55,6 +55,21 @@ multicloud:
 #commonLabels:
 #  prometheus.io/monitor: "true"
 
+# Add extra volumes mounted to openstack-exporter deployment
+# Useful for mounting CA Certificates
+#extraVolumes:
+#- name: company-ca
+#  configMap:
+#    name: my-company-ca
+#    items:
+#    - key: ca
+#      path: my-company-ca
+#
+#extraVolumeMounts:
+#- mountPath: /etc/ssl/certs/my-company-ca
+#  name: company-ca
+#  subPath: my-company-ca
+
 # Generate a secret for clouds.yaml
 # Doc: https://github.com/openstack-exporter/openstack-exporter#openstack-configuration
 # Set clouds_yaml_secret_name to use an existing Secret instead. The Secret must contain a clouds.yaml key.

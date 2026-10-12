@@ -2,6 +2,8 @@ package exporters
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -77,6 +79,8 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 
 func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
+	// Non-fatal errors that will only be returned in the end of the method
+	var nonFatalErrs []error
 
 	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
@@ -102,7 +106,8 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 					emitPlacementResourceMetric(exporter, ch, "resource_provider_trait", 1, resourceprovider.Name, v)
 				}
 			} else {
-				exporter.logger.Error("Could not get resource provider traits list", "resource_provider", resourceprovider.Name, "error", err)
+				// Keep collecting the remaining metrics, but report the failure through the collection status
+				nonFatalErrs = append(nonFatalErrs, fmt.Errorf("could not get traits of resource provider %s: %w", resourceprovider.Name, err))
 			}
 		}
 
@@ -143,8 +148,7 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		}
 	}
 
-	return nil
-
+	return errors.Join(nonFatalErrs...)
 }
 
 func emitPlacementResourceMetric(

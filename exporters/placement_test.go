@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -68,7 +69,42 @@ openstack_placement_resource_usage{hostname="cmp-5-svr8208.localdomain",resource
 openstack_placement_up 1
 `
 
+var placementTraitsFailedUpExpected = `
+# HELP openstack_placement_up up
+# TYPE openstack_placement_up gauge
+openstack_placement_up 0
+`
+
+var placementTraitsFailedTotalExpected = `
+# HELP openstack_placement_resource_total resource_total
+# TYPE openstack_placement_resource_total gauge
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="DISK_GB"} 2047
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="MEMORY_MB"} 772447
+openstack_placement_resource_total{hostname="cmp-1-svr8204.localdomain",resourcetype="VCPU"} 96
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="DISK_GB"} 2047
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="MEMORY_MB"} 772447
+openstack_placement_resource_total{hostname="cmp-5-svr8208.localdomain",resourcetype="PCPU"} 96
+`
+
 func (suite *PlacementTestSuite) TestPlacementExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(placementExpected))
 	assert.NoError(suite.T(), err)
+}
+
+// A failed traits request must be reported through the collection status (up=0), while the
+// remaining metrics are still collected and the failing provider's traits are not emitted.
+func (suite *PlacementTestSuite) TestPlacementExporterTraitsFailure() {
+	httpmock.RegisterResponder("GET",
+		suite.MakeURL("/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/traits", ""),
+		httpmock.NewStringResponder(500, ""),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(placementTraitsFailedUpExpected), "openstack_placement_up")
+	assert.NoError(suite.T(), err)
+
+	err = testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(placementTraitsFailedTotalExpected), "openstack_placement_resource_total")
+	assert.NoError(suite.T(), err)
+
+	// resource_provider_trait must not be emitted for the provider whose traits request failed
+	assert.Equal(suite.T(), 0, testutil.CollectAndCount(*suite.Exporter, "openstack_placement_resource_provider_trait"))
 }

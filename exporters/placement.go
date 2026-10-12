@@ -17,7 +17,9 @@ type PlacementExporter struct {
 var placementResourceLabels = []string{"hostname", "resourcetype"}
 var placementResourceProviderTraits = []string{"hostname", "trait"}
 var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
-var resourceProviderTraitsEnabled = false
+
+// placementTraitsMicroversion is the minimum placement microversion providing resource provider traits.
+const placementTraitsMicroversion = "1.6"
 
 var defaultPlacementMetrics = []Metric{
 	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
@@ -56,16 +58,14 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 
 		// Verify if the required microversion is supported
 		if microVersions, err := utils.GetSupportedMicroversions(ctx, exporter.ClientV2); err == nil {
-			traitsMicroversion := "1.6"
-			if supported, err := microVersions.IsSupported(traitsMicroversion); err == nil {
+			if supported, err := microVersions.IsSupported(placementTraitsMicroversion); err == nil {
 				if supported {
-					exporter.ClientV2.Microversion = traitsMicroversion
-					resourceProviderTraitsEnabled = true
+					exporter.ClientV2.Microversion = placementTraitsMicroversion
 				} else {
-					logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", traitsMicroversion)
+					logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", placementTraitsMicroversion)
 				}
 			} else {
-				logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", traitsMicroversion, "error", err)
+				logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", placementTraitsMicroversion, "error", err)
 			}
 		} else {
 			logger.Warn("Error while retrieving placement microversion support, the resource provider traits info will not be exported", "error", err)
@@ -93,7 +93,7 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 			return err
 		}
 
-		if resourceProviderTraitsEnabled {
+		if exporter.ClientV2.Microversion == placementTraitsMicroversion {
 			if traitsResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
 				for _, v := range traitsResult.Traits {
 					if !exporter.PlacementProviderTraitRegex.MatchString(v) {

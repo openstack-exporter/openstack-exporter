@@ -98,7 +98,7 @@ var (
 var defaultNeutronMetrics = []Metric{
 	{Name: "floating_ips", Fn: ListFloatingIps},
 	{Name: "floating_ips_associated_not_active"},
-	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address"}},
+	{Name: "floating_ip", Labels: []string{"id", "floating_network_id", "router_id", "status", "project_id", "floating_ip_address", "port_id", "fixed_ip_address"}},
 	{Name: "networks", Fn: ListNetworks},
 	{Name: "network", Labels: []string{"id", "tenant_id", "status", "name", "is_shared", "is_external", "provider_network_type",
 		"provider_physical_network", "provider_segmentation_id", "subnets", "tags", "mtu"}},
@@ -176,7 +176,7 @@ func ListFloatingIps(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 	failedFIPs := 0
 	for _, fip := range allFloatingIPs {
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["floating_ip"].Metric,
-			prometheus.GaugeValue, 1, fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP)
+			prometheus.GaugeValue, 1, fip.ID, fip.FloatingNetworkID, fip.RouterID, fip.Status, fip.ProjectID, fip.FloatingIP, fip.PortID, fip.FixedIP)
 
 		if fip.FixedIP != "" && fip.Status != "ACTIVE" {
 			failedFIPs = failedFIPs + 1

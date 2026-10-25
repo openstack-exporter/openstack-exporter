@@ -18,7 +18,7 @@ func TestMasakariIntegration(t *testing.T) {
 
 	_, cleanup, err := startOpenStackExporter([]string{"instance-ha"})
 	if err != nil {
-		t.Skipf("Masakari exporter is not available yet: %v", err)
+		t.Fatalf("Failed to start Masakari exporter: %v", err)
 	}
 	defer cleanup()
 
@@ -46,6 +46,8 @@ func TestMasakariIntegration(t *testing.T) {
 
 	t.Run("openstack_masakari_core_metrics_present", func(t *testing.T) {
 		for _, metric := range []string{
+			"openstack_masakari_notifications",
+			"openstack_masakari_collection_success",
 			"openstack_masakari_segment",
 			"openstack_masakari_host",
 			"openstack_masakari_host_on_maintenance",

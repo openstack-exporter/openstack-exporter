@@ -48,6 +48,12 @@ func TestComputeIntegration(t *testing.T) {
 		metrics.requireLabels(t, "openstack_nova_server_status", labels{
 			"id": server.ID, "name": server.Name, "status": "ACTIVE", "uuid": server.ID,
 		}, "flavor_id", "tenant_id", "user_id", "host_id", "hypervisor_hostname")
+		metrics.requirePresentLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "task_state")
+		metrics.requirePresentLabels(t, "openstack_nova_server_status", labels{"id": server.ID}, "security_groups")
+	})
+
+	t.Run("nova_server_groups_metric_present", func(t *testing.T) {
+		metrics.requireAnyFamily(t, "openstack_nova_server_groups", "openstack_nova_server_group_members")
 	})
 
 	t.Run("nova_running_vms_grouped_by_server_tenant", func(t *testing.T) {
@@ -56,6 +62,12 @@ func TestComputeIntegration(t *testing.T) {
 			"availability_zone": server.AvailabilityZone,
 			"tenant_id":         server.TenantID,
 		}, 1)
+	})
+
+	t.Run("nova_compute_capacity_metrics_present", func(t *testing.T) {
+		metrics.requireMinValue(t, "openstack_nova_compute_vcpus", nil, 1)
+		metrics.requireMinValue(t, "openstack_nova_compute_memory_bytes", nil, 1)
+		metrics.requireAnyFamily(t, "openstack_nova_compute_disk_available_bytes")
 	})
 
 	t.Run("nova_quota_instances_admin_in_use_present", func(t *testing.T) {

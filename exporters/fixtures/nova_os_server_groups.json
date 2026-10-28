@@ -1,0 +1,12 @@
+{
+  "server_groups": [
+    {
+      "id": "group-1",
+      "name": "anti-affinity",
+      "policies": ["anti-affinity"],
+      "members": ["server-1", "server-2"],
+      "user_id": "user-1",
+      "project_id": "project-1"
+    }
+  ]
+}

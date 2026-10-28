@@ -49,6 +49,7 @@ func mapRecordsetStatus(recordsetStatus string) int {
 
 var defaultDesignateMetrics = []Metric{
 	{Name: "zones", Fn: ListZonesAndRecordsets},
+	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "status"}, Fn: ListDesignateServices},
 	{Name: "zone_status", Labels: []string{"id", "name", "status", "tenant_id", "type"}, Fn: nil},
 	{Name: "recordsets", Labels: []string{"zone_id", "zone_name", "tenant_id"}, Fn: nil},
 	{Name: "recordsets_status", Labels: []string{"id", "name", "status", "zone_id", "zone_name", "type"}, Fn: nil},
@@ -128,6 +129,33 @@ func ListZonesAndRecordsets(ctx context.Context, exporter *BaseOpenStackExporter
 
 	if err := g.Wait(); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+type designateServiceStatus struct {
+	ID          string `json:"id"`
+	Hostname    string `json:"hostname"`
+	ServiceName string `json:"service_name"`
+	Status      string `json:"status"`
+}
+
+func ListDesignateServices(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var response struct {
+		Services []designateServiceStatus `json:"service_statuses"`
+	}
+	if _, err := exporter.ClientV2.Get(ctx, exporter.ClientV2.ServiceURL("service_statuses"), &response, nil); err != nil {
+		return err
+	}
+
+	for _, service := range response.Services {
+		state := 0.0
+		if strings.EqualFold(service.Status, "up") {
+			state = 1
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
+			prometheus.GaugeValue, state, service.ID, service.Hostname, service.ServiceName, service.Status)
 	}
 
 	return nil

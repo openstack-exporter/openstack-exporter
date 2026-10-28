@@ -2,7 +2,7 @@ module github.com/openstack-exporter/openstack-exporter
 
 go 1.26.5
 
-replace github.com/gophercloud/gophercloud/v2 => github.com/zhmarvi/gophercloud/v2 v2.0.0-20261025175214-d367c7a32212
+replace github.com/gophercloud/gophercloud/v2 => github.com/zhmarvi/gophercloud/v2 v2.0.0-20261028022029-22ee261e1edd
 
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0

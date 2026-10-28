@@ -66,6 +66,7 @@ type PrometheusMetric struct {
 
 type ExporterConfig struct {
 	ClientV2                 *gophercloudv2.ServiceClient
+	EndpointOpts             gophercloudv2.EndpointOpts
 	ServiceName              string
 	Prefix                   string
 	DisabledMetrics          []string
@@ -326,8 +327,13 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		uuidGenFunc = uuid.GenerateUUID
 	}
 
+	region := config.RegionName
+	if region == "" {
+		region = os.Getenv("OS_REGION_NAME")
+	}
 	exporterConfig := ExporterConfig{
 		ClientV2:                 clientV2,
+		EndpointOpts:             gophercloudv2.EndpointOpts{Region: region, Availability: GetEndpointTypeV2(endpointType)},
 		ServiceName:              name,
 		Prefix:                   prefix,
 		DisabledMetrics:          disabledMetrics,

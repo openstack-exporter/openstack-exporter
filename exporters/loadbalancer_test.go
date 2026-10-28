@@ -86,9 +86,18 @@ func (suite *LoadbalancerTestSuite) newExporterWithDisabledMetrics(disabledMetri
 	suite.installFixtures()
 
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
-	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, disabledMetrics, "public", false, false, false, false, "", "", new(utils.LabelMappingFlag), 10, func() (string, error) {
-		return DEFAULT_UUID, nil
-	}, logger)
+	opts := ExporterOptions{
+		Cloud:               cloudName,
+		Prefix:              suite.Prefix,
+		DisabledMetrics:     disabledMetrics,
+		EndpointType:        "public",
+		NovaMetadataMapping: new(utils.LabelMappingFlag),
+		DnsConcurrentCount:  10,
+		UUIDGenFunc: func() (string, error) {
+			return DEFAULT_UUID, nil
+		},
+	}
+	exporter, err := NewExporter(suite.ServiceName, opts, logger)
 	suite.Require().NoError(err)
 	return exporter
 }

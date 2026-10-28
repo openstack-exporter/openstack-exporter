@@ -1,8 +1,12 @@
 package exporters
 
 import (
+	"log/slog"
+	"os"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,9 +27,42 @@ openstack_loadbalancer_amphora_status{cert_expiration="2020-08-08T23:44:30Z",com
 # HELP openstack_loadbalancer_loadbalancer_status loadbalancer_status
 # TYPE openstack_loadbalancer_loadbalancer_status gauge
 openstack_loadbalancer_loadbalancer_status{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 0
+# HELP openstack_loadbalancer_listener_stats_active_connections listener_stats_active_connections
+# TYPE openstack_loadbalancer_listener_stats_active_connections gauge
+openstack_loadbalancer_listener_stats_active_connections{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 3
+# HELP openstack_loadbalancer_listener_stats_bytes_in listener_stats_bytes_in
+# TYPE openstack_loadbalancer_listener_stats_bytes_in gauge
+openstack_loadbalancer_listener_stats_bytes_in{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 1.048576e+06
+# HELP openstack_loadbalancer_listener_stats_bytes_out listener_stats_bytes_out
+# TYPE openstack_loadbalancer_listener_stats_bytes_out gauge
+openstack_loadbalancer_listener_stats_bytes_out{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 524288
+# HELP openstack_loadbalancer_listener_stats_request_errors listener_stats_request_errors
+# TYPE openstack_loadbalancer_listener_stats_request_errors gauge
+openstack_loadbalancer_listener_stats_request_errors{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 2
+# HELP openstack_loadbalancer_listener_stats_total_connections listener_stats_total_connections
+# TYPE openstack_loadbalancer_listener_stats_total_connections gauge
+openstack_loadbalancer_listener_stats_total_connections{id="023f2e34-7806-443b-bfae-16c324569a3d",loadbalancer_id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="my_test_listener",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",protocol="HTTP",protocol_port="80",provisioning_status="ACTIVE"} 150
+# HELP openstack_loadbalancer_stats_active_connections stats_active_connections
+# TYPE openstack_loadbalancer_stats_active_connections gauge
+openstack_loadbalancer_stats_active_connections{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 8
+# HELP openstack_loadbalancer_stats_bytes_in stats_bytes_in
+# TYPE openstack_loadbalancer_stats_bytes_in gauge
+openstack_loadbalancer_stats_bytes_in{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 2.233408e+06
+# HELP openstack_loadbalancer_stats_bytes_out stats_bytes_out
+# TYPE openstack_loadbalancer_stats_bytes_out gauge
+openstack_loadbalancer_stats_bytes_out{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 1.357932e+06
+# HELP openstack_loadbalancer_stats_request_errors stats_request_errors
+# TYPE openstack_loadbalancer_stats_request_errors gauge
+openstack_loadbalancer_stats_request_errors{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 5
+# HELP openstack_loadbalancer_stats_total_connections stats_total_connections
+# TYPE openstack_loadbalancer_stats_total_connections gauge
+openstack_loadbalancer_stats_total_connections{id="607226db-27ef-4d41-ae89-f2a800e9c2db",name="best_load_balancer",operating_status="ONLINE",project_id="e3cd678b11784734bc366148aa37580e",provider="octavia",provisioning_status="ACTIVE",vip_address="203.0.113.50"} 524
 # HELP openstack_loadbalancer_total_amphorae total_amphorae
 # TYPE openstack_loadbalancer_total_amphorae gauge
 openstack_loadbalancer_total_amphorae 2
+# HELP openstack_loadbalancer_total_listeners total_listeners
+# TYPE openstack_loadbalancer_total_listeners gauge
+openstack_loadbalancer_total_listeners 1
 # HELP openstack_loadbalancer_total_loadbalancers total_loadbalancers
 # TYPE openstack_loadbalancer_total_loadbalancers gauge
 openstack_loadbalancer_total_loadbalancers 1
@@ -40,4 +77,84 @@ openstack_loadbalancer_up 1
 func (suite *LoadbalancerTestSuite) TestLoadbalancerExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(loadbalancerExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+// newExporterWithDisabledMetrics rebuilds the exporter with the given
+// --disable-metric values, re-installing fixtures so mocked auth is fresh.
+func (suite *LoadbalancerTestSuite) newExporterWithDisabledMetrics(disabledMetrics []string) OpenStackExporter {
+	suite.teardownFixtures()
+	suite.installFixtures()
+
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, disabledMetrics, "public", false, false, false, false, "", "", new(utils.LabelMappingFlag), 10, func() (string, error) {
+		return DEFAULT_UUID, nil
+	}, logger)
+	suite.Require().NoError(err)
+	return exporter
+}
+
+// withoutMetrics drops the HELP, TYPE and sample lines of the given metrics
+// (names without the openstack_loadbalancer_ prefix) from expected output.
+func withoutMetrics(expected string, names ...string) string {
+	drop := map[string]bool{}
+	for _, name := range names {
+		drop["openstack_loadbalancer_"+name] = true
+	}
+
+	var kept []string
+	for _, line := range strings.Split(expected, "\n") {
+		fields := strings.Fields(line)
+		var metricName string
+		switch {
+		case len(fields) >= 3 && fields[0] == "#":
+			metricName = fields[2]
+		case len(fields) >= 1:
+			metricName, _, _ = strings.Cut(fields[0], "{")
+		}
+		if drop[metricName] {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	return strings.Join(kept, "\n")
+}
+
+func (suite *LoadbalancerTestSuite) TestLoadbalancerExporterWithSingleStatsMetricDisabled() {
+	exporter := suite.newExporterWithDisabledMetrics([]string{
+		"loadbalancer-stats_bytes_out",
+		"loadbalancer-listener_stats_bytes_out",
+	})
+
+	expected := withoutMetrics(loadbalancerExpectedUp, "stats_bytes_out", "listener_stats_bytes_out")
+	err := testutil.CollectAndCompare(exporter, strings.NewReader(expected))
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *LoadbalancerTestSuite) TestLoadbalancerExporterWithStatsBytesInDisabled() {
+	exporter := suite.newExporterWithDisabledMetrics([]string{
+		"loadbalancer-stats_bytes_in",
+		"loadbalancer-listener_stats_bytes_in",
+	})
+
+	expected := withoutMetrics(loadbalancerExpectedUp, "stats_bytes_in", "listener_stats_bytes_in")
+	err := testutil.CollectAndCompare(exporter, strings.NewReader(expected))
+	assert.NoError(suite.T(), err)
+}
+
+func (suite *LoadbalancerTestSuite) TestLoadbalancerExporterWithAllStatsMetricsDisabled() {
+	names := append(append([]string{}, loadbalancerStatsMetrics...), listenerStatsMetrics...)
+	disabled := make([]string, 0, len(names))
+	for _, name := range names {
+		disabled = append(disabled, "loadbalancer-"+name)
+	}
+	exporter := suite.newExporterWithDisabledMetrics(disabled)
+
+	expected := withoutMetrics(loadbalancerExpectedUp, names...)
+	err := testutil.CollectAndCompare(exporter, strings.NewReader(expected))
+	assert.NoError(suite.T(), err)
+
+	// No stats API calls should be made when every stats metric is disabled.
+	calls := httpmock.GetCallCountInfo()
+	assert.Zero(suite.T(), calls["GET "+suite.MakeURL("/loadbalancer/v2.0/lbaas/loadbalancers/607226db-27ef-4d41-ae89-f2a800e9c2db/stats", "")])
+	assert.Zero(suite.T(), calls["GET "+suite.MakeURL("/loadbalancer/v2.0/lbaas/listeners/023f2e34-7806-443b-bfae-16c324569a3d/stats", "")])
 }

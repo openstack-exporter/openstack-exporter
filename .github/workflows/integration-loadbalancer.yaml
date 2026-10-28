@@ -1,0 +1,50 @@
+name: integration-loadbalancer
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-loadbalancer:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "master"
+            openstack_version: "master"
+            ubuntu_version: "24.04"
+            additional_services: "openstack-cli-server,octavia,o-api,o-cw,o-hk,o-hm,o-da"
+    runs-on: ubuntu-${{ matrix.ubuntu_version }}
+    timeout-minutes: 90
+    name: Deploy OpenStack ${{ matrix.name }} with Octavia and run load balancer integration tests
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+      - name: Deploy devstack
+        uses: gophercloud/devstack-action@60ca1042045c0c9e3e001c64575d381654ffcba1
+        with:
+          branch: ${{ matrix.openstack_version }}
+          enabled_services: "${{ matrix.additional_services }}"
+          conf_overrides: |
+            enable_plugin octavia https://opendev.org/openstack/octavia ${{ matrix.openstack_version }}
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: 'go.mod'
+      - name: Display clouds.yaml configuration
+        run: |
+          echo "Contents of /etc/openstack/clouds.yaml:"
+          cat /etc/openstack/clouds.yaml || echo "File /etc/openstack/clouds.yaml not found"
+      - name: Run OpenStack Integration Tests
+        run: bash ./script/integration-suites/loadbalancer
+        env:
+          DEVSTACK_PATH: ${{ github.workspace }}/devstack
+          OS_BRANCH: ${{ matrix.openstack_version }}
+      - name: Generate logs on failure
+        run: ./script/collectlogs
+        if: failure()
+      - name: Upload logs artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-loadbalancer-${{ matrix.name }}-${{ github.run_id }}
+          path: /tmp/devstack-logs/*

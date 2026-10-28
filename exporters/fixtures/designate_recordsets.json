@@ -3,7 +3,7 @@
         {
             "description": "This is an example record set.",
             "links": {
-                "self": "https://127.0.0.1:9001/v2/zones/2150b1bf-dee2-4221-9d85-11f7886fb15f/recordsets/f7b10e9b-0cae-4a91-b162-562bc6096648"
+                "self": "https://127.0.0.1:9001/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets/f7b10e9b-0cae-4a91-b162-562bc6096648"
             },
             "updated_at": null,
             "records": [
@@ -13,8 +13,8 @@
             "id": "f7b10e9b-0cae-4a91-b162-562bc6096648",
             "name": "example.org.",
             "project_id": "4335d1f0-f793-11e2-b778-0800200c9a66",
-            "zone_id": "2150b1bf-dee2-4221-9d85-11f7886fb15f",
-            "zone_name": "example.com.",
+            "zone_id": "a86dba58-0043-4cc6-a1bb-69d5e86f3ca3",
+            "zone_name": "example.org.",
             "created_at": "2014-10-24T19:59:44.000000",
             "version": 1,
             "type": "A",
@@ -23,7 +23,7 @@
         }
     ],
     "links": {
-        "self": "http://127.0.0.1:9001/v2/zones/2150b1bf-dee2-4221-9d85-11f7886fb15f/recordsets?limit=1"
+        "self": "http://127.0.0.1:9001/v2/zones/a86dba58-0043-4cc6-a1bb-69d5e86f3ca3/recordsets?limit=1"
     },
     "metadata": {
         "total_count": 2

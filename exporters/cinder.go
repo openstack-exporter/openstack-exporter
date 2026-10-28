@@ -3,9 +3,11 @@ package exporters
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/backups"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/quotasets"
 	"github.com/gophercloud/gophercloud/v2/openstack/blockstorage/v3/schedulerstats"
@@ -98,6 +100,10 @@ func ListVolumesStatus(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
 	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
+	if err != nil && volumeListOption.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		volumeListOption.AllTenants = false
+		allPagesVolumes, err = volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -129,6 +135,10 @@ func ListVolumes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	volumeListOption := getVolumeListOptions(exporter.TenantID)
 
 	allPagesVolumes, err := volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
+	if err != nil && volumeListOption.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		volumeListOption.AllTenants = false
+		allPagesVolumes, err = volumes.List(exporter.ClientV2, volumeListOption).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -179,6 +189,10 @@ func ListSnapshots(ctx context.Context, exporter *BaseOpenStackExporter, ch chan
 
 	// The detail listing is required to get the snapshot project ID.
 	allPagesSnapshot, err := snapshots.ListDetail(exporter.ClientV2, snapshotListOption).AllPages(ctx)
+	if err != nil && snapshotListOption.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		snapshotListOption.AllTenants = false
+		allPagesSnapshot, err = snapshots.ListDetail(exporter.ClientV2, snapshotListOption).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -214,6 +228,10 @@ func ListBackups(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	client.Microversion = backupProjectIDMicroversion
 
 	allPagesBackup, err := backups.ListDetail(&client, listOpts).AllPages(ctx)
+	if err != nil && listOpts.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		listOpts.AllTenants = false
+		allPagesBackup, err = backups.ListDetail(&client, listOpts).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -309,12 +327,18 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 		// Limits are obtained from the cinder API, so now we can just use this exporter's client
 		limits, err := quotasets.GetUsage(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
+			if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				continue
+			}
 			return err
 		}
 
 		// Quotas are obtained from the cinder API
 		quotas_p, err := quotasets.Get(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
+			if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				continue
+			}
 			return err
 		}
 		quotas := *quotas_p

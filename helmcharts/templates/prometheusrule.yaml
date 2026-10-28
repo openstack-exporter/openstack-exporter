@@ -112,15 +112,26 @@ spec:
 
     - alert: NeutronNetworkOutOfIPs
       expr: |
-        sum by (network_id) (openstack_neutron_network_ip_availabilities_used{project_id!=""}) / sum by (network_id) (openstack_neutron_network_ip_availabilities_total{project_id!=""}) * 100 > 80
+        (
+          openstack_neutron_network_ip_availabilities_allocation_pool_used{project_id!=""}
+          / (openstack_neutron_network_ip_availabilities_allocation_pool_total{project_id!=""} > 0)
+          * 100 > 80
+        )
+        or
+        (
+          sum by (network_id) (openstack_neutron_network_ip_availabilities_used{project_id!=""})
+          / sum by (network_id) (openstack_neutron_network_ip_availabilities_total{project_id!=""})
+          * 100 > 80
+          unless on (network_id) (openstack_neutron_network_ip_availabilities_allocation_pool_total)
+        )
       labels:
         severity: P4
       annotations:
         summary: "[`{{`{{$labels.network_name}}`}}`] `{{`{{$labels.subnet_name}}`}}` running out of IPs"
         description: >
-          The subnet `{{`{{$labels.subnet_name}}`}}` within `{{`{{$labels.network_name}}`}}`
-          is currently at `{{`{{$value}}`}}`% utilization.  If the IP addresses run out, it will
-          impact the provisioning of new ports.
+          The subnet `{{`{{$labels.subnet_name}}`}}` (`{{`{{$labels.cidr}}`}}`) within
+          `{{`{{$labels.network_name}}`}}` is currently at `{{`{{$value}}`}}`% allocation-pool
+          utilization.  If the IP addresses run out, it will impact the provisioning of new ports.
 
 
   - name: nova

@@ -1,8 +1,13 @@
 package exporters
 
 import (
+	"log/slog"
+	"net/http"
+	"os"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -39,16 +44,46 @@ openstack_neutron_l3_agent_of_router{agent_admin_up="true",agent_alive="true",ag
 # TYPE openstack_neutron_network gauge
 openstack_neutron_network{id="d32019d3-bc6e-4319-9c1d-6722fc136a22",is_external="false",is_shared="false",mtu="1500",name="net1",provider_network_type="vlan",provider_physical_network="public",provider_segmentation_id="3",status="ACTIVE",subnets="54d6f61d-db07-451c-9ab3-b9609b6b6f0b",tags="tag1,tag2",tenant_id="4fd44f30292945e481c7b8a0c8908869"} 0
 openstack_neutron_network{id="db193ab3-96e3-4cb3-8fc5-05f4296d0324",is_external="false",is_shared="false",mtu="1450",name="net2",provider_network_type="local",provider_physical_network="",provider_segmentation_id="",status="ACTIVE",subnets="08eae331-0402-425a-923c-34f7cfe39c1b",tags="tag1,tag2",tenant_id="26a7980765d0414dbc1fc1f88cdb7e6e"} 0
+# HELP openstack_neutron_network_ip_availabilities_allocation_pool_total network_ip_availabilities_allocation_pool_total
+# TYPE openstack_neutron_network_ip_availabilities_allocation_pool_total gauge
+openstack_neutron_network_ip_availabilities_allocation_pool_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253
+openstack_neutron_network_ip_availabilities_allocation_pool_total{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 253
+openstack_neutron_network_ip_availabilities_allocation_pool_total{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 1
+openstack_neutron_network_ip_availabilities_allocation_pool_total{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1.8446744073709552e+19
+openstack_neutron_network_ip_availabilities_allocation_pool_total{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 1.8446744073709552e+19
+# HELP openstack_neutron_network_ip_availabilities_allocation_pool_used network_ip_availabilities_allocation_pool_used
+# TYPE openstack_neutron_network_ip_availabilities_allocation_pool_used gauge
+openstack_neutron_network_ip_availabilities_allocation_pool_used{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 1
+openstack_neutron_network_ip_availabilities_allocation_pool_used{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 0
+openstack_neutron_network_ip_availabilities_allocation_pool_used{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 1
+openstack_neutron_network_ip_availabilities_allocation_pool_used{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1
+openstack_neutron_network_ip_availabilities_allocation_pool_used{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 2
+# HELP openstack_neutron_network_ip_availabilities_subnet_total network_ip_availabilities_subnet_total
+# TYPE openstack_neutron_network_ip_availabilities_subnet_total gauge
+openstack_neutron_network_ip_availabilities_subnet_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 254
+openstack_neutron_network_ip_availabilities_subnet_total{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 254
+openstack_neutron_network_ip_availabilities_subnet_total{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 2
+openstack_neutron_network_ip_availabilities_subnet_total{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1.8446744073709552e+19
+openstack_neutron_network_ip_availabilities_subnet_total{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 1.8446744073709552e+19
+# HELP openstack_neutron_network_ip_availabilities_subnet_used network_ip_availabilities_subnet_used
+# TYPE openstack_neutron_network_ip_availabilities_subnet_used gauge
+openstack_neutron_network_ip_availabilities_subnet_used{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 2
+openstack_neutron_network_ip_availabilities_subnet_used{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 1
+openstack_neutron_network_ip_availabilities_subnet_used{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 2
+openstack_neutron_network_ip_availabilities_subnet_used{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1
+openstack_neutron_network_ip_availabilities_subnet_used{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 2
 # HELP openstack_neutron_network_ip_availabilities_total network_ip_availabilities_total
 # TYPE openstack_neutron_network_ip_availabilities_total gauge
 openstack_neutron_network_ip_availabilities_total{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 253
 openstack_neutron_network_ip_availabilities_total{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 253
+openstack_neutron_network_ip_availabilities_total{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 1
 openstack_neutron_network_ip_availabilities_total{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1.8446744073709552e+19
 openstack_neutron_network_ip_availabilities_total{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 1.8446744073709552e+19
 # HELP openstack_neutron_network_ip_availabilities_used network_ip_availabilities_used
 # TYPE openstack_neutron_network_ip_availabilities_used gauge
 openstack_neutron_network_ip_availabilities_used{cidr="10.0.0.0/24",ip_version="4",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="private-subnet"} 2
 openstack_neutron_network_ip_availabilities_used{cidr="172.24.4.0/24",ip_version="4",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="public-subnet"} 1
+openstack_neutron_network_ip_availabilities_used{cidr="192.0.2.0/30",ip_version="4",network_id="11111111-1111-1111-1111-111111111111",network_name="internal-net",project_id="abcdef0123456789abcdef0123456789",subnet_name="internal-subnet"} 2
 openstack_neutron_network_ip_availabilities_used{cidr="2001:db8::/64",ip_version="6",network_id="4cf895c9-c3d1-489e-b02e-59b5c8976809",network_name="public",project_id="1a02cc95f1734fcc9d3c753818f03002",subnet_name="ipv6-public-subnet"} 1
 openstack_neutron_network_ip_availabilities_used{cidr="fdbf:ac66:9be8::/64",ip_version="6",network_id="6801d9c8-20e6-4b27-945d-62499f00002e",network_name="private",project_id="d56d3b8dd6894a508cf41b96b522328c",subnet_name="ipv6-private-subnet"} 2
 # HELP openstack_neutron_networks networks
@@ -377,4 +412,111 @@ openstack_neutron_vpn_siteconnections 1
 func (suite *NeutronTestSuite) TestNeutronExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(neutronExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+// reinstallNeutronFixturesUnlimited re-registers every fixture without the
+// Times(2) cap applied by the base suite so a test can run more than two full
+// collections (the IP-availability tests below collect several times).
+func (suite *NeutronTestSuite) reinstallNeutronFixturesUnlimited() {
+	for path, fixture := range fixtures {
+		data, _ := os.ReadFile(suite.FixturePath(fixture))
+		response := &http.Response{
+			Body: httpmock.NewRespBodyFromBytes(data),
+			Header: http.Header{
+				"Content-Type":    []string{"application/json"},
+				"X-Subject-Token": []string{"1234"},
+			},
+			StatusCode: 200,
+		}
+		httpmock.RegisterResponder("GET", suite.MakeURL(path, ""), httpmock.ResponderFromResponse(response))
+	}
+	tokenData, _ := os.ReadFile(suite.FixturePath("tokens"))
+	tokenResponse := &http.Response{
+		Body: httpmock.NewRespBodyFromBytes(tokenData),
+		Header: http.Header{
+			"Content-Type":    []string{"application/json"},
+			"X-Subject-Token": []string{"1234"},
+		},
+		StatusCode: 201,
+	}
+	httpmock.RegisterResponder("POST", suite.MakeURL("/v3/auth/tokens", "35357"), httpmock.ResponderFromResponse(tokenResponse))
+}
+
+// neutronIPAvailabilityDetailMetrics are the four per-subnet / allocation-pool
+// metrics sourced from the nested ip_availability_details object. Older Neutron
+// omits that object entirely.
+var neutronIPAvailabilityDetailMetrics = []string{
+	"openstack_neutron_network_ip_availabilities_subnet_total",
+	"openstack_neutron_network_ip_availabilities_subnet_used",
+	"openstack_neutron_network_ip_availabilities_allocation_pool_total",
+	"openstack_neutron_network_ip_availabilities_allocation_pool_used",
+}
+
+// neutronIPAvailabilityBaseMetrics are the two legacy metrics that must always
+// be emitted regardless of Neutron version.
+var neutronIPAvailabilityBaseMetrics = []string{
+	"openstack_neutron_network_ip_availabilities_total",
+	"openstack_neutron_network_ip_availabilities_used",
+}
+
+// TestNeutronIPAvailabilityBackwardsCompat verifies that when Neutron does not
+// return the nested ip_availability_details object (older versions), the four
+// detail metrics are omitted entirely rather than emitted as zero, while the
+// two legacy base metrics are still produced. This test fails if CHANGE 1
+// (pointer + nil-guard) is reverted.
+func (suite *NeutronTestSuite) TestNeutronIPAvailabilityBackwardsCompat() {
+	// Allow more than two full collections without exhausting the Times(2)
+	// responders installed by the base suite.
+	suite.reinstallNeutronFixturesUnlimited()
+
+	// Override the default responder with the legacy fixture whose subnets lack
+	// ip_availability_details.
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/neutron/v2.0/network-ip-availabilities", ""),
+		suite.FixturePath("neutron_network_ip_availabilities_legacy"),
+	)
+
+	// The four detail metrics must produce zero samples.
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(""), neutronIPAvailabilityDetailMetrics...)
+	assert.NoError(suite.T(), err)
+
+	// The base metrics must still be present.
+	count := testutil.CollectAndCount(*suite.Exporter, neutronIPAvailabilityBaseMetrics...)
+	assert.Greater(suite.T(), count, 0, "expected base IP-availability metrics to be present")
+}
+
+// TestNeutronIPAvailabilityDisabledMetricGuard verifies that disabling the four
+// detail metrics does not panic during collection (disabled metrics are never
+// added to exporter.Metrics, so an unguarded emit dereferences a nil pointer).
+// This test panics (fails) if CHANGE 2 (per-emit MetricIsDisabled guards) is
+// reverted.
+func (suite *NeutronTestSuite) TestNeutronIPAvailabilityDisabledMetricGuard() {
+	// Allow more than two full collections without exhausting the Times(2)
+	// responders installed by the base suite.
+	suite.reinstallNeutronFixturesUnlimited()
+
+	disabledMetrics := []string{
+		"neutron-network_ip_availabilities_subnet_total",
+		"neutron-network_ip_availabilities_subnet_used",
+		"neutron-network_ip_availabilities_allocation_pool_total",
+		"neutron-network_ip_availabilities_allocation_pool_used",
+	}
+
+	novaMetadataMapping := new(utils.LabelMappingFlag)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
+	exporter, err := NewExporter("network", suite.Prefix, cloudName, disabledMetrics, "public", false, false, false, false, "", "", novaMetadataMapping, 10, func() (string, error) {
+		return DEFAULT_UUID, nil
+	}, logger)
+	assert.NoError(suite.T(), err)
+
+	// Collection must not panic even though the detail metrics are disabled,
+	// and the disabled detail metrics must be absent (zero samples).
+	assert.NotPanics(suite.T(), func() {
+		err := testutil.CollectAndCompare(exporter, strings.NewReader(""), neutronIPAvailabilityDetailMetrics...)
+		assert.NoError(suite.T(), err)
+	})
+
+	// The base metrics must still be present.
+	baseCount := testutil.CollectAndCount(exporter, neutronIPAvailabilityBaseMetrics...)
+	assert.Greater(suite.T(), baseCount, 0, "expected base IP-availability metrics to be present")
 }

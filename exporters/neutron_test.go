@@ -21,10 +21,10 @@ openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname=
 openstack_neutron_agent_state{adminState="up",availability_zone="nova",hostname="agenthost1",id="a09b81fc-5a42-46d3-a306-1a5d122a7787",service="neutron-l3-agent"} 1
 # HELP openstack_neutron_floating_ip floating_ip
 # TYPE openstack_neutron_floating_ip gauge
-openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
-openstack_neutron_floating_ip{floating_ip_address="172.24.4.227",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="61cea855-49cb-4846-997d-801b70c71bdd",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="",status="DOWN"} 1
-openstack_neutron_floating_ip{floating_ip_address="172.24.4.228",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="2f245a7b-796b-4f26-9cf9-9e82d248fda7",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="d23abc8d-2991-4a55-ba98-2aaea84cc72f",status="ACTIVE"} 1
-openstack_neutron_floating_ip{floating_ip_address="172.24.4.42",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="898b198e-49f7-47d6-a7e1-53f626a548e6",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="0303bf18-2c52-479c-bd68-e0ad712a1639",status="ACTIVE"} 1
+openstack_neutron_floating_ip{fixed_ip_address="",floating_ip_address="172.24.4.227",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="61cea855-49cb-4846-997d-801b70c71bdd",port_id="",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{fixed_ip_address="",floating_ip_address="172.24.4.42",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="898b198e-49f7-47d6-a7e1-53f626a548e6",port_id="",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="0303bf18-2c52-479c-bd68-e0ad712a1639",status="ACTIVE"} 1
+openstack_neutron_floating_ip{fixed_ip_address="10.0.0.10",floating_ip_address="172.24.4.227",floating_network_id="1c93472c-4d8a-11ea-92e9-08002759fd91",id="231facca-4d8a-11ea-a143-08002759fd91",port_id="",project_id="0042b7564d8a11eabc2d08002759fd91",router_id="",status="DOWN"} 1
+openstack_neutron_floating_ip{fixed_ip_address="10.0.0.3",floating_ip_address="172.24.4.228",floating_network_id="376da547-b977-4cfe-9cba-275c80debf57",id="2f245a7b-796b-4f26-9cf9-9e82d248fda7",port_id="ce705c24-c1ef-408a-bda3-7bbd946164ab",project_id="4969c491a3c74ee4af974e6d800c62de",router_id="d23abc8d-2991-4a55-ba98-2aaea84cc72f",status="ACTIVE"} 1
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
 openstack_neutron_floating_ips 4

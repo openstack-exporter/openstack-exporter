@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,7 @@ import (
 	"github.com/openstack-exporter/openstack-exporter/exporters"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	"github.com/prometheus/common/model"
 	"github.com/stretchr/testify/assert"
@@ -213,6 +215,70 @@ func TestWriteCacheToResponse(t *testing.T) {
 		assert.Equal(mf.Type, mf2.Type, "The MetricType should be the same")
 		assert.Equal(mf.Help, mf2.Help, "The MetricHelp should be the same")
 		assert.Equal(mf.Unit, mf2.Unit, "The MetricUnit should be the same")
+	}
+}
+
+// TestWriteCacheToResponseProtobuf checks that the cached metrics are encoded
+// in the negotiated format when the scraper asks for protobuf.
+func TestWriteCacheToResponseProtobuf(t *testing.T) {
+	assert := assert.New(t)
+
+	cache := GetCache()
+	defer newSingleCache()
+	cloudName := "testCloud"
+	serviceName := "testService"
+
+	registry := prometheus.NewPedanticRegistry()
+	collector := &mockOpenStackExporter{
+		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
+		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
+	}
+	registry.MustRegister(collector)
+
+	mfs, _ := registry.Gather()
+	cloudCache := NewCloudCache()
+	for _, mf := range mfs {
+		cloudCache.SetMetricFamilyCache(
+			*mf.Name, MetricFamilyCache{MF: mf, Service: serviceName},
+		)
+	}
+	cache.SetCloudCache(cloudName, cloudCache)
+
+	req, err := http.NewRequest("GET", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Accept header sent by Prometheus when protobuf scraping is enabled.
+	req.Header.Set("Accept", "application/vnd.google.protobuf;proto=io.prometheus.client.MetricFamily;encoding=delimited;q=0.6,text/plain;version=0.0.4;q=0.3")
+
+	rr := httptest.NewRecorder()
+	err = WriteCacheToResponse(rr, req, cloudName, []string{serviceName}, slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{})))
+	assert.NoError(err, "WriteCacheToResponse failed")
+	assert.Equal(http.StatusOK, rr.Code, "handler returned wrong status code")
+
+	format := expfmt.ResponseFormat(rr.Result().Header)
+	assert.Equal(expfmt.TypeProtoDelim, format.FormatType(), "expected protobuf Content-Type")
+
+	dec := expfmt.NewDecoder(rr.Body, format)
+	got := map[string]*dto.MetricFamily{}
+	for {
+		mf := &dto.MetricFamily{}
+		if err := dec.Decode(mf); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatalf("failed to decode body as %s: %v", format, err)
+		}
+		got[mf.GetName()] = mf
+	}
+
+	assert.Len(got, len(mfs))
+	for _, mf := range mfs {
+		mf2, ok := got[mf.GetName()]
+		if assert.True(ok, "missing metric family %s", mf.GetName()) {
+			assert.Equal(mf.GetType(), mf2.GetType(), "The MetricType should be the same")
+			assert.Equal(mf.GetHelp(), mf2.GetHelp(), "The MetricHelp should be the same")
+		}
 	}
 }
 

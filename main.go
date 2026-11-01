@@ -55,6 +55,7 @@ var (
 	prefix                   = kingpin.Flag("prefix", "Prefix for metrics").Default("openstack").String()
 	endpointType             = kingpin.Flag("endpoint-type", "openstack endpoint type to use (i.e: public, internal, admin)").Default("public").String()
 	collectTime              = kingpin.Flag("collect-metric-time", "time spent collecting each metric").Default("false").Bool()
+	collectTimeout           = kingpin.Flag("collect-timeout", "Deadline for each metric collector and timeout for each OpenStack API request").Default(exporters.DefaultCollectTimeout.String()).Duration()
 	disabledMetrics          = kingpin.Flag("disable-metric", "multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)").Default("").Short('d').Strings()
 	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
 	disableDeprecatedMetrics = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
@@ -96,6 +97,9 @@ func main() {
 	kingpin.Version(version.Print("openstack-exporter"))
 	kingpin.HelpFlag.Short('h')
 	kingpin.Parse()
+	if *collectTimeout <= 0 {
+		kingpin.Fatalf("--collect-timeout must be positive")
+	}
 	logger := promslog.New(promlogConfig)
 	logger.Info("Build Version", "version_info", version.Info(), "build_context", version.BuildContext())
 
@@ -218,7 +222,7 @@ func getEnabledServicesFromStates(serviceStates map[string]serviceState) []strin
 }
 
 func autodetectServices(cloud string, logger *slog.Logger) ([]string, error) {
-	opts := &clientconfigv2.ClientOpts{Cloud: cloud}
+	opts := &clientconfigv2.ClientOpts{Cloud: cloud, HTTPClient: &http.Client{Timeout: *collectTimeout}}
 	services, err := exporters.AutodetectServicesFromCatalog(opts, nil, *endpointType)
 	if err != nil {
 		return nil, err
@@ -237,7 +241,7 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, *collectTimeout, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		cancel(err)
 		return
@@ -246,7 +250,7 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, *collectTimeout, logger); err != nil {
 				cancel(err)
 				return
 			}
@@ -361,7 +365,7 @@ func probeHandler(configuredServices []string, logger *slog.Logger) http.Handler
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, *collectTimeout, logger)
 			if err != nil {
 				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -432,7 +436,7 @@ func enableExporterWithRetry(service string, logger *slog.Logger) (*exporters.Op
 
 	var lastErr error
 	for attempt := 1; attempt <= enableExporterMaxAttempts; attempt++ {
-		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, *collectTimeout, logger)
 		if err == nil {
 			return exp, nil
 		}

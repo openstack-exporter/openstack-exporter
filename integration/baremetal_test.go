@@ -29,8 +29,6 @@ func TestBaremetalIntegration(t *testing.T) {
 		metrics.requirePresentLabels(t, "openstack_ironic_node", labels{"id": node.UUID},
 			"console_enabled",
 			"conductor_group",
-			"deploy_kernel",
-			"deploy_ramdisk",
 			"id",
 			"instance_uuid",
 			"last_error",
@@ -45,6 +43,12 @@ func TestBaremetalIntegration(t *testing.T) {
 			"serial_number",
 			"traits",
 		)
+		sample := metrics.requireMetric(t, "openstack_ironic_node", labels{"id": node.UUID})
+		for _, label := range []string{"deploy_kernel", "deploy_ramdisk"} {
+			if _, present := sample.labels[label]; present {
+				t.Errorf("driver_info label %q must be absent by default", label)
+			}
+		}
 	})
 
 	t.Run("openstack_ironic_node_boolean_labels", func(t *testing.T) {

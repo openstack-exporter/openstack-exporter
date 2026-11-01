@@ -113,6 +113,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			disableSlowMetrics,
 			disableDeprecatedMetrics,
 			disableCinderAgentUUID,
+			false, // driver_info labels are opt-in
 			domainID,
 			tenantID,
 			novaMetadataMapping, // non-nil here

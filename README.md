@@ -114,6 +114,8 @@ Flags:
                                  Disable deprecated metrics
       --[no-]disable-cinder-agent-uuid
                                  Disable UUID generation for Cinder agents
+      --[no-]enable-ironic-driver-info
+                                 Expose Ironic deploy_kernel and deploy_ramdisk labels (disabled by default)
       --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
       --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
       --[no-]cache               Enable Cache mechanism globally
@@ -271,6 +273,21 @@ The following metrics are filtered for the domain ID provided (the others remain
 * `openstack_nova_limits_instances_max`
 * `openstack_nova_limits_instances_used`
 
+### Ironic driver information labels
+
+`deploy_kernel` and `deploy_ramdisk` are omitted from `openstack_ironic_node`
+by default because their values may contain sensitive deployment information.
+To expose these two `driver_info` fields, explicitly enable:
+
+```sh
+openstack-exporter --enable-ironic-driver-info [other options]
+```
+
+This changes the previous default. Operators whose queries or alerts use these
+labels must add the flag to retain them. Only these two fields are enabled;
+other `driver_info` fields are not exported. Treat their values as visible to
+anyone who can read the metrics endpoint or the stored Prometheus data.
+
 ### Cache mechanism
 
 Enabling the cache with `--cache` changes the exporter's metric collection and delivery:
@@ -411,7 +428,7 @@ openstack_identity_projects| region="RegionOne"                                 
 openstack_identity_regions| region="RegionOne"                                                                                                                                                                                                                                                                                                    |1.0 (float)| Total number of regions
 openstack_identity_up| region="RegionOne"                                                                                                                                                                                                                                                                                                             |1.0 (float)| Service status (1=up, 0=down)
 openstack_identity_users| region="RegionOne"                                                                                                                                                                                                                                                                                                    |30.0 (float)| Total number of users
-openstack_ironic_node| id="c9f98cc9-25e9-424e-8a89-002989054ec2",name="r1-05",provision_state="available",power_state="power off",maintenance="true",maintenance_reason="Firmware upgrade",console_enabled="true",resource_class="baremetal",deploy_kernel="7ff5ef56-daaa-4256-9dd8-c3f1f9964ebc",deploy_ramdisk="e9c96d45-a4c8-4165-8753-9d8f32779e99",retired="true",retired_reason="No longer needed" |1 (float)| Ironic node information
+openstack_ironic_node| id="c9f98cc9-25e9-424e-8a89-002989054ec2",name="r1-05",provision_state="available",power_state="power off",maintenance="true",maintenance_reason="Firmware upgrade",console_enabled="true",resource_class="baremetal",retired="true",retired_reason="No longer needed" |1 (float)| Ironic node information
 openstack_ironic_node_provision_updated_at| id="c9f98cc9-25e9-424e-8a89-002989054ec2",name="r1-05",provision_state="available"                                                                                                                                                                                                                                            |1.562908443e+09 (float)| Unix timestamp of the last provision state update
 openstack_ironic_node_updated_at| id="c9f98cc9-25e9-424e-8a89-002989054ec2",name="r1-05",provision_state="available"                                                                                                                                                                                                                                                      |1.592845911e+09 (float)| Unix timestamp of the last node update
 openstack_ironic_up| region="RegionOne"                                                                                                                                                                                                                                                                                                              |1.0 (float)| Service status (1=up, 0=down)

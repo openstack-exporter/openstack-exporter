@@ -59,6 +59,7 @@ var (
 	disableSlowMetrics       = kingpin.Flag("disable-slow-metrics", "Disable slow metrics for performance reasons").Default("false").Bool()
 	disableDeprecatedMetrics = kingpin.Flag("disable-deprecated-metrics", "Disable deprecated metrics").Default("false").Bool()
 	disableCinderAgentUUID   = kingpin.Flag("disable-cinder-agent-uuid", "Disable UUID generation for Cinder agents").Default("false").Bool()
+	enableIronicDriverInfo   = kingpin.Flag("enable-ironic-driver-info", "Expose Ironic deploy_kernel and deploy_ramdisk labels; values may contain sensitive information").Default("false").Bool()
 	cloud                    = kingpin.Arg("cloud", "name or id of the cloud to gather metrics from").String()
 	multiCloud               = kingpin.Flag("multi-cloud", "Toggle the multiple cloud scraping mode under /probe?cloud=").Default("false").Bool()
 	domainID                 = kingpin.Flag("domain-id", "Gather metrics only for the given Domain ID (defaults to all domains)").String()
@@ -237,7 +238,7 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	defer ttlTicker.Stop()
 
 	// Collect cache data in the beginning.
-	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
+	if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *enableIronicDriverInfo, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
 		logger.Error("Failed to collect from cache", "err", err)
 		cancel(err)
 		return
@@ -246,7 +247,7 @@ func cacheBackgroundService(ctx context.Context, services []string, cancel conte
 	for {
 		select {
 		case <-collectTicker.C:
-			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
+			if err := cache.CollectCache(exporters.EnableExporter, *multiCloud, services, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *enableIronicDriverInfo, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger); err != nil {
 				cancel(err)
 				return
 			}
@@ -361,7 +362,7 @@ func probeHandler(configuredServices []string, logger *slog.Logger) http.Handler
 
 		registry := prometheus.NewPedanticRegistry()
 		for _, service := range enabledServices {
-			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+			exp, err := exporters.EnableExporter(service, *prefix, cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *enableIronicDriverInfo, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
 			if err != nil {
 				logger.Error("Enabling exporter for service failed", "service", service, "error", err)
 				continue
@@ -432,7 +433,7 @@ func enableExporterWithRetry(service string, logger *slog.Logger) (*exporters.Op
 
 	var lastErr error
 	for attempt := 1; attempt <= enableExporterMaxAttempts; attempt++ {
-		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
+		exp, err := exporters.EnableExporter(service, *prefix, *cloud, *disabledMetrics, *endpointType, *collectTime, *disableSlowMetrics, *disableDeprecatedMetrics, *disableCinderAgentUUID, *enableIronicDriverInfo, *domainID, *tenantID, novaMetadataMapping, *dnsConcurrentCount, nil, logger)
 		if err == nil {
 			return exp, nil
 		}

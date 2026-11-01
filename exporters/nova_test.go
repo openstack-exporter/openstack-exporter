@@ -478,7 +478,7 @@ openstack_nova_quota_server_groups{tenant="swifttenanttest4",tenant_id="4b1eb781
 openstack_nova_quota_server_groups{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="reserved"} 0
 # HELP openstack_nova_running_vms running_vms
 # TYPE openstack_nova_running_vms gauge
-openstack_nova_running_vms{aggregates="",availability_zone="",hostname="host1"} 0
+openstack_nova_running_vms{aggregates="",availability_zone="nova",hostname="fake-mini",tenant_id="6f70656e737461636b20342065766572"} 1
 # HELP openstack_nova_security_groups security_groups
 # TYPE openstack_nova_security_groups gauge
 openstack_nova_security_groups 1

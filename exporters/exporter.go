@@ -43,6 +43,8 @@ const (
 
 var SupportedExporters = []string{"network", "compute", "image", "volume", "identity", "object-store", "load-balancer", "container-infra", "dns", "baremetal", "gnocchi", "database", "orchestration", "placement", "sharev2"}
 
+const DefaultCollectTimeout = 10 * time.Second
+
 type OpenStackExporter interface {
 	prometheus.Collector
 
@@ -51,8 +53,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), collectTimeout time.Duration, logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, collectTimeout, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -78,6 +80,7 @@ type ExporterConfig struct {
 	TenantID                 string
 	NovaMetadataMapping      *utils.LabelMappingFlag
 	DnsConcurrentCount       int
+	CollectTimeout           time.Duration
 }
 
 type BaseOpenStackExporter struct {
@@ -115,6 +118,11 @@ func (exporter *BaseOpenStackExporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (exporter *BaseOpenStackExporter) RunCollection(metric *PrometheusMetric, metricName string, ch chan<- prometheus.Metric, logger *slog.Logger) error {
 	ctx := context.TODO()
+	if exporter.CollectTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, exporter.CollectTimeout)
+		defer cancel()
+	}
 
 	exporter.logger.Info("Collecting metrics for exporter", "exporter", exporter.GetName(), "metrics", metricName)
 	now := time.Now()
@@ -257,13 +265,16 @@ func pathOrContents(poc string) ([]byte, bool, error) {
 	return []byte(poc), false, nil
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), collectTimeout time.Duration, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport http.RoundTripper
 	var tlsConfig tls.Config
 
-	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud}
+	if collectTimeout <= 0 {
+		return nil, fmt.Errorf("collection timeout must be positive")
+	}
+	optsv2 := clientconfigv2.ClientOpts{Cloud: cloud, HTTPClient: &http.Client{Timeout: collectTimeout}}
 
 	config, err := clientconfigv2.GetCloudFromYAML(&optsv2)
 	if err != nil {
@@ -340,6 +351,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		TenantID:                 tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
 		DnsConcurrentCount:       dnsConcurrentCount,
+		CollectTimeout:           collectTimeout,
 	}
 
 	switch name {

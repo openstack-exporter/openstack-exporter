@@ -51,6 +51,9 @@ func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.Round
 	if err != nil {
 		return nil, err
 	}
+	if opts != nil && opts.HTTPClient != nil {
+		client.HTTPClient = *opts.HTTPClient
+	}
 
 	if transport != nil {
 		if tr, ok := transport.(*http.Transport); ok {

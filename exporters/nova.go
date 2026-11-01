@@ -375,8 +375,8 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 
-	mvAtLeast246, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "2.46")
-	if mvAtLeast246 || mapperRequired {
+	mvAtLeast247, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "2.47")
+	if mvAtLeast247 || mapperRequired {
 		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
 		// ***
 		// If micro-version is greater than 2.46,

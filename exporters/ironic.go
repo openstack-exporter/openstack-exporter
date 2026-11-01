@@ -2,15 +2,25 @@ package exporters
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strconv"
+	"strings"
 
+	gophercloudv2 "github.com/gophercloud/gophercloud/v2"
 	"github.com/gophercloud/gophercloud/v2/openstack/baremetal/v1/nodes"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const ironicLatestSupportedMicroversion = "1.90"
+const (
+	ironicLatestSupportedMicroversion = "1.90"
+	// The detailed node endpoint enforces a positive limit and may omit
+	// nodes_links even where its server-side default truncates the result, so
+	// AllPages has nothing to follow and silently returns a partial node list.
+	// listAllNodes follows the marker itself instead.
+	ironicNodePageSize = 1000
+)
 
 // IronicExporter : extends BaseOpenStackExporter
 type IronicExporter struct {
@@ -18,7 +28,7 @@ type IronicExporter struct {
 }
 
 var defaultIronicMetrics = []Metric{
-	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
+	{Name: "node", Labels: []string{"id", "name", "provision_state", "power_state", "maintenance", "maintenance_reason", "conductor_group", "traits", "instance_uuid", "lessee", "last_error", "serial_number", "console_enabled", "resource_class", "deploy_kernel", "deploy_ramdisk", "retired", "retired_reason"}, Fn: ListNodes},
 	{Name: "node_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 	{Name: "node_provision_updated_at", Labels: []string{"id", "name", "provision_state"}, Fn: nil},
 }
@@ -57,14 +67,44 @@ func NewIronicExporter(config *ExporterConfig, logger *slog.Logger) (*IronicExpo
 	return &exporter, nil
 }
 
+// listAllNodes returns every node, paging on an explicit marker under a stable
+// sort so that deployments with more nodes than the API returns in one response
+// are collected completely.
+func listAllNodes(ctx context.Context, client *gophercloudv2.ServiceClient) ([]nodes.Node, error) {
+	var allNodes []nodes.Node
+	var marker string
+
+	for {
+		allPagesNodes, err := nodes.ListDetail(client, nodes.ListOpts{
+			Limit:   ironicNodePageSize,
+			Marker:  marker,
+			SortKey: "id",
+			SortDir: "asc",
+		}).AllPages(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		page, err := nodes.ExtractNodes(allPagesNodes)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(page) == 0 {
+			return allNodes, nil
+		}
+
+		allNodes = append(allNodes, page...)
+		marker = page[len(page)-1].UUID
+		if marker == "" {
+			return nil, fmt.Errorf("ironic: node page of %d entries ends without a UUID", len(page))
+		}
+	}
+}
+
 // ListNodes : list nodes
 func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
-	allPagesNodes, err := nodes.ListDetail(exporter.ClientV2, nodes.ListOpts{}).AllPages(ctx)
-	if err != nil {
-		return err
-	}
-
-	allNodes, err := nodes.ExtractNodes(allPagesNodes)
+	allNodes, err := listAllNodes(ctx, exporter.ClientV2)
 	if err != nil {
 		return err
 	}
@@ -72,10 +112,12 @@ func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	for _, node := range allNodes {
 		deployKernel := getDriverInfoString(node.DriverInfo, "deploy_kernel")
 		deployRamdisk := getDriverInfoString(node.DriverInfo, "deploy_ramdisk")
+		serialNumber := getNestedExtraString(node.Extra, "system_vendor", "serial_number")
 
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["node"].Metric,
 			prometheus.GaugeValue, 1.0, node.UUID, node.Name, node.ProvisionState, node.PowerState,
-			strconv.FormatBool(node.Maintenance), node.MaintenanceReason, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
+			strconv.FormatBool(node.Maintenance), sanitizeMetricString(node.MaintenanceReason), node.ConductorGroup, strings.Join(node.Traits, " "),
+			node.InstanceUUID, node.Lessee, sanitizeMetricString(node.LastError), serialNumber, strconv.FormatBool(node.ConsoleEnabled), node.ResourceClass,
 			deployKernel, deployRamdisk, strconv.FormatBool(node.Retired), node.RetiredReason)
 
 		if !node.UpdatedAt.IsZero() {
@@ -102,6 +144,41 @@ func ListNodes(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	}
 
 	return nil
+}
+
+func getExtraString(extra map[string]any, key string) string {
+	if extra == nil {
+		return ""
+	}
+
+	value, ok := extra[key]
+	if !ok {
+		return ""
+	}
+
+	s, ok := value.(string)
+	if !ok {
+		return ""
+	}
+
+	return s
+}
+
+func getNestedExtraString(extra map[string]any, key string, nestedKey string) string {
+	if extra == nil {
+		return ""
+	}
+
+	nested, ok := extra[key].(map[string]any)
+	if !ok {
+		return ""
+	}
+
+	return getExtraString(nested, nestedKey)
+}
+
+func sanitizeMetricString(value string) string {
+	return strings.TrimSpace(strings.ReplaceAll(value, "\n", " "))
 }
 
 func getDriverInfoString(driverInfo map[string]any, key string) string {

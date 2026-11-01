@@ -14,6 +14,21 @@
             "provisioning_status": "ACTIVE",
             "id": "ca00ed86-94e3-440e-95c6-ffa35531081e",
             "lb_algorithm": "ROUND_ROBIN"
+        },
+        {
+            "loadbalancers":
+                [
+                    {
+                        "id":"e7284bb2-f46a-42ca-8c9b-e08671255125"
+                    }
+                ],
+            "name": "disabled_pool",
+            "operating_status": "OFFLINE",
+            "project_id": "8b1632d90bfe407787d9996b7f662fd7",
+            "protocol": "TCP",
+            "provisioning_status": "ACTIVE",
+            "id": "7fe02a57-6fca-4578-b76f-20c3dffb2773",
+            "lb_algorithm": "ROUND_ROBIN"
         }
     ]
 }

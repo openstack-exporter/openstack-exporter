@@ -105,6 +105,12 @@ func CollectCache(
 
 // BufferFromCache reads cloud's MetricsFamily data from cache and writes into a buffer.
 func BufferFromCache(cloud string, services []string, logger *slog.Logger) (bytes.Buffer, error) {
+	return encodeFromCache(cloud, services, expfmt.NewFormat(expfmt.TypeTextPlain), logger)
+}
+
+// encodeFromCache reads cloud's MetricsFamily data from cache and encodes it
+// into a buffer using the given exposition format.
+func encodeFromCache(cloud string, services []string, format expfmt.Format, logger *slog.Logger) (bytes.Buffer, error) {
 	cacheBackend := GetCache()
 	var buf bytes.Buffer
 
@@ -114,12 +120,19 @@ func BufferFromCache(cloud string, services []string, logger *slog.Logger) (byte
 		return buf, nil
 	}
 
+	enc := expfmt.NewEncoder(&buf, format)
 	for _, mfCache := range cloudCache.MetricFamilyCaches {
 		if !slices.Contains(services, mfCache.Service) {
 			continue
 		}
 
-		if _, err := expfmt.MetricFamilyToText(&buf, mfCache.MF); err != nil {
+		if err := enc.Encode(mfCache.MF); err != nil {
+			return buf, err
+		}
+	}
+
+	if closer, ok := enc.(expfmt.Closer); ok {
+		if err := closer.Close(); err != nil {
 			return buf, err
 		}
 	}
@@ -135,18 +148,21 @@ func FlushExpiredCloudCaches(ttl time.Duration) {
 
 // WriteCacheToResponse read cache and write to the connection as part of an HTTP reply.
 func WriteCacheToResponse(w http.ResponseWriter, r *http.Request, cloud string, enabledServices []string, logger *slog.Logger) error {
-	buf, err := BufferFromCache(cloud, enabledServices, logger)
-	if err != nil {
-		http.Error(w, "Failed to encode metrics", http.StatusInternalServerError)
-		return err
-	}
-
 	contentType := expfmt.NegotiateAccept(r.Header,
 		expfmt.NewFormat(expfmt.TypeProtoDelim),
 		expfmt.NewFormat(expfmt.TypeProtoText),
 		expfmt.NewFormat(expfmt.TypeProtoCompact),
 		expfmt.NewFormat(expfmt.TypeTextPlain),
 	)
+
+	// Encode the cached metrics in the negotiated format, so the body matches
+	// the Content-Type header (e.g. protobuf when Prometheus asks for it).
+	buf, err := encodeFromCache(cloud, enabledServices, contentType, logger)
+	if err != nil {
+		http.Error(w, "Failed to encode metrics", http.StatusInternalServerError)
+		return err
+	}
+
 	w.Header().Set("Content-Type", string(contentType))
 
 	if _, err = w.Write(buf.Bytes()); err != nil {

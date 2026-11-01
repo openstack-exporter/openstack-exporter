@@ -156,6 +156,8 @@ func newPlacementBenchmarkFixture(b *testing.B, parallel bool) *placementBenchma
 		}
 
 		switch {
+		case r.URL.Path == "/":
+			fmt.Fprint(w, `{"versions":[{"id":"v1.0","status":"CURRENT","min_version":"1.0","max_version":"1.39"}]}`)
 		case r.URL.Path == "/resource_providers":
 			writePlacementBenchmarkResourceProviders(b, w, fixture.providers)
 		case strings.HasPrefix(r.URL.Path, "/resource_providers/"):
@@ -184,7 +186,6 @@ func newPlacementBenchmarkFixture(b *testing.B, parallel bool) *placementBenchma
 		DisabledMetrics: []string{},
 	}
 	setPlacementBenchmarkBoolField(config, "CompletePlacementInParallel", parallel)
-	setPlacementBenchmarkBoolField(config, "CollectPlacementTraits", false)
 
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	exporter, err := exporters.NewPlacementExporter(config, logger)

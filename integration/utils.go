@@ -118,6 +118,7 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 			novaMetadataMapping, // non-nil here
 			dnsConcurrentCount,
 			nil,
+			exporters.DefaultCollectTimeout,
 			logger,
 		)
 		if err != nil {

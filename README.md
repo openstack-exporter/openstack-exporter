@@ -107,6 +107,8 @@ Flags:
       --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
       --[no-]collect-metric-time
                                  time spent collecting each metric
+      --collect-timeout=10s      Deadline for each metric collector and timeout
+                                 for each OpenStack API request
   -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
       --[no-]disable-slow-metrics
                                  Disable slow metrics for performance reasons
@@ -171,6 +173,17 @@ Args:
 ```
 
 ### Scrape options
+
+`--collect-timeout` defaults to `10s`. It bounds each collection callback,
+including its pagination and per-project requests, and each API request during
+authentication and service discovery. A timed-out callback logs an error;
+healthy collectors still return their metrics. Service `up` is zero when all
+its callbacks fail.
+
+Set this below Prometheus's `scrape_timeout`, allowing time for authentication,
+discovery and encoding. Probes initialize services before collection, so this is
+not a deadline for the whole scrape. Increase both timeouts for clouds whose
+collectors need more than ten seconds. The same limit applies to cache refreshes.
 
 In legacy mode cloud and metrics to be scraped are specified as argument or flags as described above.
 To select multi cloud mode the --multi-cloud flag needs to be used.

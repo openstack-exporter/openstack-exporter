@@ -88,7 +88,7 @@ func (suite *LoadbalancerTestSuite) newExporterWithDisabledMetrics(disabledMetri
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 	exporter, err := NewExporter(suite.ServiceName, suite.Prefix, cloudName, disabledMetrics, "public", false, false, false, false, "", "", new(utils.LabelMappingFlag), 10, func() (string, error) {
 		return DEFAULT_UUID, nil
-	}, logger)
+	}, DefaultCollectTimeout, logger)
 	suite.Require().NoError(err)
 	return exporter
 }

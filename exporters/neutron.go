@@ -1,8 +1,11 @@
 package exporters
 
 import (
+	"errors"
 	"strconv"
 
+	"github.com/gophercloud/gophercloud"
+	"github.com/gophercloud/gophercloud/openstack"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/agents"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/floatingips"
 	"github.com/gophercloud/gophercloud/openstack/networking/v2/extensions/layer3/routers"
@@ -33,7 +36,7 @@ var defaultNeutronMetrics = []Metric{
 	{Name: "ports_lb_not_active"},
 	{Name: "routers", Fn: ListRouters},
 	{Name: "routers_not_active"},
-	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState"}, Fn: ListAgentStates},
+	{Name: "agent_state", Labels: []string{"hostname", "service", "adminState", "pcd_cluster"}, Fn: ListAgentStates},
 	{Name: "network_ip_availabilities_total", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}, Fn: ListNetworkIPAvailabilities},
 	{Name: "network_ip_availabilities_used", Labels: []string{"network_id", "network_name", "ip_version", "cidr", "subnet_name", "project_id"}},
 	{Name: "loadbalancers", Fn: ListLBs},
@@ -101,6 +104,25 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 		return err
 	}
 
+	// Cluster membership is Nova host-aggregate data, so build a short-lived Nova
+	// compute client off this exporter's own credentials to look it up.
+	var eo gophercloud.EndpointOpts
+	if v, ok := endpointOpts["compute"]; ok {
+		eo = v
+	} else {
+		return errors.New("No EndpointOpts available to create Compute client")
+	}
+
+	computeClient, err := openstack.NewComputeV2(exporter.Client.ProviderClient, eo)
+	if err != nil {
+		return err
+	}
+
+	hostToClusterMap, err := buildHostToClusterMap(computeClient)
+	if err != nil {
+		return err
+	}
+
 	for _, agent := range allAgents {
 		var state int = 0
 		if agent.Alive {
@@ -112,7 +134,7 @@ func ListAgentStates(exporter *BaseOpenStackExporter, ch chan<- prometheus.Metri
 			adminState = "up"
 		}
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
-			prometheus.CounterValue, float64(state), agent.Host, agent.Binary, adminState)
+			prometheus.CounterValue, float64(state), agent.Host, agent.Binary, adminState, hostToClusterMap[agent.Host])
 	}
 
 	return nil

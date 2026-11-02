@@ -13,16 +13,16 @@ type NovaTestSuite struct {
 var novaExpectedUp = `
 # HELP openstack_nova_agent_state agent_state
 # TYPE openstack_nova_agent_state counter
-openstack_nova_agent_state{adminState="disabled",disabledReason="test1",hostname="host1",id="1",service="nova-scheduler",zone="internal"} 1
-openstack_nova_agent_state{adminState="disabled",disabledReason="test2",hostname="host1",id="2",service="nova-compute",zone="nova"} 1
-openstack_nova_agent_state{adminState="disabled",disabledReason="test4",hostname="host2",id="4",service="nova-compute",zone="nova"} 0
-openstack_nova_agent_state{adminState="enabled",disabledReason="",hostname="host2",id="3",service="nova-scheduler",zone="internal"} 0
+openstack_nova_agent_state{adminState="disabled",disabledReason="test1",hostname="host1",id="1",pcd_cluster="",service="nova-scheduler",zone="internal"} 1
+openstack_nova_agent_state{adminState="disabled",disabledReason="test2",hostname="host1",id="2",pcd_cluster="",service="nova-compute",zone="nova"} 1
+openstack_nova_agent_state{adminState="disabled",disabledReason="test4",hostname="host2",id="4",pcd_cluster="",service="nova-compute",zone="nova"} 0
+openstack_nova_agent_state{adminState="enabled",disabledReason="",hostname="host2",id="3",pcd_cluster="",service="nova-scheduler",zone="internal"} 0
 # HELP openstack_nova_availability_zones availability_zones
 # TYPE openstack_nova_availability_zones gauge
 openstack_nova_availability_zones 1
 # HELP openstack_nova_current_workload current_workload
 # TYPE openstack_nova_current_workload gauge
-openstack_nova_current_workload{aggregates="",availability_zone="",hostname="host1"} 0
+openstack_nova_current_workload{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 0
 # HELP openstack_nova_flavors flavors
 # TYPE openstack_nova_flavors gauge
 openstack_nova_flavors 7
@@ -68,19 +68,19 @@ openstack_nova_limits_vcpus_used{tenant="swifttenanttest2",tenant_id="2db68fed84
 openstack_nova_limits_vcpus_used{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 0
 # HELP openstack_nova_local_storage_available_bytes local_storage_available_bytes
 # TYPE openstack_nova_local_storage_available_bytes gauge
-openstack_nova_local_storage_available_bytes{aggregates="",availability_zone="",hostname="host1"} 1.103806595072e+12
+openstack_nova_local_storage_available_bytes{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 1.103806595072e+12
 # HELP openstack_nova_local_storage_used_bytes local_storage_used_bytes
 # TYPE openstack_nova_local_storage_used_bytes gauge
-openstack_nova_local_storage_used_bytes{aggregates="",availability_zone="",hostname="host1"} 0
+openstack_nova_local_storage_used_bytes{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 0
 # HELP openstack_nova_memory_available_bytes memory_available_bytes
 # TYPE openstack_nova_memory_available_bytes gauge
-openstack_nova_memory_available_bytes{aggregates="",availability_zone="",hostname="host1"} 8.589934592e+09
+openstack_nova_memory_available_bytes{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 8.589934592e+09
 # HELP openstack_nova_memory_used_bytes memory_used_bytes
 # TYPE openstack_nova_memory_used_bytes gauge
-openstack_nova_memory_used_bytes{aggregates="",availability_zone="",hostname="host1"} 5.36870912e+08
+openstack_nova_memory_used_bytes{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 5.36870912e+08
 # HELP openstack_nova_running_vms running_vms
 # TYPE openstack_nova_running_vms gauge
-openstack_nova_running_vms{aggregates="",availability_zone="",hostname="host1"} 0
+openstack_nova_running_vms{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 0
 # HELP openstack_nova_security_groups security_groups
 # TYPE openstack_nova_security_groups gauge
 openstack_nova_security_groups 1
@@ -95,10 +95,10 @@ openstack_nova_total_vms 1
 openstack_nova_up 1
 # HELP openstack_nova_vcpus_available vcpus_available
 # TYPE openstack_nova_vcpus_available gauge
-openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host1"} 2
+openstack_nova_vcpus_available{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 2
 # HELP openstack_nova_vcpus_used vcpus_used
 # TYPE openstack_nova_vcpus_used gauge
-openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
+openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1",pcd_cluster=""} 0
 
 `
 

@@ -14,11 +14,11 @@ type NeutronTestSuite struct {
 var neutronExpectedUp = `
 # HELP openstack_neutron_agent_state agent_state
 # TYPE openstack_neutron_agent_state counter
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-dhcp-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-l3-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-lbaasv2-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-metadata-agent"} 1
-openstack_neutron_agent_state{adminState="up",hostname="agenthost1",service="neutron-openvswitch-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",pcd_cluster="",service="neutron-dhcp-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",pcd_cluster="",service="neutron-l3-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",pcd_cluster="",service="neutron-lbaasv2-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",pcd_cluster="",service="neutron-metadata-agent"} 1
+openstack_neutron_agent_state{adminState="up",hostname="agenthost1",pcd_cluster="",service="neutron-openvswitch-agent"} 1
 # HELP openstack_neutron_floating_ips floating_ips
 # TYPE openstack_neutron_floating_ips gauge
 openstack_neutron_floating_ips 4

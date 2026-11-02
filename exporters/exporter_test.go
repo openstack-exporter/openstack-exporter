@@ -26,16 +26,30 @@ type BaseOpenStackTestSuite struct {
 
 func (suite *BaseOpenStackTestSuite) SetResponseFromFixture(method string, statusCode int, url string, file string) {
 	data, _ := ioutil.ReadFile(file)
-	response := &http.Response{
-		Body: ioutil.NopCloser(bytes.NewReader(data)),
-		Header: http.Header{
-			"Content-Type":    []string{"application/json"},
-			"X-Subject-Token": []string{"1234"},
-		},
-		StatusCode: statusCode,
+
+	// Build a fresh *http.Response (and therefore a fresh, unconsumed Body reader) on
+	// every invocation, since a single shared Body can only be read once.
+	newResponse := func(req *http.Request) (*http.Response, error) {
+		return &http.Response{
+			Body: ioutil.NopCloser(bytes.NewReader(data)),
+			Header: http.Header{
+				"Content-Type":    []string{"application/json"},
+				"X-Subject-Token": []string{"1234"},
+			},
+			StatusCode: statusCode,
+			Request:    req,
+		}, nil
 	}
 
-	responder := httpmock.ResponderFromResponse(response).Once()
+	// The nova exporter's ListHypervisors and ListNovaAgentState each independently
+	// look up host aggregates (to derive the pcd_cluster label), so this endpoint is
+	// legitimately hit twice within a single Collect() pass of the nova exporter.
+	uses := 1
+	if url == suite.MakeURL("/compute/os-aggregates", "") {
+		uses = 2
+	}
+
+	responder := httpmock.Responder(newResponse).Times(uses)
 	httpmock.RegisterResponder(method, url, responder)
 }
 

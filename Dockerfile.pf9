@@ -1,0 +1,46 @@
+# syntax=docker/dockerfile:1
+#
+# Platform9 build of openstack-exporter.
+#
+# Unlike the upstream Dockerfile (which expects promu to have already produced
+# .build/$OS-$ARCH/openstack-exporter), this builds the binary itself so CI
+# agents need nothing but docker. The runtime stage is deliberately the same
+# base upstream publishes, so a PF9-built image differs from the upstream
+# release only by the code in this repo.
+
+ARG GO_VERSION=1.24
+
+FROM golang:${GO_VERSION}-alpine AS builder
+
+ARG GOOS=linux
+ARG GOARCH=amd64
+ARG CGO_ENABLED=0
+
+WORKDIR /src
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN mkdir -p /out && \
+	GOOS=${GOOS} GOARCH=${GOARCH} CGO_ENABLED=${CGO_ENABLED} \
+	go build -trimpath -ldflags="-s -w" -o /out/openstack-exporter .
+
+FROM quay.io/prometheus/busybox:latest
+
+ARG VERSION=1.0.0
+ARG BUILD_ID=0
+ARG BRANCH=local
+ARG APP_METADATA=
+
+COPY --from=builder /out/openstack-exporter /bin/openstack-exporter
+
+ENTRYPOINT ["/bin/openstack-exporter"]
+EXPOSE     9180
+
+LABEL com.platform9.pf9_version=${VERSION}
+LABEL com.platform9.build=${BUILD_ID}
+LABEL com.platform9.version="${VERSION}-${BUILD_ID}"
+LABEL com.platform9.branch=${BRANCH}
+LABEL com.platform9.app_metadata=${APP_METADATA}

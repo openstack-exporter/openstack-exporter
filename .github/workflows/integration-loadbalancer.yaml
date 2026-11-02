@@ -13,12 +13,15 @@ jobs:
             openstack_version: "master"
             ubuntu_version: "24.04"
             additional_services: "openstack-cli-server,octavia,o-api,o-cw,o-hk,o-hm,o-da"
+            amphora_image_url: "https://tarballs.opendev.org/openstack/octavia/test-images/test-only-amphora-x64-haproxy-ubuntu-noble.qcow2"
     runs-on: ubuntu-${{ matrix.ubuntu_version }}
     timeout-minutes: 90
     name: Deploy OpenStack ${{ matrix.name }} with Octavia and run load balancer integration tests
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
+      - name: Download pre-built amphora image
+        run: wget -q "${{ matrix.amphora_image_url }}" -O /tmp/amphora-x64-haproxy.qcow2
       - name: Deploy devstack
         uses: gophercloud/devstack-action@fc61cc16ba19c4224a70b0b4d7e3e4907fac51e7
         with:
@@ -27,6 +30,8 @@ jobs:
           conf_overrides: |
             enable_plugin neutron https://opendev.org/openstack/neutron ${{ matrix.openstack_version }}
             enable_plugin octavia https://opendev.org/openstack/octavia ${{ matrix.openstack_version }}
+            OCTAVIA_AMP_IMAGE_FILE=/tmp/amphora-x64-haproxy.qcow2
+            LIBVIRT_CPU_MODE=host-passthrough
       - name: Setup Go
         uses: actions/setup-go@v7
         with:

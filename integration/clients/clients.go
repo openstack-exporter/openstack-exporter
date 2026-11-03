@@ -406,3 +406,38 @@ func NewOrchestrationV1Client() (*gophercloud.ServiceClient, error) {
 func NewPlacementV1Client() (*gophercloud.ServiceClient, error) {
 	return newServiceClient(openstack.NewPlacementV1)
 }
+
+// newInstanceHAV1 creates a ServiceClient for the Masakari (instance-ha) v1
+// API. Gophercloud does not ship a constructor for this service, so the client
+// is assembled manually from the service catalog.
+func newInstanceHAV1(client *gophercloud.ProviderClient, eo gophercloud.EndpointOpts) (*gophercloud.ServiceClient, error) {
+	eo.ApplyDefaults("instance-ha")
+
+	url, err := client.EndpointLocator(eo)
+	if err != nil {
+		return nil, err
+	}
+
+	sc := &gophercloud.ServiceClient{
+		ProviderClient: client,
+		Endpoint:       url,
+		Type:           "instance-ha",
+	}
+
+	if !strings.Contains(sc.Endpoint, "/v1") {
+		base := sc.Endpoint
+		if !strings.HasSuffix(base, "/") {
+			base += "/"
+		}
+		sc.ResourceBase = base + "v1/"
+	}
+
+	return sc, nil
+}
+
+// NewInstanceHAV1Client returns a *ServiceClient for making calls to the
+// OpenStack Masakari (instance-ha) v1 API. An error will be returned
+// if authentication or client creation was not possible.
+func NewInstanceHAV1Client() (*gophercloud.ServiceClient, error) {
+	return newServiceClient(newInstanceHAV1)
+}

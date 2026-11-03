@@ -21,6 +21,9 @@ openstack_container_infra_cluster_nodes{master_count="1",name="k8s",project_id="
 # HELP openstack_container_infra_cluster_status cluster_status
 # TYPE openstack_container_infra_cluster_status gauge
 openstack_container_infra_cluster_status{master_count="1",name="k8s",node_count="1",project_id="0cbd49cbf76d405d9c86562e1d579bd3",stack_id="31c1ee6c-081e-4f39-9f0f-f1d87a7defa1",status="CREATE_FAILED",uuid="273c39d5-fa17-4372-b6b1-93a572de2cef"} 1
+# HELP openstack_container_infra_agent_state agent_state
+# TYPE openstack_container_infra_agent_state gauge
+openstack_container_infra_agent_state{disabledReason="",hostname="magnum-manager",id="1",report_count="2179",service="magnum-conductor",state="up"} 1
 # HELP openstack_container_infra_total_clusters total_clusters
 # TYPE openstack_container_infra_total_clusters gauge
 openstack_container_infra_total_clusters 1

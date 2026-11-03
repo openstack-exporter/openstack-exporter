@@ -40,6 +40,7 @@ type ContainerInfraExporter struct {
 
 var defaultContainerInfraMetrics = []Metric{
 	{Name: "total_clusters", Fn: ListAllClusters},
+	{Name: "agent_state", Labels: []string{"id", "hostname", "service", "state", "disabledReason", "report_count"}, Fn: ListMagnumServices},
 	{Name: "cluster_masters", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "project_id"}, Fn: nil},
 	{Name: "cluster_nodes", Labels: []string{"uuid", "name", "stack_id", "status", "master_count", "project_id"}, Fn: nil},
 	{Name: "cluster_status", Labels: []string{"uuid", "name", "stack_id", "status", "node_count", "master_count", "project_id"}, Fn: nil},
@@ -92,6 +93,36 @@ func ListAllClusters(ctx context.Context, exporter *BaseOpenStackExporter, ch ch
 		ch <- prometheus.MustNewConstMetric(exporter.Metrics["cluster_status"].Metric,
 			prometheus.GaugeValue, float64(mapClusterStatus(cluster.Status)), cluster.UUID, cluster.Name,
 			cluster.StackID, cluster.Status, strconv.Itoa(cluster.NodeCount), strconv.Itoa(cluster.MasterCount), cluster.ProjectID)
+	}
+
+	return nil
+}
+
+type magnumService struct {
+	ID             int    `json:"id"`
+	Binary         string `json:"binary"`
+	Host           string `json:"host"`
+	State          string `json:"state"`
+	ReportCount    int    `json:"report_count"`
+	DisabledReason string `json:"disabled_reason"`
+}
+
+func ListMagnumServices(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var response struct {
+		Services []magnumService `json:"mservices"`
+	}
+	if _, err := exporter.ClientV2.Get(ctx, exporter.ClientV2.ServiceURL("mservices"), &response, nil); err != nil {
+		return err
+	}
+
+	for _, service := range response.Services {
+		state := 0.0
+		if service.State == "up" {
+			state = 1
+		}
+		ch <- prometheus.MustNewConstMetric(exporter.Metrics["agent_state"].Metric,
+			prometheus.GaugeValue, state, strconv.Itoa(service.ID), service.Host, service.Binary,
+			service.State, service.DisabledReason, strconv.Itoa(service.ReportCount))
 	}
 
 	return nil

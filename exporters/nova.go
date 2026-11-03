@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"maps"
 	"reflect"
 	"slices"
 	"strings"
@@ -413,17 +414,18 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
+			addressIPv4, addressIPv6 := serverAddresses(server)
 			labelValues := func() []string {
 				if flavorIDMapper == nil {
 					return []string{
 						server.ID, server.Status, server.Name, server.TenantID,
-						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+						server.UserID, addressIPv4, addressIPv6, server.HostID, server.HypervisorHostname, server.ID,
 						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName,
 					}
 				}
 				return []string{
 					server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+					server.UserID, addressIPv4, addressIPv6, server.HostID, server.HypervisorHostname, server.ID,
 					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName,
 				}
 			}()
@@ -434,6 +436,39 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		}
 	}
 	return nil
+}
+
+// serverAddresses falls back to the standard Nova addresses map when the
+// optional accessIPv4/accessIPv6 fields are not populated.
+// Networks are considered by name, and addresses retain their API array order.
+func serverAddresses(server servers.Server) (string, string) {
+	ipv4, ipv6 := server.AccessIPv4, server.AccessIPv6
+	if ipv4 != "" && ipv6 != "" {
+		return ipv4, ipv6
+	}
+
+	for _, network := range slices.Sorted(maps.Keys(server.Addresses)) {
+		addresses, _ := server.Addresses[network].([]any)
+		for _, raw := range addresses {
+			address, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			ip, _ := address["addr"].(string)
+			switch address["version"] {
+			case 4, float64(4):
+				if ipv4 == "" {
+					ipv4 = ip
+				}
+			case 6, float64(6):
+				if ipv6 == "" {
+					ipv6 = ip
+				}
+			}
+		}
+	}
+
+	return ipv4, ipv6
 }
 
 type novaRunningVMLabels struct {

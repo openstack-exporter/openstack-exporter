@@ -191,3 +191,31 @@ jobs:
 
       - name: Run Placement benchmarks
         run: go test ./exporters -bench 'BenchmarkPlacement.*10000' -benchmem -run '^$' -benchtime=1x
+
+  benchmark:
+    name: Ironic benchmark
+    runs-on: ubuntu-latest
+    env:
+      GOCACHE: ${{ github.workspace }}/env/go-build-cache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Prepare Go build cache
+        run: mkdir -p "$GOCACHE"
+
+      - name: Cache Go modules
+        uses: actions/cache@v6
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Ironic 10000-node benchmark smoke test
+        run: go test ./exporters -bench 'BenchmarkIronic.*10000' -benchmem -run '^$' -benchtime=1x

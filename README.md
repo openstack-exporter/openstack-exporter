@@ -326,6 +326,8 @@ OpenStack-Exporter is designed to handle both older and newer microversions grac
 * For Numeric Fields: Missing numeric fields will default to 0
 * For String Fields: Typically default to an empty string ("")
 
+Placement negotiates microversion 1.6 for resource provider traits. `OS_PLACEMENT_API_VERSION` overrides the negotiated version. When the selected version is below 1.6, inventory and usage metrics remain available with empty traits labels.
+
 This fallback mechanism ensures that OpenStack-Exporter works correctly even when interfacing with OpenStack environments using older microversions, without causing operational disruptions.
 
 ## Metrics

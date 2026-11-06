@@ -4,6 +4,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -15,14 +16,16 @@ import (
 	"github.com/prometheus/common/expfmt"
 )
 
-// CollectCache collects the MetricsFamily for required clouds and services and stores in the cache.
-func CollectCache(
-	enableExporterFunc func(string, exporters.ExporterOptions, *slog.Logger) (*exporters.OpenStackExporter, error),
-	multiCloud bool,
-	services []string,
-	opts exporters.ExporterOptions,
-	logger *slog.Logger,
-) error {
+// Source provides the collectors of a cloud, binding the ones that are not
+// bound yet. *exporters.Pool implements it.
+type Source interface {
+	Collectors(ctx context.Context, cloud string, services []string) exporters.Bound
+}
+
+// CollectCache gathers the metrics of the required clouds and services from
+// source and stores them in the cache. The readiness metrics of the pool are
+// stored without a service so every read includes them.
+func CollectCache(ctx context.Context, source Source, multiCloud bool, services []string, cloud string, logger *slog.Logger) error {
 	logger.Info("Run collect cache job")
 	cacheBackend := GetCache()
 
@@ -38,8 +41,8 @@ func CollectCache(
 			clouds = append(clouds, cloud)
 		}
 	}
-	if opts.Cloud != "" && !multiCloud {
-		clouds = append(clouds, opts.Cloud)
+	if cloud != "" && !multiCloud {
+		clouds = append(clouds, cloud)
 	}
 
 	for _, cloud := range clouds {
@@ -49,46 +52,54 @@ func CollectCache(
 		// and new metrics in the cache and confuse users.
 		cloudCache := NewCloudCache()
 
-		cloudOpts := opts
-		cloudOpts.Cloud = cloud
+		bound := source.Collectors(ctx, cloud, services)
 
 		for _, service := range services {
-			lg2 := lg.With("service", service)
-			lg2.Info("Start collect cache data")
-
-			exp, err := enableExporterFunc(service, cloudOpts, logger)
-			if err != nil {
-				// Log error and continue with enabling other exporters
-				lg2.Error("enabling exporter for service failed", "error", err)
+			exp, ok := bound.Exporters[service]
+			if !ok {
+				lg.Warn("collector is not bound, skipping cache update", "service", service)
 				continue
 			}
-
-			registry := prometheus.NewPedanticRegistry()
-			registry.MustRegister(*exp)
-
-			metricFamilies, err := registry.Gather()
-			if err != nil {
+			lg2 := lg.With("service", service)
+			lg2.Info("Start collect cache data")
+			if err := gatherInto(&cloudCache, service, exp, lg2); err != nil {
 				lg2.Error("Create gather failed", "error", err)
 				continue
 			}
-
-			for _, mf := range metricFamilies {
-				cloudCache.SetMetricFamilyCache(
-					*mf.Name,
-					MetricFamilyCache{
-						Service: service,
-						MF:      mf,
-					},
-				)
-				lg2.Debug("Update cache data", "MetricsFamily", mf.Name)
-			}
-
 			lg2.Info("Finish update cache data")
+		}
+
+		if err := gatherInto(&cloudCache, "", bound.Ready, lg); err != nil {
+			lg.Error("Gathering readiness failed", "error", err)
 		}
 
 		cacheBackend.SetCloudCache(cloud, cloudCache)
 	}
 
+	return nil
+}
+
+// gatherInto collects the metric families of collector into cloudCache under
+// service.
+func gatherInto(cloudCache *CloudCache, service string, collector prometheus.Collector, logger *slog.Logger) error {
+	registry := prometheus.NewPedanticRegistry()
+	registry.MustRegister(collector)
+
+	metricFamilies, err := registry.Gather()
+	if err != nil {
+		return err
+	}
+
+	for _, mf := range metricFamilies {
+		cloudCache.SetMetricFamilyCache(
+			*mf.Name,
+			MetricFamilyCache{
+				Service: service,
+				MF:      mf,
+			},
+		)
+		logger.Debug("Update cache data", "MetricsFamily", mf.Name)
+	}
 	return nil
 }
 
@@ -111,7 +122,7 @@ func encodeFromCache(cloud string, services []string, format expfmt.Format, logg
 
 	enc := expfmt.NewEncoder(&buf, format)
 	for _, mfCache := range cloudCache.MetricFamilyCaches {
-		if !slices.Contains(services, mfCache.Service) {
+		if mfCache.Service != "" && !slices.Contains(services, mfCache.Service) {
 			continue
 		}
 

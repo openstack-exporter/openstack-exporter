@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
@@ -18,16 +19,26 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func mockEnableExporter(
-	service string,
-	opts exporters.ExporterOptions,
-	logger *slog.Logger,
-) (*exporters.OpenStackExporter, error) {
+// mockSource binds a mock exporter for service-a only and reports readiness
+// for every requested service.
+type mockSource struct{}
+
+func (mockSource) Collectors(_ context.Context, cloud string, services []string) exporters.Bound {
 	var exporter exporters.OpenStackExporter = &mockOpenStackExporter{
 		cnt: prometheus.NewCounter(prometheus.CounterOpts{Name: "c1", Help: "Help c1"}),
 		gge: prometheus.NewGauge(prometheus.GaugeOpts{Name: "g1", Help: "Help g1"}),
 	}
-	return &exporter, nil
+	ready := prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "openstack_exporter_collector_ready", Help: "ready"}, []string{"cloud", "service"})
+	bound := exporters.Bound{Exporters: map[string]exporters.OpenStackExporter{}, Ready: ready}
+	for _, service := range services {
+		if service == "service-a" {
+			bound.Exporters[service] = exporter
+			ready.WithLabelValues(cloud, service).Set(1)
+		} else {
+			ready.WithLabelValues(cloud, service).Set(0)
+		}
+	}
+	return bound
 }
 
 // MockOpenStackExporter is a mock of OpenStackExporter interface
@@ -63,33 +74,13 @@ func TestCollectCache(t *testing.T) {
 	defer newSingleCache()
 
 	multiCloud := false
-	services := []string{"service-a"}
+	services := []string{"service-a", "service-b"}
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{}))
 
-	opts := exporters.ExporterOptions{
-		Cloud:                    "testCloud",
-		Prefix:                   "testPrefix",
-		DisabledMetrics:          []string{},
-		EndpointType:             "public",
-		CollectTime:              true,
-		DisableSlowMetrics:       false,
-		DisableDeprecatedMetrics: true,
-		DisableCinderAgentUUID:   false,
-		DomainID:                 "",
-		TenantID:                 "",
-		DnsConcurrentCount:       10,
-	}
-
-	err := CollectCache(
-		mockEnableExporter,
-		multiCloud,
-		services,
-		opts,
-		logger,
-	)
+	err := CollectCache(context.Background(), mockSource{}, multiCloud, services, "testCloud", logger)
 	assert.NoError(err, "Collect cache failed")
 
-	cloudCache, exists := cache.GetCloudCache(opts.Cloud)
+	cloudCache, exists := cache.GetCloudCache("testCloud")
 	assert.True(exists, "Cloud cache was not set or retrieved properly")
 
 	includeServices := []string{}
@@ -98,7 +89,14 @@ func TestCollectCache(t *testing.T) {
 	}
 
 	assert.Contains(includeServices, "service-a", "service-a should be included in the cache data")
-	assert.NotContains(includeServices, "service-b", "service-b should not be included in the cache data")
+	assert.NotContains(includeServices, "service-b", "service-b has no bound collector and must not be in the cache data")
+	assert.Contains(includeServices, "", "readiness metrics are stored without a service")
+
+	// A read for service-b alone still carries the readiness metrics.
+	buf, err := BufferFromCache("testCloud", []string{"service-b"}, logger)
+	assert.NoError(err)
+	assert.Contains(buf.String(), `openstack_exporter_collector_ready{cloud="testCloud",service="service-b"} 0`)
+	assert.NotContains(buf.String(), "c1")
 }
 
 func TestBufferFromCache(t *testing.T) {

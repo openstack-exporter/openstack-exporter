@@ -164,9 +164,9 @@ func TestPruneScheduleRecomputesDependencyGraph(t *testing.T) {
 	schedule, err := graph.PruneSchedule(map[string]bool{
 		"a_metric": true,
 		"c_metric": false,
-	})
+	}, nil)
 	if err != nil {
-		t.Fatalf("PruneSchedule() error = %v", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v", err)
 	}
 
 	want := [][]string{{"source:a"}, {"emitter:emitA"}}
@@ -197,9 +197,9 @@ func TestPruneScheduleKeepsSharedDependencies(t *testing.T) {
 	schedule, err := graph.PruneSchedule(map[string]bool{
 		"left_metric":  false,
 		"right_metric": true,
-	})
+	}, nil)
 	if err != nil {
-		t.Fatalf("PruneSchedule() error = %v", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v", err)
 	}
 
 	want := [][]string{{"source:shared"}, {"source:right"}, {"emitter:emitRight"}}
@@ -216,9 +216,9 @@ func TestPruneScheduleKeepsEmitterWhenAnyMetricIsEnabled(t *testing.T) {
 		},
 	}
 
-	schedule, err := graph.PruneSchedule(map[string]bool{"enabled": true, "disabled": false})
+	schedule, err := graph.PruneSchedule(map[string]bool{"enabled": true, "disabled": false}, nil)
 	if err != nil {
-		t.Fatalf("PruneSchedule() error = %v", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v", err)
 	}
 
 	want := [][]string{{"source:data"}, {"emitter:emit"}}
@@ -235,9 +235,9 @@ func TestPruneScheduleRejectsUnknownMetric(t *testing.T) {
 		},
 	}
 
-	_, err := graph.PruneSchedule(map[string]bool{"a_metric": true})
+	_, err := graph.PruneSchedule(map[string]bool{"a_metric": true}, nil)
 	if err == nil || !strings.Contains(err.Error(), `emitter "emitA" declares unknown metric "typo"`) {
-		t.Fatalf("PruneSchedule() error = %v, want unknown metric error", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v, want unknown metric error", err)
 	}
 }
 
@@ -252,9 +252,9 @@ func TestPruneScheduleRejectsCycleInPrunedSources(t *testing.T) {
 		},
 	}
 
-	_, err := graph.PruneSchedule(map[string]bool{"disabled": false})
+	_, err := graph.PruneSchedule(map[string]bool{"disabled": false}, nil)
 	if err == nil || !strings.Contains(err.Error(), "cycle detected in DAG") {
-		t.Fatalf("PruneSchedule() error = %v, want cycle error", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v, want cycle error", err)
 	}
 }
 
@@ -266,12 +266,12 @@ func TestPruneScheduleDropsEverythingWhenAllMetricsAreDisabled(t *testing.T) {
 		},
 	}
 
-	schedule, err := graph.PruneSchedule(map[string]bool{"metric": false})
+	schedule, err := graph.PruneSchedule(map[string]bool{"metric": false}, nil)
 	if err != nil {
-		t.Fatalf("PruneSchedule() error = %v", err)
+		t.Fatalf("PruneSchedule(, nil) error = %v", err)
 	}
 	if len(schedule.nodes) != 0 || len(schedule.waves) != 0 {
-		t.Fatalf("PruneSchedule() = %#v, want empty schedule", schedule)
+		t.Fatalf("PruneSchedule(, nil) = %#v, want empty schedule", schedule)
 	}
 
 	result := schedule.Run(context.Background(), &scrapeState{}, nil, RunHooks{})
@@ -568,5 +568,386 @@ func TestRunLetsIndependentSourcesWriteDisjointState(t *testing.T) {
 		if want := (RunResult{SourcesOK: 3, EmittersOK: 1}); result != want {
 			t.Fatalf("Run() = %+v, want %+v", result, want)
 		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Requirements and XOR groups
+// ---------------------------------------------------------------------------
+
+const testAxis Feature = "test.microversion"
+
+func capsAt(major, minor int) *Capabilities {
+	var caps Capabilities
+	caps.SetVersion(testAxis, Version{major, minor})
+	return &caps
+}
+
+// xorGraph has a three-way source group covering disjoint version ranges
+// and a dependent emitter.
+func xorGraph() Graph[scrapeState] {
+	return Graph[scrapeState]{
+		Sources: []Source[scrapeState]{
+			{Name: "a_new", XorGroup: "a", Requires: []Requirement{AtLeast{testAxis, Version{2, 47}}}},
+			{Name: "a_mid", XorGroup: "a", Requires: []Requirement{AtLeast{testAxis, Version{2, 33}}, Below{testAxis, Version{2, 47}}}},
+			{Name: "a_old", XorGroup: "a"},
+			{Name: "b", DependsOn: []string{"a"}},
+		},
+		Emitters: []Emitter[scrapeState]{
+			{Name: "emit", Metrics: []string{"m"}, Sources: []string{"a", "b"}},
+		},
+	}
+}
+
+func TestComputeScheduleRejectsInvalidXorGroups(t *testing.T) {
+	tests := []struct {
+		name      string
+		graph     Graph[scrapeState]
+		wantError string
+	}{
+		{
+			name: "group named like a source",
+			graph: Graph[scrapeState]{
+				Sources: []Source[scrapeState]{
+					{Name: "a"},
+					{Name: "a_v2", XorGroup: "a"},
+				},
+			},
+			wantError: `xor group "a" has the same name as a source`,
+		},
+		{
+			name: "emitter group named like a source",
+			graph: Graph[scrapeState]{
+				Sources: []Source[scrapeState]{{Name: "a"}},
+				Emitters: []Emitter[scrapeState]{
+					{Name: "e1", XorGroup: "a", Metrics: []string{"m"}},
+				},
+			},
+			wantError: `xor group "a" has the same name as a source`,
+		},
+		{
+			name: "group mixing sources and emitters",
+			graph: Graph[scrapeState]{
+				Sources:  []Source[scrapeState]{{Name: "s", XorGroup: "g"}},
+				Emitters: []Emitter[scrapeState]{{Name: "e", XorGroup: "g", Metrics: []string{"m"}}},
+			},
+			wantError: `xor group "g" mixes sources and emitters`,
+		},
+		{
+			name: "two default sources",
+			graph: Graph[scrapeState]{
+				Sources: []Source[scrapeState]{
+					{Name: "s1", XorGroup: "g"},
+					{Name: "s2", XorGroup: "g"},
+				},
+			},
+			wantError: `xor group "g" has 2 members without requirements`,
+		},
+		{
+			name: "two default emitters",
+			graph: Graph[scrapeState]{
+				Emitters: []Emitter[scrapeState]{
+					{Name: "e1", XorGroup: "g", Metrics: []string{"m"}},
+					{Name: "e2", XorGroup: "g", Metrics: []string{"m"}},
+				},
+			},
+			wantError: `xor group "g" has 2 members without requirements`,
+		},
+		{
+			name: "emitter members with different metrics",
+			graph: Graph[scrapeState]{
+				Emitters: []Emitter[scrapeState]{
+					{Name: "e1", XorGroup: "g", Metrics: []string{"m", "n"}},
+					{Name: "e2", XorGroup: "g", Requires: []Requirement{Has("x")}, Metrics: []string{"m"}},
+				},
+			},
+			wantError: `xor group "g": emitters "e1" and "e2" declare different metrics`,
+		},
+		{
+			name: "dependency on a group member",
+			graph: Graph[scrapeState]{
+				Sources: []Source[scrapeState]{
+					{Name: "s1", XorGroup: "g"},
+					{Name: "b", DependsOn: []string{"s1"}},
+				},
+			},
+			wantError: `source "b" depends on xor group member "s1"; depend on the group instead`,
+		},
+		{
+			name: "emitter on a group member",
+			graph: Graph[scrapeState]{
+				Sources:  []Source[scrapeState]{{Name: "s1", XorGroup: "g"}},
+				Emitters: []Emitter[scrapeState]{{Name: "e", Metrics: []string{"m"}, Sources: []string{"s1"}}},
+			},
+			wantError: `emitter "e" depends on xor group member "s1"; depend on the group instead`,
+		},
+		{
+			name: "cycle through a group",
+			graph: Graph[scrapeState]{
+				Sources: []Source[scrapeState]{
+					{Name: "s1", XorGroup: "g", DependsOn: []string{"b"}},
+					{Name: "s2", XorGroup: "g", Requires: []Requirement{Has("x")}},
+					{Name: "b", DependsOn: []string{"g"}},
+				},
+			},
+			wantError: "cycle detected in DAG",
+		},
+		{
+			name: "group referenced twice",
+			graph: Graph[scrapeState]{
+				Sources:  []Source[scrapeState]{{Name: "s1", XorGroup: "g"}},
+				Emitters: []Emitter[scrapeState]{{Name: "e", Metrics: []string{"m"}, Sources: []string{"g", "g"}}},
+			},
+			wantError: `emitter "e" depends on source "g" twice`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := tt.graph.ComputeSchedule()
+			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("ComputeSchedule() error = %v, want containing %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestResolveXorGroupPicksMostSpecificMember(t *testing.T) {
+	graph := xorGraph()
+	policy := map[string]bool{"m": true}
+
+	tests := []struct {
+		name string
+		caps *Capabilities
+		want string
+	}{
+		{name: "newest range", caps: capsAt(2, 50), want: "a_new"},
+		{name: "exact lower bound of newest", caps: capsAt(2, 47), want: "a_new"},
+		{name: "middle range", caps: capsAt(2, 40), want: "a_mid"},
+		{name: "below every range", caps: capsAt(2, 10), want: "a_old"},
+		{name: "axis unset", caps: &Capabilities{}, want: "a_old"},
+		{name: "nil capabilities", caps: nil, want: "a_old"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			sched, err := graph.PruneSchedule(policy, tt.caps)
+			if err != nil {
+				t.Fatalf("PruneSchedule() error = %v", err)
+			}
+			if got := sched.Chosen(); !reflect.DeepEqual(got, map[string]string{"a": tt.want}) {
+				t.Fatalf("Chosen() = %v, want a=%s", got, tt.want)
+			}
+			want := [][]string{{"source:" + tt.want}, {"source:b"}, {"emitter:emit"}}
+			if got := sched.Waves(); !reflect.DeepEqual(got, want) {
+				t.Fatalf("waves = %#v, want %#v", got, want)
+			}
+			if got := sched.TotalSources(); got != 2 {
+				t.Fatalf("TotalSources() = %d, want 2", got)
+			}
+		})
+	}
+
+	// ComputeSchedule has no capabilities, so the default wins there too.
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+	if got := sched.Chosen()["a"]; got != "a_old" {
+		t.Fatalf("ComputeSchedule chose %q, want a_old", got)
+	}
+}
+
+func TestResolveXorGroupRejectsTie(t *testing.T) {
+	graph := Graph[scrapeState]{
+		Sources: []Source[scrapeState]{
+			{Name: "s33", XorGroup: "g", Requires: []Requirement{AtLeast{testAxis, Version{2, 33}}}},
+			{Name: "s47", XorGroup: "g", Requires: []Requirement{AtLeast{testAxis, Version{2, 47}}}},
+		},
+	}
+
+	if _, err := graph.PruneSchedule(map[string]bool{}, capsAt(2, 40)); err != nil {
+		t.Fatalf("PruneSchedule() at 2.40 error = %v, want nil: only s33 matches", err)
+	}
+
+	_, err := graph.PruneSchedule(map[string]bool{}, capsAt(2, 50))
+	want := `xor group "g": members "s33" and "s47" both match with 1 requirements`
+	if err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("PruneSchedule() at 2.50 error = %v, want containing %q", err, want)
+	}
+}
+
+func TestResolveUnsatisfiedGroupPrunesDependents(t *testing.T) {
+	graph := Graph[scrapeState]{
+		Sources: []Source[scrapeState]{
+			{Name: "s_new", XorGroup: "g", Requires: []Requirement{AtLeast{testAxis, Version{2, 47}}}},
+			{Name: "s_ext", XorGroup: "g", Requires: []Requirement{Has("ext")}},
+			{Name: "b", DependsOn: []string{"g"}},
+			{Name: "c"},
+		},
+		Emitters: []Emitter[scrapeState]{
+			{Name: "emitB", Metrics: []string{"mb"}, Sources: []string{"b"}},
+			{Name: "emitC", Metrics: []string{"mc"}, Sources: []string{"c"}},
+		},
+	}
+	policy := map[string]bool{"mb": true, "mc": true}
+
+	sched, err := graph.PruneSchedule(policy, capsAt(2, 10))
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	if got := sched.Chosen(); len(got) != 0 {
+		t.Fatalf("Chosen() = %v, want empty", got)
+	}
+	if got, want := sched.Waves(), [][]string{{"source:c"}, {"emitter:emitC"}}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+	if got, want := sched.PrunedSources(), []string{"s_new", "s_ext", "b"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("PrunedSources() = %v, want %v", got, want)
+	}
+	if got, want := sched.PrunedEmitters(), []string{"emitB"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("PrunedEmitters() = %v, want %v", got, want)
+	}
+
+	var caps Capabilities
+	caps.Set("ext")
+	sched, err = graph.PruneSchedule(policy, &caps)
+	if err != nil {
+		t.Fatalf("PruneSchedule() with ext error = %v", err)
+	}
+	if got := sched.Chosen()["g"]; got != "s_ext" {
+		t.Fatalf("Chosen() = %v, want g=s_ext", sched.Chosen())
+	}
+	if got := sched.PrunedEmitters(); len(got) != 0 {
+		t.Fatalf("PrunedEmitters() = %v, want none", got)
+	}
+}
+
+func TestResolveRequirementsDropUngroupedNodeAndDependents(t *testing.T) {
+	graph := Graph[scrapeState]{
+		Sources: []Source[scrapeState]{
+			{Name: "a", Requires: []Requirement{Has("ext")}},
+			{Name: "b", DependsOn: []string{"a"}},
+		},
+		Emitters: []Emitter[scrapeState]{
+			{Name: "emitA", Metrics: []string{"ma"}, Sources: []string{"a"}},
+			{Name: "emitB", Metrics: []string{"mb"}, Sources: []string{"b"}},
+			{Name: "emitOpt", Metrics: []string{"mo"}, Requires: []Requirement{Has("opt")}},
+		},
+	}
+
+	sched, err := graph.ComputeSchedule()
+	if err != nil {
+		t.Fatalf("ComputeSchedule() error = %v", err)
+	}
+	if got := sched.Waves(); len(got) != 0 {
+		t.Fatalf("waves = %#v, want none: nothing is satisfiable without capabilities", got)
+	}
+	if got, want := sched.PrunedEmitters(), []string{"emitA", "emitB", "emitOpt"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("PrunedEmitters() = %v, want %v", got, want)
+	}
+
+	var caps Capabilities
+	caps.Set("ext")
+	sched, err = graph.PruneSchedule(map[string]bool{"ma": true, "mb": true, "mo": true}, &caps)
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	want := [][]string{{"source:a"}, {"source:b", "emitter:emitA"}, {"emitter:emitB"}}
+	if got := sched.Waves(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+	if got, want := sched.PrunedEmitters(), []string{"emitOpt"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("PrunedEmitters() = %v, want %v", got, want)
+	}
+}
+
+// TestResolveEmitterXorGroup models Nova's server status: the newer member
+// needs an extra source that only exists from a given microversion.
+func TestResolveEmitterXorGroup(t *testing.T) {
+	graph := Graph[scrapeState]{
+		Sources: []Source[scrapeState]{
+			{Name: "servers"},
+			{Name: "flavor_map", Requires: []Requirement{AtLeast{testAxis, Version{2, 47}}}},
+		},
+		Emitters: []Emitter[scrapeState]{
+			{Name: "status_mapped", XorGroup: "status", Requires: []Requirement{AtLeast{testAxis, Version{2, 47}}},
+				Metrics: []string{"status"}, Sources: []string{"servers", "flavor_map"}},
+			{Name: "status_plain", XorGroup: "status", Metrics: []string{"status"}, Sources: []string{"servers"}},
+		},
+	}
+
+	sched, err := graph.PruneSchedule(map[string]bool{"status": true}, capsAt(2, 50))
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	if got := sched.Chosen()["status"]; got != "status_mapped" {
+		t.Fatalf("Chosen() = %v, want status=status_mapped", sched.Chosen())
+	}
+	want := [][]string{{"source:servers", "source:flavor_map"}, {"emitter:status_mapped"}}
+	if got := sched.Waves(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+
+	sched, err = graph.PruneSchedule(map[string]bool{"status": true}, capsAt(2, 10))
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	if got := sched.Chosen()["status"]; got != "status_plain" {
+		t.Fatalf("Chosen() = %v, want status=status_plain", sched.Chosen())
+	}
+	want = [][]string{{"source:servers"}, {"emitter:status_plain"}}
+	if got := sched.Waves(); !reflect.DeepEqual(got, want) {
+		t.Fatalf("waves = %#v, want %#v", got, want)
+	}
+
+	// A disabled metric drops the chosen member like any other emitter, and
+	// with it the sources only it needed.
+	sched, err = graph.PruneSchedule(map[string]bool{"status": false}, capsAt(2, 50))
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	if got := sched.Waves(); len(got) != 0 {
+		t.Fatalf("waves = %#v, want none", got)
+	}
+}
+
+func TestRunExecutesOnlyChosenXorMember(t *testing.T) {
+	var mu sync.Mutex
+	var fetched []string
+	record := func(name string) func(context.Context, *scrapeState) error {
+		return func(context.Context, *scrapeState) error {
+			mu.Lock()
+			defer mu.Unlock()
+			fetched = append(fetched, name)
+			return nil
+		}
+	}
+
+	graph := xorGraph()
+	for i := range graph.Sources {
+		graph.Sources[i].Fetch = record(graph.Sources[i].Name)
+	}
+	graph.Sources[3].Fetch = func(_ context.Context, s *scrapeState) error {
+		mu.Lock()
+		defer mu.Unlock()
+		// b must run after the chosen member of a, never in parallel with it.
+		if len(fetched) != 1 {
+			return errors.New("b ran before the group member completed")
+		}
+		fetched = append(fetched, "b")
+		return nil
+	}
+
+	sched, err := graph.PruneSchedule(map[string]bool{"m": true}, capsAt(2, 40))
+	if err != nil {
+		t.Fatalf("PruneSchedule() error = %v", err)
+	}
+	result := sched.Run(context.Background(), new(scrapeState), drain(t), RunHooks{})
+	want := RunResult{SourcesOK: 2, EmittersOK: 1}
+	if result != want {
+		t.Fatalf("Run() = %+v, want %+v", result, want)
+	}
+	if got := []string{"a_mid", "b"}; !reflect.DeepEqual(fetched, got) {
+		t.Fatalf("fetched = %v, want %v", fetched, got)
 	}
 }

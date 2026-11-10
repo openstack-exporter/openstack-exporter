@@ -12,6 +12,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/instanceha/v1/notifications"
 	"github.com/gophercloud/gophercloud/v2/openstack/instanceha/v1/segments"
 	"github.com/gophercloud/gophercloud/v2/openstack/instanceha/v1/vmoves"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -58,16 +59,38 @@ func NewMasakariExporter(config *ExporterConfig, logger *slog.Logger) (*Masakari
 	if *masakariLookback < 0 || *masakariTimeout <= 0 {
 		return nil, fmt.Errorf("Masakari lookback must be nonnegative and scrape timeout must be positive")
 	}
-	exporter := &MasakariExporter{
-		BaseOpenStackExporter: BaseOpenStackExporter{ExporterConfig: *config, Name: "masakari", logger: logger},
-		lookback:              *masakariLookback, timeout: *masakariTimeout,
-		collectVMoves: *masakariVMoves && !config.DisableSlowMetrics,
+	ctx, cancel := context.WithTimeout(context.Background(), *masakariTimeout)
+	defer cancel()
+	// Negotiate like the compute and baremetal exporters. Keep the caller's
+	// client unchanged, including when VM moves require a newer microversion.
+	client := *config.ClientV2
+	if err := utils.SetupClientMicroversionV2(ctx, &client, "OS_INSTANCE_HA_API_VERSION", "1.3", logger); err != nil {
+		return nil, err
 	}
+	configCopy := *config
+	configCopy.ClientV2 = &client
+	vmovesSupported, err := utils.IsMicroversionAtLeast(client.Microversion, "1.3")
+	if err != nil {
+		return nil, err
+	}
+	exporter := &MasakariExporter{
+		BaseOpenStackExporter: BaseOpenStackExporter{ExporterConfig: configCopy, Name: "masakari", logger: logger},
+		lookback:              *masakariLookback,
+		timeout:               *masakariTimeout,
+		collectVMoves:         *masakariVMoves && !config.DisableSlowMetrics && vmovesSupported,
+	}
+	// Keep the service health metric even when every resource metric is disabled.
+	exporter.AddMetric("up", nil, nil, "", nil)
 	for _, metric := range defaultMasakariMetrics {
 		if exporter.isSlowMetric(&metric) || (metric.Slow && !exporter.collectVMoves) {
 			continue
 		}
-		exporter.AddMetric(metric.Name, nil, metric.Labels, "", nil)
+		if metric.Name == "segment_enabled" {
+			if supported, _ := utils.IsMicroversionAtLeast(client.Microversion, "1.2"); !supported {
+				continue
+			}
+		}
+		exporter.AddMetric(metric.Name, nil, metric.Labels, metric.DeprecatedVersion, nil)
 	}
 	return exporter, nil
 }
@@ -90,13 +113,18 @@ func (exporter *MasakariExporter) enabled(names ...string) bool {
 func (exporter *MasakariExporter) Collect(ch chan<- prometheus.Metric) {
 	ctx, cancel := context.WithTimeout(context.Background(), exporter.timeout)
 	defer cancel()
-	ok := true
+	// Inventory and recovery history share a bounded collection context. VM
+	// moves depend on notifications, so they cannot be independent ListFuncs.
+	// As in BaseOpenStackExporter, up means at least one collector succeeded;
+	// collection_success identifies individual failures.
+	succeeded := false
 	report := func(group string, started time.Time, err error) {
 		value := 1.0
 		if err != nil {
-			ok = false
 			value = 0
 			exporter.logger.Error("Failed to collect Masakari metrics", "collector", group, "err", err)
+		} else {
+			succeeded = true
 		}
 		exporter.emit(ch, "collection_success", value, group)
 		if exporter.CollectTime {
@@ -117,9 +145,11 @@ func (exporter *MasakariExporter) Collect(ch chan<- prometheus.Metric) {
 				started = time.Now()
 				report("vmoves", started, exporter.collectMoves(ctx, ch, items))
 			}
+		} else if exporter.collectVMoves && exporter.enabled("vmoves", "vmove", "vmove_start_timestamp_seconds", "vmove_end_timestamp_seconds", "vmove_duration_seconds") {
+			report("vmoves", started, fmt.Errorf("cannot collect VM moves without notifications: %w", err))
 		}
 	}
-	if ok {
+	if succeeded {
 		exporter.emit(ch, "up", 1)
 	} else {
 		exporter.emit(ch, "up", 0)
@@ -245,14 +275,12 @@ func (exporter *MasakariExporter) emitNotifications(ch chan<- prometheus.Metric,
 }
 
 func (exporter *MasakariExporter) collectMoves(ctx context.Context, ch chan<- prometheus.Metric, items []notifications.Notification) error {
-	client := *exporter.ClientV2
-	client.Microversion = "1.3"
 	var moves []vmoves.VMove
 	for _, item := range items {
 		if item.Type != "COMPUTE_HOST" {
 			continue
 		}
-		pages, err := vmoves.List(&client, item.UUID, vmoves.ListOpts{Limit: 1000, SortKey: "id", SortDir: "asc"}).AllPages(ctx)
+		pages, err := vmoves.List(exporter.ClientV2, item.UUID, vmoves.ListOpts{Limit: 1000, SortKey: "id", SortDir: "asc"}).AllPages(ctx)
 		if err != nil {
 			return err
 		}

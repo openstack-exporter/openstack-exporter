@@ -24,12 +24,24 @@ const masakariOldNotification = `{"id":12,"notification_uuid":"old","source_host
 
 func masakariTestExporter(t *testing.T, handler http.HandlerFunc, disabled []string, slow bool) (*MasakariExporter, *prometheus.Registry) {
 	t.Helper()
+	return masakariTestExporterWithVersion(t, handler, disabled, slow, "1.3")
+}
+
+func masakariTestExporterWithVersion(t *testing.T, handler http.HandlerFunc, disabled []string, slow bool, maxVersion string) (*MasakariExporter, *prometheus.Registry) {
+	t.Helper()
 	previousLookback, previousTimeout, previousVMoves := *masakariLookback, *masakariTimeout, *masakariVMoves
 	*masakariLookback, *masakariTimeout, *masakariVMoves = 24*time.Hour, 30*time.Second, true
 	t.Cleanup(func() {
 		*masakariLookback, *masakariTimeout, *masakariVMoves = previousLookback, previousTimeout, previousVMoves
 	})
-	server := httptest.NewServer(handler)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/" {
+			w.Header().Set("Content-Type", "application/json")
+			fmt.Fprintf(w, `{"versions":[{"id":"v1.0","status":"CURRENT","min_version":"1.0","version":%q}]}`, maxVersion)
+			return
+		}
+		handler(w, r)
+	}))
 	t.Cleanup(server.Close)
 	exporter, err := NewMasakariExporter(&ExporterConfig{
 		ClientV2: &gophercloud.ServiceClient{ProviderClient: &gophercloud.ProviderClient{}, Endpoint: server.URL + "/v1/", Type: "instance-ha"},
@@ -155,8 +167,8 @@ func TestMasakariCollection(t *testing.T) {
 	if families["notification_updated_timestamp_seconds"] != nil {
 		t.Fatal("null timestamp emitted")
 	}
-	if exporter.ClientV2.Microversion != "" {
-		t.Fatal("shared client microversion mutated")
+	if exporter.ClientV2.Microversion != "1.3" {
+		t.Fatal("unexpected negotiated microversion")
 	}
 }
 
@@ -175,7 +187,7 @@ func TestMasakariCollectionFailures(t *testing.T) {
 		t.Run(fmt.Sprintf("%s-%d", tc.group, tc.code), func(t *testing.T) {
 			_, registry := masakariTestExporter(t, masakariFixtureHandler(t, tc.path, tc.code), nil, false)
 			families := masakariGather(t, registry)
-			masakariSample(t, families, "up", nil, 0)
+			masakariSample(t, families, "up", nil, 1)
 			masakariSample(t, families, "collection_success", map[string]string{"collector": tc.group}, 0)
 			if tc.group == "vmoves" && families["vmoves"] != nil {
 				t.Fatal("failed collection emitted zero counts")
@@ -195,9 +207,6 @@ func TestMasakariDisabledMetrics(t *testing.T) {
 		if families[name] != nil {
 			t.Fatalf("disabled metric %s was collected", name)
 		}
-	}
-	if _, err := NewMasakariExporter(&ExporterConfig{}, slog.Default()); err != nil {
-		t.Fatal(err)
 	}
 }
 
@@ -275,5 +284,127 @@ func TestMasakariServiceCatalog(t *testing.T) {
 	client, err := openstack.NewInstanceHAV1(provider, opts)
 	if err != nil || !found || client.Type != "instance-ha" || client.Endpoint != "https://masakari.example/v1/" {
 		t.Fatalf("unexpected service client: %#v, %v", client, err)
+	}
+}
+
+func TestMasakariMicroversions(t *testing.T) {
+	for _, version := range []string{"1.0", "1.1", "1.2", "1.3"} {
+		t.Run(version, func(t *testing.T) {
+			handler := masakariFixtureHandler(t, "", 0)
+			exporter, registry := masakariTestExporterWithVersion(t, func(w http.ResponseWriter, r *http.Request) {
+				if got := r.Header.Get("OpenStack-API-Version"); got != "instance-ha "+version {
+					t.Errorf("API version header = %q, want instance-ha %s", got, version)
+				}
+				if version < "1.3" && strings.HasSuffix(r.URL.Path, "/vmoves") {
+					t.Error("VM moves requested on an unsupported API")
+				}
+				handler(w, r)
+			}, nil, false, version)
+			families := masakariGather(t, registry)
+			masakariSample(t, families, "up", nil, 1)
+			if _, ok := exporter.Metrics["segment_enabled"]; ok != (version >= "1.2") {
+				t.Fatal("segment_enabled does not respect API 1.2")
+			}
+			if _, ok := exporter.Metrics["vmoves"]; ok != (version >= "1.3") {
+				t.Fatal("VM moves do not respect API 1.3")
+			}
+		})
+	}
+}
+
+func TestMasakariMicroversionOverride(t *testing.T) {
+	t.Setenv("OS_INSTANCE_HA_API_VERSION", "1.2")
+	exporter, registry := masakariTestExporter(t, masakariFixtureHandler(t, "", 0), nil, false)
+	masakariSample(t, masakariGather(t, registry), "up", nil, 1)
+	if exporter.collectVMoves || exporter.ClientV2.Microversion != "1.2" {
+		t.Fatal("explicit microversion was not respected")
+	}
+	config := exporter.ExporterConfig
+	t.Setenv("OS_INSTANCE_HA_API_VERSION", "1.4")
+	if _, err := NewMasakariExporter(&config, slog.Default()); err == nil {
+		t.Fatal("unsupported explicit microversion accepted")
+	}
+	if config.ClientV2.Microversion != "1.2" {
+		t.Fatal("constructor mutated the caller's client")
+	}
+}
+
+func TestMasakariPagination(t *testing.T) {
+	pages := make(map[string]int)
+	_, registry := masakariTestExporter(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("status") != "" {
+			fmt.Fprint(w, `{"notifications":[]}`)
+			return
+		}
+		pages[r.URL.Path]++
+		marker := r.URL.Query().Get("marker")
+		switch marker {
+		case "", "1":
+			id, uuid := 1, "first"
+			if marker == "1" {
+				id, uuid = 2, "second"
+			}
+			switch r.URL.Path {
+			case "/v1/segments":
+				fmt.Fprintf(w, `{"segments":[{"id":%d,"uuid":%q}]}`, id, uuid)
+			case "/v1/segments/first/hosts", "/v1/segments/second/hosts":
+				fmt.Fprintf(w, `{"hosts":[{"id":%d,"uuid":%q}]}`, id, uuid)
+			case "/v1/notifications":
+				fmt.Fprintf(w, `{"notifications":[{"id":%d,"notification_uuid":%q,"type":"COMPUTE_HOST","status":"finished"}]}`, id, uuid)
+			case "/v1/notifications/first/vmoves", "/v1/notifications/second/vmoves":
+				fmt.Fprintf(w, `{"vmoves":[{"id":%d,"notification_uuid":%q,"type":"evacuation","status":"succeeded"}]}`, id, strings.Split(r.URL.Path, "/")[3])
+			default:
+				t.Errorf("unexpected path %s", r.URL.Path)
+			}
+		case "2":
+			key := "hosts"
+			switch r.URL.Path {
+			case "/v1/segments":
+				key = "segments"
+			case "/v1/notifications":
+				key = "notifications"
+			default:
+				if strings.HasSuffix(r.URL.Path, "/vmoves") {
+					key = "vmoves"
+				}
+			}
+			fmt.Fprintf(w, `{"%s":[]}`, key)
+		default:
+			t.Errorf("unexpected marker %q", marker)
+		}
+	}, nil, false)
+	families := masakariGather(t, registry)
+	masakariSample(t, families, "segments", nil, 2)
+	masakariSample(t, families, "hosts", map[string]string{"segment_uuid": "second"}, 2)
+	masakariSample(t, families, "notifications", map[string]string{"type": "COMPUTE_HOST", "status": "finished"}, 2)
+	masakariSample(t, families, "vmoves", map[string]string{"type": "evacuation", "status": "succeeded"}, 4)
+	if len(pages) != 6 {
+		t.Fatalf("expected all resource paths, got %v", pages)
+	}
+	for path, count := range pages {
+		if count != 3 {
+			t.Errorf("%s requested %d pages, want 3", path, count)
+		}
+	}
+}
+
+func TestMasakariDisabledCollectors(t *testing.T) {
+	disabled := make([]string, 0, len(defaultMasakariMetrics))
+	for _, metric := range defaultMasakariMetrics {
+		disabled = append(disabled, "masakari-"+metric.Name)
+	}
+	_, registry := masakariTestExporter(t, func(w http.ResponseWriter, r *http.Request) {
+		t.Errorf("disabled collector made a request: %s", r.URL)
+	}, disabled, false)
+	masakariSample(t, masakariGather(t, registry), "up", nil, 0)
+}
+
+func TestMasakariCollectionTiming(t *testing.T) {
+	exporter, registry := masakariTestExporter(t, masakariFixtureHandler(t, "", 0), nil, false)
+	exporter.CollectTime = true
+	families := masakariGather(t, registry)
+	if got := len(families["openstack_metric_collect_seconds"].GetMetric()); got != 3 {
+		t.Fatalf("got %d collector timings, want 3", got)
 	}
 }

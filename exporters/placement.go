@@ -2,9 +2,13 @@ package exporters
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -13,7 +17,11 @@ type PlacementExporter struct {
 }
 
 var placementResourceLabels = []string{"hostname", "resourcetype"}
+var placementResourceProviderTraits = []string{"hostname", "trait"}
 var placementAllocationLabels = []string{"hostname", "uuid", "resourcetype"}
+
+// placementTraitsMicroversion is the minimum placement microversion providing resource provider traits.
+const placementTraitsMicroversion = "1.6"
 
 var defaultPlacementMetrics = []Metric{
 	{Name: "resource_total", Fn: ListPlacementResourceProviders, Labels: placementResourceLabels},
@@ -22,6 +30,7 @@ var defaultPlacementMetrics = []Metric{
 	{Name: "resource_reserved", Labels: placementResourceLabels},
 	{Name: "resource_usage", Labels: placementResourceLabels},
 	{Name: "resource_provider_allocations", Labels: placementAllocationLabels},
+	{Name: "resource_provider_trait", Labels: placementResourceProviderTraits, Slow: true},
 }
 
 func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*PlacementExporter, error) {
@@ -32,6 +41,10 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			logger:         logger,
 		},
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	for _, metric := range defaultPlacementMetrics {
 		if exporter.isDeprecatedMetric(&metric) {
 			continue
@@ -40,11 +53,22 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 			exporter.AddMetric(metric.Name, metric.Fn, metric.Labels, metric.DeprecatedVersion, nil)
 		}
 	}
+
+	// If the resource_provider_trait is in the metrics list,
+	// then it is not disabled, and the slow metrics are not disabled either
+	if _, ok := exporter.Metrics["resource_provider_trait"]; ok {
+		if err := utils.SetupClientMicroversionV2(ctx, exporter.ClientV2, "OS_PLACEMENT_API_VERSION", placementTraitsMicroversion, logger); err != nil {
+			return nil, err
+		}
+	}
+
 	return &exporter, nil
 }
 
 func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	var allResourceProviders []resourceproviders.ResourceProvider
+	// Non-fatal errors that will only be returned in the end of the method
+	var nonFatalErrs []error
 
 	allPagesResourceProviders, err := resourceproviders.List(exporter.ClientV2, resourceproviders.ListOpts{}).AllPages(ctx)
 	if err != nil {
@@ -59,6 +83,20 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		inventoryResult, err := resourceproviders.GetInventories(ctx, exporter.ClientV2, resourceprovider.UUID).Extract()
 		if err != nil {
 			return err
+		}
+
+		if exporter.ClientV2.Microversion == placementTraitsMicroversion {
+			if traitsResult, err := resourceproviders.GetTraits(ctx, exporter.ClientV2, resourceprovider.UUID).Extract(); err == nil {
+				for _, v := range traitsResult.Traits {
+					if !exporter.PlacementProviderTraitRegex.MatchString(v) {
+						continue
+					}
+					emitPlacementResourceMetric(exporter, ch, "resource_provider_trait", 1, resourceprovider.Name, v)
+				}
+			} else {
+				// Keep collecting the remaining metrics, but report the failure through the collection status
+				nonFatalErrs = append(nonFatalErrs, fmt.Errorf("could not get traits of resource provider %s: %w", resourceprovider.Name, err))
+			}
 		}
 
 		for k, v := range inventoryResult.Inventories {
@@ -98,8 +136,7 @@ func ListPlacementResourceProviders(ctx context.Context, exporter *BaseOpenStack
 		}
 	}
 
-	return nil
-
+	return errors.Join(nonFatalErrs...)
 }
 
 func emitPlacementResourceMetric(

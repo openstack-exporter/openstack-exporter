@@ -156,6 +156,8 @@ Flags:
                                  Disable the placement service exporter in strict mode
       --[no-]disable-service.sharev2
                                  Disable the sharev2 service exporter in strict mode
+      --[no-]disable-service.key-manager
+                                 Disable the key-manager service exporter in strict mode
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...
                                  Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
@@ -373,6 +375,10 @@ openstack_cinder_volume_status | 1.4 | 1.5 | deprecated in favor of openstack_ci
 
 Name     | Sample Labels                                                                                                                                                                                                                                                                                                         | Sample Value | Description
 ---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------|------------
+openstack_barbican_containers| region="RegionOne"|1.0 (float)| Number of secret containers in the exporter's project
+openstack_barbican_orders| status="ERROR"|1.0 (float)| Number of orders in the exporter's project, by status
+openstack_barbican_secrets| region="RegionOne"|2.0 (float)| Number of secrets in the exporter's project
+openstack_barbican_up| region="RegionOne"|1.0 (float)| Service status (1=up, 0=down)
 openstack_cinder_agent_state| adminState="enabled",disabledReason="",hostname="devstack@lvmdriver-1",service="cinder-volume",uuid="3649e0f6-de80-ab6e-4f1c-351042d2f7fe",zone="nova"                                                                                                                                                                      |1.0 or 0 (bool)| Agent state (1=up, 0=down)
 openstack_cinder_backup_gb| id="2ef47aee-8844-490c-804d-2a8efe561c65",incremental="false",name="test-volume-backup",snapshot_id="",status="available",tenant_id="bab7d5c60cd041a0a36f7c4b6e1dd978",volume_id="173f7b48-c4c1-4e70-9acc-086b39073506"|1.0 (float)| Backup size in GB
 openstack_cinder_backups| region="RegionOne"|4.0 (float)| Total number of backups
@@ -605,6 +611,20 @@ Index | Status
 ## Example metrics
 
 ```text
+# HELP openstack_barbican_containers containers
+# TYPE openstack_barbican_containers gauge
+openstack_barbican_containers 1
+# HELP openstack_barbican_orders orders
+# TYPE openstack_barbican_orders gauge
+openstack_barbican_orders{status="ACTIVE"} 1
+openstack_barbican_orders{status="ERROR"} 1
+openstack_barbican_orders{status="PENDING"} 0
+# HELP openstack_barbican_secrets secrets
+# TYPE openstack_barbican_secrets gauge
+openstack_barbican_secrets 2
+# HELP openstack_barbican_up up
+# TYPE openstack_barbican_up gauge
+openstack_barbican_up 1
 # HELP openstack_cinder_agent_state agent_state
 # TYPE openstack_cinder_agent_state counter
 openstack_cinder_agent_state{adminState="enabled",hostname="compute-node-01",region="Region",service="cinder-backup",zone="nova"} 1.0

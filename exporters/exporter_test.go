@@ -143,6 +143,10 @@ var fixtures map[string]string = map[string]string{
 	"/database/mgmt/instances?include_clustered=False&deleted=False": "trove_instances",
 	"/orchestration/":               "heat_api_discovery",
 	"/orchestration/stacks":         "heat_stacks",
+	"/key-manager/":                 "barbican_api_discovery",
+	"/key-manager/v1/secrets":       "barbican_secrets",
+	"/key-manager/v1/containers":    "barbican_containers",
+	"/key-manager/v1/orders":        "barbican_orders",
 	"/placement/":                   "placement_api_discovery",
 	"/placement/resource_providers": "resource_providers",
 	"/placement/resource_providers/b985be15-99bf-4baf-9ef7-3ef166cd7f31/inventories": "resource_provider_1_inventory",
@@ -243,4 +247,5 @@ func TestOpenStackSuites(t *testing.T) {
 	suite.Run(t, &PlacementTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "placement"}})
 	suite.Run(t, &ManilaTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "sharev2"}})
 	suite.Run(t, &ObjectStoreTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "object-store"}})
+	suite.Run(t, &BarbicanTestSuite{BaseOpenStackTestSuite: BaseOpenStackTestSuite{ServiceName: "key-manager"}})
 }

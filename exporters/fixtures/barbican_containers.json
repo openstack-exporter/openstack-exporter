@@ -1,0 +1,25 @@
+{
+  "containers": [
+    {
+      "consumers": [],
+      "container_ref": "http://test.cloud/key-manager/v1/containers/5b8e2a4c-1d7f-4e3b-9a6c-8d2f5b8e2a4c",
+      "created": "2026-03-05T09:13:02.551207",
+      "creator_id": "3a7e1e0db4574e3f8b9a1c2d5e6f7a8b",
+      "name": "lb-tls",
+      "secret_refs": [
+        {
+          "name": "certificate",
+          "secret_ref": "http://test.cloud/key-manager/v1/secrets/9e1c3a5b-7d2f-4b8e-a6c0-3f5d7b9e1c3a"
+        },
+        {
+          "name": "private_key",
+          "secret_ref": "http://test.cloud/key-manager/v1/secrets/2d4b7f1e-8a3c-4e6d-9b0f-1c5e8a2d4b7f"
+        }
+      ],
+      "status": "ACTIVE",
+      "type": "certificate",
+      "updated": "2026-03-05T09:13:02.551207"
+    }
+  ],
+  "total": 1
+}

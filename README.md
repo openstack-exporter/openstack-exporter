@@ -98,73 +98,75 @@ usage: openstack-exporter [<flags>] [<cloud>]
 
 
 Flags:
-  -h, --[no-]help                Show context-sensitive help (also try --help-long and --help-man).
-      --web.telemetry-path="/metrics"
-                                 uri path to expose metrics
-      --os-client-config="/etc/openstack/clouds.yaml"
-                                 Path to the cloud configuration file
-      --prefix="openstack"       Prefix for metrics
-      --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
-      --[no-]collect-metric-time
-                                 time spent collecting each metric
-  -d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
-      --[no-]disable-slow-metrics
-                                 Disable slow metrics for performance reasons
-      --[no-]disable-deprecated-metrics
-                                 Disable deprecated metrics
-      --[no-]disable-cinder-agent-uuid
-                                 Disable UUID generation for Cinder agents
-      --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
-      --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
-      --[no-]cache               Enable Cache mechanism globally
-      --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
-      --project-id=PROJECT-ID    Gather metrics only for the given Project ID
-                                 (defaults to all projects)
-      --[no-]disable-service-autodetect
-                                 Disable single-cloud service autodetection and
-                                 use only explicit service flags
-      --nova.metadata-extra-labels=LABEL=KEY,KEY ...
-                                 Map provided server metadata keys to labels in
-                                 openstack_nova_server_status metric
-      --[no-]disable-service.network
-                                 Disable the network service exporter in strict mode
-      --[no-]disable-service.compute
-                                 Disable the compute service exporter in strict mode
-      --[no-]disable-service.image
-                                 Disable the image service exporter in strict mode
-      --[no-]disable-service.volume
-                                 Disable the volume service exporter in strict mode
-      --[no-]disable-service.identity
-                                 Disable the identity service exporter in strict mode
-      --[no-]disable-service.object-store
-                                 Disable the object-store service exporter in strict mode
-      --[no-]disable-service.load-balancer
-                                 Disable the load-balancer service exporter in strict mode
-      --[no-]disable-service.container-infra
-                                 Disable the container-infra service exporter in strict mode
-      --[no-]disable-service.dns
-                                 Disable the dns service exporter in strict mode
-      --[no-]disable-service.baremetal
-                                 Disable the baremetal service exporter in strict mode
-      --[no-]disable-service.gnocchi
-                                 Disable the gnocchi service exporter in strict mode
-      --[no-]disable-service.database
-                                 Disable the database service exporter in strict mode
-      --[no-]disable-service.orchestration
-                                 Disable the orchestration service exporter in strict mode
-      --[no-]disable-service.placement
-                                 Disable the placement service exporter in strict mode
-      --[no-]disable-service.sharev2
-                                 Disable the sharev2 service exporter in strict mode
-      --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
-      --web.listen-address=:9180 ...
-                                 Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
-                                 Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
-      --web.config.file=""       Path to configuration file that can enable TLS or authentication. See:
-                                 https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
-      --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
-      --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
-      --[no-]version             Show application version.
+-h, --[no-]help                Show context-sensitive help (also try --help-long and --help-man).
+    --web.telemetry-path="/metrics"
+                               uri path to expose metrics
+    --os-client-config="/etc/openstack/clouds.yaml"
+                               Path to the cloud configuration file
+    --prefix="openstack"       Prefix for metrics
+    --endpoint-type="public"   openstack endpoint type to use (i.e: public, internal, admin)
+    --[no-]collect-metric-time
+                               time spent collecting each metric
+-d, --disable-metric= ...      multiple --disable-metric can be specified in the format: service-metric (i.e: cinder-snapshots)
+    --[no-]disable-slow-metrics
+                               Disable slow metrics for performance reasons
+    --[no-]disable-deprecated-metrics
+                               Disable deprecated metrics
+    --[no-]disable-cinder-agent-uuid
+                               Disable UUID generation for Cinder agents
+    --[no-]multi-cloud         Toggle the multiple cloud scraping mode under /probe?cloud=
+    --domain-id=DOMAIN-ID      Gather metrics only for the given Domain ID (defaults to all domains)
+    --[no-]cache               Enable Cache mechanism globally
+    --cache-ttl=300s           TTL duration for cache expiry(eg. 10s, 11m, 1h)
+    --project-id=PROJECT-ID    Gather metrics only for the given Project ID
+                               (defaults to all projects)
+    --[no-]disable-service-autodetect
+                               Disable single-cloud service autodetection and
+                               use only explicit service flags
+    --nova.metadata-extra-labels=LABEL=KEY,KEY ...
+                               Map provided server metadata keys to labels in
+                               openstack_nova_server_status metric
+    --placement-provider-trait-regex=CUSTOM_
+                               Only report placement resource providers traits matching a regex (default to all traits starting with CUSTOM_)
+    --[no-]disable-service.network
+                               Disable the network service exporter in strict mode
+    --[no-]disable-service.compute
+                               Disable the compute service exporter in strict mode
+    --[no-]disable-service.image
+                               Disable the image service exporter in strict mode
+    --[no-]disable-service.volume
+                               Disable the volume service exporter in strict mode
+    --[no-]disable-service.identity
+                               Disable the identity service exporter in strict mode
+    --[no-]disable-service.object-store
+                               Disable the object-store service exporter in strict mode
+    --[no-]disable-service.load-balancer
+                               Disable the load-balancer service exporter in strict mode
+    --[no-]disable-service.container-infra
+                               Disable the container-infra service exporter in strict mode
+    --[no-]disable-service.dns
+                               Disable the dns service exporter in strict mode
+    --[no-]disable-service.baremetal
+                               Disable the baremetal service exporter in strict mode
+    --[no-]disable-service.gnocchi
+                               Disable the gnocchi service exporter in strict mode
+    --[no-]disable-service.database
+                               Disable the database service exporter in strict mode
+    --[no-]disable-service.orchestration
+                               Disable the orchestration service exporter in strict mode
+    --[no-]disable-service.placement
+                               Disable the placement service exporter in strict mode
+    --[no-]disable-service.sharev2
+                               Disable the sharev2 service exporter in strict mode
+    --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
+    --web.listen-address=:9180 ...
+                               Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
+                               Examples: `:9100` or `[::1]:9100` for http, `vsock://:9100` for vsock
+    --web.config.file=""       Path to configuration file that can enable TLS or authentication. See:
+                               https://github.com/prometheus/exporter-toolkit/blob/master/docs/web-configuration.md
+    --log.level=info           Only log messages with the given severity or above. One of: [debug, info, warn, error]
+    --log.format=logfmt        Output format of log messages. One of: [logfmt, json]
+    --[no-]version             Show application version.
 
 Args:
   [<cloud>]  name or id of the cloud to gather metrics from
@@ -362,6 +364,7 @@ listener_stats_bytes_out | loadbalancer
 listener_stats_active_connections | loadbalancer
 listener_stats_total_connections | loadbalancer
 listener_stats_request_errors | loadbalancer
+resource_provider_trait | placement
 
 #### Deprecated Metrics
 
@@ -539,6 +542,7 @@ openstack_placement_resource_allocation_ratio| hostname="compute-01",resourcetyp
 openstack_placement_resource_generation| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |20 (float)| Placement resource provider generation for this resource type
 openstack_placement_resource_reserved| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |8 (float)| Reserved resources
 openstack_placement_resource_total| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |80 (float)| Total resources
+openstack_placement_resource_provider_traits| hostname="compute-01", trait="TRAIT_NAME"                                                                                                                                                                                                                                                             |1.0 (float)| Resource trait informational metric, one metric per hostname + trait
 openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |40 (float)| Used resources
 openstack_placement_up| region="RegionOne"                                                                                                                                                                                                                                                                                                            |1.0 (float)| Service status (1=up, 0=down)
 openstack_sharev2_share_gb| availability_zone="az1",id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",project_id="ffff8fa0ca1a468db8ad00970c1effff",share_proto="NFS",share_type="az1",share_type_name="",status="available"                                                                                                                        |1.0 (float)| Share size in GB

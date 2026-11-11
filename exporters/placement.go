@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/gophercloud/gophercloud/v2/openstack/placement/v1/resourceproviders"
-	"github.com/gophercloud/gophercloud/v2/openstack/utils"
+	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -57,20 +57,8 @@ func NewPlacementExporter(config *ExporterConfig, logger *slog.Logger) (*Placeme
 	// If the resource_provider_trait is in the metrics list,
 	// then it is not disabled, and the slow metrics are not disabled either
 	if _, ok := exporter.Metrics["resource_provider_trait"]; ok {
-
-		// Verify if the required microversion is supported
-		if microVersions, err := utils.GetSupportedMicroversions(ctx, exporter.ClientV2); err == nil {
-			if supported, err := microVersions.IsSupported(placementTraitsMicroversion); err == nil {
-				if supported {
-					exporter.ClientV2.Microversion = placementTraitsMicroversion
-				} else {
-					logger.Info("Resource provider traits will not be exported: microversion is not supported", "microversion", placementTraitsMicroversion)
-				}
-			} else {
-				logger.Warn("Error while checking microversion support, the resource provider traits info will not be exported", "microversion", placementTraitsMicroversion, "error", err)
-			}
-		} else {
-			logger.Warn("Error while retrieving placement microversion support, the resource provider traits info will not be exported", "error", err)
+		if err := utils.SetupClientMicroversionV2(ctx, exporter.ClientV2, "OS_PLACEMENT_API_VERSION", placementTraitsMicroversion, logger); err != nil {
+			return nil, err
 		}
 	}
 

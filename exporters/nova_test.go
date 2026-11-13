@@ -490,7 +490,7 @@ openstack_nova_server_local_gb{id="6c773231-6532-447d-b651-9e0d1518b31d",name="o
 openstack_nova_server_local_gb{id="f99bb4a3-90ff-46fa-b8ec-2ef6ac1f3b7d",name="openstack-monitoring-2-prod-zone",tenant_id="110f6313d2d346b4aa90eabe4970b62a"} 10
 # HELP openstack_nova_server_status server_status
 # TYPE openstack_nova_server_status gauge
-openstack_nova_server_status{address_ipv4="1.2.3.4",address_ipv6="80fe::",availability_zone="nova",flavor_id="1",host_id="2091634baaccdc4c5a1d57069c833e402921df696b7f970791b12ec6",hypervisor_hostname="fake-mini",id="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9",instance_libvirt="instance-00000001",name="new-server-test",status="ACTIVE",tenant_id="6f70656e737461636b20342065766572",user_id="fake",uuid="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9"} 0
+openstack_nova_server_status{address_ipv4="1.2.3.4",address_ipv6="80fe::",availability_zone="nova",flavor_id="1",flavor_name="m1.tiny",host_id="2091634baaccdc4c5a1d57069c833e402921df696b7f970791b12ec6",hypervisor_hostname="fake-mini",id="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9",instance_libvirt="instance-00000001",name="new-server-test",status="ACTIVE",tenant_id="6f70656e737461636b20342065766572",user_id="fake",uuid="2ce4c5b3-2866-4972-93ce-77a2ea46a7f9"} 0
 # HELP openstack_nova_total_vms total_vms
 # TYPE openstack_nova_total_vms gauge
 openstack_nova_total_vms 1
@@ -508,4 +508,30 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *NovaTestSuite) TestFlavorMapperResolve() {
+	mapper := &flavorMapper{
+		idByName: map[string]string{"m1.tiny": "1"},
+		nameByID: map[string]string{"1": "m1.tiny"},
+	}
+
+	tests := []struct {
+		name         string
+		flavor       map[string]any
+		expectedID   string
+		expectedName string
+	}{
+		{"flavor ID up to microversion 2.46", map[string]any{"id": "1"}, "1", "m1.tiny"},
+		{"flavor name from microversion 2.47", map[string]any{"original_name": "m1.tiny"}, "1", "m1.tiny"},
+		{"flavor ID not in the flavor list", map[string]any{"id": "42"}, "42", ""},
+		{"flavor name not in the flavor list", map[string]any{"original_name": "m1.deleted"}, "", "m1.deleted"},
+		{"no flavor information", map[string]any{}, "", ""},
+	}
+
+	for _, tt := range tests {
+		id, name := mapper.Resolve(tt.flavor)
+		assert.Equal(suite.T(), tt.expectedID, id, tt.name)
+		assert.Equal(suite.T(), tt.expectedName, name, tt.name)
+	}
 }

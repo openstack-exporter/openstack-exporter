@@ -156,6 +156,14 @@ Flags:
                                  Disable the placement service exporter in strict mode
       --[no-]disable-service.sharev2
                                  Disable the sharev2 service exporter in strict mode
+      --[no-]disable-service.instance-ha
+                                 Disable the instance-ha service exporter in strict mode
+      --masakari-notification-lookback=24h
+                                 History window for Masakari notifications; 0 includes all retained history.
+      --[no-]masakari-collect-vmoves
+                                 Collect Masakari VM moves (default: true; requires API 1.3).
+      --masakari-scrape-timeout=30s
+                                 Timeout for the complete Masakari API collection.
       --[no-]web.systemd-socket  Use systemd socket activation listeners instead of port listeners (Linux only).
       --web.listen-address=:9180 ...
                                  Addresses on which to expose metrics and web interface. Repeatable for multiple addresses.
@@ -241,6 +249,20 @@ clouds:
       ...
     verify: true | false  // disable || enable SSL certificate verification
 ```
+
+### Masakari Instance HA
+
+Masakari uses the Keystone service type `instance-ha` and the metric prefix
+`openstack_masakari`. Configure collection with:
+
+- `--masakari-notification-lookback=24h`: notification history window; `0s`
+  includes all retained history. New and running notifications are always included.
+- `--no-masakari-collect-vmoves`: disable VM move collection (enabled by default;
+  requires API 1.3). `--disable-slow-metrics` also disables it.
+- `--masakari-scrape-timeout=30s`: timeout for the complete Masakari collection.
+
+API microversions are negotiated automatically. Set `OS_INSTANCE_HA_API_VERSION`
+to select a supported version explicitly.
 
 ### OpenStack Domain filtering
 
@@ -362,6 +384,11 @@ listener_stats_bytes_out | loadbalancer
 listener_stats_active_connections | loadbalancer
 listener_stats_total_connections | loadbalancer
 listener_stats_request_errors | loadbalancer
+vmoves | masakari
+vmove | masakari
+vmove_start_timestamp_seconds | masakari
+vmove_end_timestamp_seconds | masakari
+vmove_duration_seconds | masakari
 
 #### Deprecated Metrics
 
@@ -551,6 +578,37 @@ openstack_trove_instance_volume_size_gb| datastore_type="mysql",datastore_versio
 openstack_trove_instance_volume_used_gb| datastore_type="mysql",datastore_version="5.7",health_status="available",id="0cef87c6-bd23-4f6b-8458-a393c39486d8",name="mysql1",region="RegionOne",status="ACTIVE",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"                                                                                                      |0.4 (float)| Database instance volume used
 openstack_trove_total_instances| region="RegionOne"                                                                                                                                                                                                                                                                                                     |1.0 (float)| Total number of database instances
 openstack_trove_up| region="RegionOne"                                                                                                                                                                                                                                                                                                               |1.0 (float)| Service status (1=up, 0=down)
+
+### Masakari metrics
+
+All metrics below are gauges and use the `openstack_masakari_` prefix.
+
+Name | Labels | Description
+-----|--------|------------
+up | none | At least one collector succeeded (1), or none succeeded (0).
+segments | none | Total failover segments.
+segment | uuid, name, service_type, recovery_method | Segment information, value 1.
+segment_enabled | uuid, name | Recovery enabled (1) or disabled (0); requires API 1.2.
+hosts | segment_uuid | Hosts in the segment.
+reserved_hosts_available | segment_uuid | Reserved hosts that are not on maintenance.
+host | id, uuid, hostname, failover_segment_id, failover_segment_name, type, control_attributes | Host information, value 1.
+host_on_maintenance | same as host | Host maintenance flag, 1 or 0.
+host_reserved | same as host | Host reserved flag, 1 or 0.
+notifications | type, status | Notification counts in the selected window, including old new/running notifications.
+notification | notification_uuid, source_host_uuid, type, status | Notification information, value 1.
+notification_generated_timestamp_seconds | same as notification | Notification generation time as Unix seconds.
+notification_updated_timestamp_seconds | same as notification | Last notification update as Unix seconds, when present.
+notification_oldest_pending_age_seconds | type | Age of the oldest new/running notification; 0 when none are pending.
+vmoves | type, status | VM move counts for the selected host notifications; requires API 1.3.
+vmove | id, notification_uuid, instance_uuid, source_host, dest_host, type, status | VM move information, value 1; requires API 1.3.
+vmove_start_timestamp_seconds | same as vmove | Start time as Unix seconds, when present.
+vmove_end_timestamp_seconds | same as vmove | End time as Unix seconds, when present.
+vmove_duration_seconds | same as vmove | Completed move duration, when both timestamps exist and end is not before start.
+collection_success | collector | Collector success (1) or failure (0).
+
+With `--collect-metric-time`, the shared `openstack_metric_collect_seconds` metric
+uses `openstack_service="openstack_masakari"` and `openstack_metric` set to the
+collector name.
 
 ## Cinder Volume Status Description
 

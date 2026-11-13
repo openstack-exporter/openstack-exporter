@@ -15,6 +15,7 @@ import (
 
 	"github.com/gophercloud/gophercloud/v2"
 	openstack "github.com/gophercloud/gophercloud/v2/openstack"
+	"github.com/gophercloud/gophercloud/v2/openstack/instanceha/v1/segments"
 	"github.com/prometheus/client_golang/prometheus"
 	dto "github.com/prometheus/client_model/go"
 )
@@ -284,6 +285,50 @@ func TestMasakariServiceCatalog(t *testing.T) {
 	client, err := openstack.NewInstanceHAV1(provider, opts)
 	if err != nil || !found || client.Type != "instance-ha" || client.Endpoint != "https://masakari.example/v1/" {
 		t.Fatalf("unexpected service client: %#v, %v", client, err)
+	}
+}
+
+func TestMasakariProjectScopedDiscovery(t *testing.T) {
+	previousLookback, previousTimeout := *masakariLookback, *masakariTimeout
+	*masakariLookback, *masakariTimeout = 24*time.Hour, 30*time.Second
+	t.Cleanup(func() {
+		*masakariLookback, *masakariTimeout = previousLookback, previousTimeout
+	})
+	for _, prefix := range []string{"", "/masakari"} {
+		t.Run(prefix, func(t *testing.T) {
+			var discovered, listed atomic.Bool
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				switch r.URL.Path {
+				case prefix + "/v1/":
+					discovered.Store(true)
+					fmt.Fprint(w, `{"version":{"id":"v1.0","status":"CURRENT","min_version":"1.0","version":"1.3"}}`)
+				case prefix + "/v1/project/segments":
+					listed.Store(true)
+					if r.Header.Get("OpenStack-API-Version") != "instance-ha 1.3" {
+						t.Error("resource request did not use negotiated microversion")
+					}
+					fmt.Fprint(w, `{"segments":[]}`)
+				default:
+					http.NotFound(w, r)
+				}
+			}))
+			defer server.Close()
+			client := &gophercloud.ServiceClient{ProviderClient: &gophercloud.ProviderClient{}, Endpoint: server.URL + prefix + "/v1/project/", Type: "instance-ha"}
+			exporter, err := NewMasakariExporter(&ExporterConfig{ClientV2: client, Prefix: "openstack"}, slog.New(slog.NewTextHandler(io.Discard, nil)))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if exporter.ClientV2.Endpoint != client.Endpoint || client.Microversion != "" {
+				t.Fatal("discovery changed the resource endpoint or caller's client")
+			}
+			if _, err := segments.List(exporter.ClientV2, nil).AllPages(context.Background()); err != nil {
+				t.Fatal(err)
+			}
+			if !discovered.Load() || !listed.Load() {
+				t.Fatal("expected version-root discovery and project-scoped resource listing")
+			}
+		})
 	}
 }
 

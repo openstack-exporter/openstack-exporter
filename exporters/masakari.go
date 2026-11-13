@@ -4,7 +4,10 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/url"
+	"path"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/alecthomas/kingpin/v2"
@@ -64,9 +67,22 @@ func NewMasakariExporter(config *ExporterConfig, logger *slog.Logger) (*Masakari
 	// Negotiate like the compute and baremetal exporters. Keep the caller's
 	// client unchanged, including when VM moves require a newer microversion.
 	client := *config.ClientV2
-	if err := utils.SetupClientMicroversionV2(ctx, &client, "OS_INSTANCE_HA_API_VERSION", "1.3", logger); err != nil {
+	discoveryClient := client
+	endpoint, err := url.Parse(client.Endpoint)
+	if err != nil {
 		return nil, err
 	}
+	// Project-scoped catalog URLs serve resources but not version discovery.
+	// Discover at the version root while retaining the resource endpoint.
+	endpointPath := strings.TrimRight(endpoint.Path, "/")
+	if path.Base(path.Dir(endpointPath)) == "v1" {
+		endpoint.Path = path.Dir(endpointPath) + "/"
+		discoveryClient.Endpoint = endpoint.String()
+	}
+	if err := utils.SetupClientMicroversionV2(ctx, &discoveryClient, "OS_INSTANCE_HA_API_VERSION", "1.3", logger); err != nil {
+		return nil, err
+	}
+	client.Microversion = discoveryClient.Microversion
 	configCopy := *config
 	configCopy.ClientV2 = &client
 	vmovesSupported, err := utils.IsMicroversionAtLeast(client.Microversion, "1.3")

@@ -2,11 +2,9 @@ module github.com/openstack-exporter/openstack-exporter
 
 go 1.26.5
 
-replace github.com/gophercloud/gophercloud/v2 => github.com/zhmarvi/gophercloud/v2 v2.0.0-20261028022029-22ee261e1edd
-
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
-	github.com/gophercloud/gophercloud/v2 v2.15.0
+	github.com/gophercloud/gophercloud/v2 v2.15.1-0.20261112175633-791436b57a87
 	github.com/gophercloud/utils/v2 v2.0.0-20260626221802-4ae35253ac13
 	github.com/hashicorp/go-uuid v1.0.4
 	github.com/hashicorp/vault-client-go v0.4.3

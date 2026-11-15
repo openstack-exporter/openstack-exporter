@@ -3,6 +3,7 @@ package exporters
 import (
 	"strings"
 
+	"github.com/jarcoal/httpmock"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 )
@@ -507,5 +508,172 @@ openstack_nova_vcpus_used{aggregates="",availability_zone="",hostname="host1"} 0
 
 func (suite *NovaTestSuite) TestNovaExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaExpectedUp))
+	assert.NoError(suite.T(), err)
+}
+
+const novaAdminProjectID = "0c4e939acacf4376bdcd1129f1a054ad"
+
+var novaOtherProjectIDs = []string{
+	"0cbd49cbf76d405d9c86562e1d579bd3",
+	"2db68fed84324f29bb73130c6c2094fb",
+	"3d594eb0f04741069dbbb521635b21c7",
+	"43ebde53fc314b1c9ea2b8c5dc744927",
+	"4b1eb781a47440acb8af9850103e537f",
+	"5961c443439d4fcebe42643723755e9d",
+	"fdb8424c4e4f4c0ba32c52e2de3bd80e",
+}
+
+var novaQuotaCoresFallbackExpected = `
+# HELP openstack_nova_quota_cores quota_cores
+# TYPE openstack_nova_quota_cores gauge
+openstack_nova_quota_cores{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad",type="limit"} 20
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="in_use"} 0
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="limit"} 20
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="reserved"} 0
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="in_use"} 0
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="limit"} 20
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="reserved"} 0
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="in_use"} 0
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="limit"} 20
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="reserved"} 0
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="in_use"} 0
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="limit"} 20
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="reserved"} 0
+`
+
+func (suite *NovaTestSuite) TestQuotasFallbackToBasic() {
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/compute/os-quota-sets/"+novaAdminProjectID+"/detail", ""),
+		suite.FixturePath("forbidden"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/os-quota-sets/"+novaAdminProjectID, ""),
+		suite.FixturePath("nova_os_quota_sets"),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaQuotaCoresFallbackExpected), "openstack_nova_quota_cores")
+	assert.NoError(suite.T(), err)
+}
+
+var novaQuotaCoresForbiddenExpected = `
+# HELP openstack_nova_quota_cores quota_cores
+# TYPE openstack_nova_quota_cores gauge
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="in_use"} 0
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="limit"} 20
+openstack_nova_quota_cores{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e",type="reserved"} 0
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="in_use"} 0
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="limit"} 20
+openstack_nova_quota_cores{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3",type="reserved"} 0
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="in_use"} 0
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="limit"} 20
+openstack_nova_quota_cores{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d",type="reserved"} 0
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="in_use"} 0
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="limit"} 20
+openstack_nova_quota_cores{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb",type="reserved"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="in_use"} 0
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="limit"} 20
+openstack_nova_quota_cores{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f",type="reserved"} 0
+`
+
+func (suite *NovaTestSuite) TestQuotasForbiddenSkipped() {
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/compute/os-quota-sets/"+novaAdminProjectID+"/detail", ""),
+		suite.FixturePath("forbidden"),
+	)
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/compute/os-quota-sets/"+novaAdminProjectID, ""),
+		suite.FixturePath("forbidden"),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaQuotaCoresForbiddenExpected), "openstack_nova_quota_cores")
+	assert.NoError(suite.T(), err)
+}
+
+var novaLimitsTokenProjectExpected = `
+# HELP openstack_nova_limits_vcpus_max limits_vcpus_max
+# TYPE openstack_nova_limits_vcpus_max gauge
+openstack_nova_limits_vcpus_max{tenant="admin",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 20
+`
+
+func (suite *NovaTestSuite) TestLimitsTokenProject() {
+	for _, id := range novaOtherProjectIDs {
+		suite.SetResponseFromFixture("GET", 403,
+			suite.MakeURL("/compute/limits?tenant_id="+id, ""),
+			suite.FixturePath("forbidden"),
+		)
+	}
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaLimitsTokenProjectExpected), "openstack_nova_limits_vcpus_max")
+	assert.NoError(suite.T(), err)
+}
+
+var novaUsageFallbackExpected = `
+# HELP openstack_nova_server_local_gb server_local_gb
+# TYPE openstack_nova_server_local_gb gauge
+openstack_nova_server_local_gb{id="a1b2c3d4-0000-0000-0000-000000000001",name="server-page-1",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 20
+openstack_nova_server_local_gb{id="a1b2c3d4-0000-0000-0000-000000000002",name="server-page-2",tenant_id="0c4e939acacf4376bdcd1129f1a054ad"} 40
+`
+
+func (suite *NovaTestSuite) TestUsageFallbackPaginated() {
+	// The usage fallback lists projects a third time (after quotas and limits).
+	httpmock.RegisterResponder("GET", suite.MakeURL("/identity/v3/projects", ""),
+		httpmock.NewJsonResponderOrPanic(200, httpmock.File(suite.FixturePath("identity_projects"))),
+	)
+
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/compute/os-simple-tenant-usage?detailed=1", ""),
+		suite.FixturePath("forbidden"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/os-simple-tenant-usage/"+novaAdminProjectID, ""),
+		suite.FixturePath("nova_os_simple_tenant_usage_single_page1"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/os-simple-tenant-usage/"+novaAdminProjectID+"?marker=a1b2c3d4-0000-0000-0000-000000000001", ""),
+		suite.FixturePath("nova_os_simple_tenant_usage_single_page2"),
+	)
+	for _, id := range novaOtherProjectIDs {
+		suite.SetResponseFromFixture("GET", 403,
+			suite.MakeURL("/compute/os-simple-tenant-usage/"+id, ""),
+			suite.FixturePath("forbidden"),
+		)
+	}
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaUsageFallbackExpected), "openstack_nova_server_local_gb")
+	assert.NoError(suite.T(), err)
+}
+
+var novaServersFallbackExpected = `
+# HELP openstack_nova_total_vms total_vms
+# TYPE openstack_nova_total_vms gauge
+openstack_nova_total_vms 1
+`
+
+func (suite *NovaTestSuite) TestServersFallbackWithoutAllTenants() {
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/compute/servers/detail?all_tenants=true", ""),
+		suite.FixturePath("forbidden"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/compute/servers/detail", ""),
+		suite.FixturePath("nova_os_servers"),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(novaServersFallbackExpected), "openstack_nova_total_vms")
 	assert.NoError(suite.T(), err)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -19,6 +20,8 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
+	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -282,6 +285,10 @@ func collectNovaQuotaDetail(ch chan<- prometheus.Metric, metric *prometheus.Desc
 	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(q.Limit), "limit", projectName, projectID)
 }
 
+func collectNovaQuotaLimit(ch chan<- prometheus.Metric, metric *prometheus.Desc, limit int, projectName, projectID string) {
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(limit), "limit", projectName, projectID)
+}
+
 func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
@@ -291,7 +298,33 @@ func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- 
 	for _, p := range allProjects {
 		quotaSet, err := quotasets.GetDetail(ctx, exporter.ClientV2, p.ID).Extract()
 		if err != nil {
-			return err
+			if !gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				return err
+			}
+
+			qs, err := quotasets.Get(ctx, exporter.ClientV2, p.ID).Extract()
+			if err != nil {
+				if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+					continue
+				}
+				return err
+			}
+
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_cores"].Metric, qs.Cores, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_instances"].Metric, qs.Instances, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_key_pairs"].Metric, qs.KeyPairs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_metadata_items"].Metric, qs.MetadataItems, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_ram"].Metric, qs.RAM, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_server_groups"].Metric, qs.ServerGroups, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_server_group_members"].Metric, qs.ServerGroupMembers, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_fixed_ips"].Metric, qs.FixedIPs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_floating_ips"].Metric, qs.FloatingIPs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_security_group_rules"].Metric, qs.SecurityGroupRules, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_security_groups"].Metric, qs.SecurityGroups, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_file_content_bytes"].Metric, qs.InjectedFileContentBytes, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_file_path_bytes"].Metric, qs.InjectedFilePathBytes, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_files"].Metric, qs.InjectedFiles, p.Name, p.ID)
+			continue
 		}
 
 		collectNovaQuotaDetail(ch, exporter.Metrics["quota_cores"].Metric, quotaSet.Cores, p.Name, p.ID)
@@ -357,6 +390,10 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	serverListOption := getServerListOptions(exporter.TenantID)
 
 	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
+	if err != nil && serverListOption.AllTenants && gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+		serverListOption.AllTenants = false
+		allPagesServers, err = servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -448,15 +485,28 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 		return err
 	}
 
+	// Nova requires admin whenever tenant_id is passed, so the token's own project has to be queried without it
+	tokenProjectID := exporter.TenantID
+	if tokenProjectID == "" {
+		if r, ok := exporter.ClientV2.GetAuthResult().(tokens.CreateResult); ok {
+			if project, err := r.ExtractProject(); err == nil && project != nil {
+				tokenProjectID = project.ID
+			}
+		}
+	}
+
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
 		limitGetOpts := limits.GetOpts{TenantID: p.ID}
-		if p.ID == exporter.TenantID {
+		if p.ID == tokenProjectID {
 			limitGetOpts = limits.GetOpts{}
 		}
 
 		limits, err := limits.Get(ctx, exporter.ClientV2, limitGetOpts).Extract()
 		if err != nil {
+			if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+				continue
+			}
 			return err
 		}
 
@@ -484,14 +534,37 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 
 // ListUsage add metrics about usage
 func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
+	var allTenantsUsage []usage.TenantUsage
+
 	allPagesUsage, err := usage.AllTenants(exporter.ClientV2, usage.AllTenantsOpts{Detailed: true}).AllPages(ctx)
 	if err != nil {
-		return err
-	}
+		if !gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+			return err
+		}
 
-	allTenantsUsage, err := usage.ExtractAllTenants(allPagesUsage)
-	if err != nil {
-		return err
+		allProjects, err := GetProjects(ctx, exporter)
+		if err != nil {
+			return err
+		}
+
+		for _, p := range allProjects {
+			singleTenantUsage, err := getSingleTenantUsage(ctx, exporter.ClientV2, p.ID)
+			if err != nil {
+				if gophercloud.ResponseCodeIs(err, http.StatusForbidden) {
+					continue
+				}
+				return err
+			}
+
+			if singleTenantUsage != nil {
+				allTenantsUsage = append(allTenantsUsage, *singleTenantUsage)
+			}
+		}
+	} else {
+		allTenantsUsage, err = usage.ExtractAllTenants(allPagesUsage)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Server status metrics
@@ -503,6 +576,23 @@ func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 	}
 
 	return nil
+}
+
+func getSingleTenantUsage(ctx context.Context, client *gophercloud.ServiceClient, tenantID string) (*usage.TenantUsage, error) {
+	var singleUsage *usage.TenantUsage
+	err := usage.SingleTenant(client, tenantID, usage.SingleTenantOpts{}).EachPage(ctx, func(_ context.Context, page pagination.Page) (bool, error) {
+		pageUsage, err := usage.ExtractSingleTenant(page)
+		if err != nil {
+			return false, err
+		}
+		if singleUsage == nil {
+			singleUsage = pageUsage
+		} else {
+			singleUsage.ServerUsages = append(singleUsage.ServerUsages, pageUsage.ServerUsages...)
+		}
+		return true, nil
+	})
+	return singleUsage, err
 }
 
 func getServerListOptions(tenantID string) servers.ListOpts {

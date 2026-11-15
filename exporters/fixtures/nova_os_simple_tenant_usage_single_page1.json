@@ -1,0 +1,33 @@
+{
+    "tenant_usage": {
+        "tenant_id": "0c4e939acacf4376bdcd1129f1a054ad",
+        "server_usages": [
+            {
+                "hours": 1.0,
+                "flavor": "m1.small",
+                "instance_id": "a1b2c3d4-0000-0000-0000-000000000001",
+                "name": "server-page-1",
+                "tenant_id": "0c4e939acacf4376bdcd1129f1a054ad",
+                "memory_mb": 2048,
+                "local_gb": 20,
+                "vcpus": 1,
+                "started_at": "2021-01-20T13:43:42.000000",
+                "ended_at": null,
+                "state": "active",
+                "uptime": 3600
+            }
+        ],
+        "total_hours": 1.0,
+        "total_local_gb_usage": 20.0,
+        "total_memory_mb_usage": 2048.0,
+        "total_vcpus_usage": 1.0,
+        "start": "2021-01-20T00:00:00.000000",
+        "stop": "2021-01-21T00:00:00.000000"
+    },
+    "tenant_usage_links": [
+        {
+            "href": "http://test.cloud/compute/os-simple-tenant-usage/0c4e939acacf4376bdcd1129f1a054ad?marker=a1b2c3d4-0000-0000-0000-000000000001",
+            "rel": "next"
+        }
+    ]
+}

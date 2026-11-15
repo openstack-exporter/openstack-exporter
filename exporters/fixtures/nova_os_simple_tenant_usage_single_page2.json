@@ -1,0 +1,27 @@
+{
+    "tenant_usage": {
+        "tenant_id": "0c4e939acacf4376bdcd1129f1a054ad",
+        "server_usages": [
+            {
+                "hours": 1.0,
+                "flavor": "m1.medium",
+                "instance_id": "a1b2c3d4-0000-0000-0000-000000000002",
+                "name": "server-page-2",
+                "tenant_id": "0c4e939acacf4376bdcd1129f1a054ad",
+                "memory_mb": 4096,
+                "local_gb": 40,
+                "vcpus": 2,
+                "started_at": "2021-01-20T13:43:42.000000",
+                "ended_at": null,
+                "state": "active",
+                "uptime": 3600
+            }
+        ],
+        "total_hours": 1.0,
+        "total_local_gb_usage": 40.0,
+        "total_memory_mb_usage": 4096.0,
+        "total_vcpus_usage": 2.0,
+        "start": "2021-01-20T00:00:00.000000",
+        "stop": "2021-01-21T00:00:00.000000"
+    }
+}

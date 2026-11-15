@@ -20,6 +20,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/servers"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/services"
 	"github.com/gophercloud/gophercloud/v2/openstack/compute/v2/usage"
+	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
 	"github.com/gophercloud/gophercloud/v2/pagination"
 	"github.com/openstack-exporter/openstack-exporter/utils"
 	"github.com/prometheus/client_golang/prometheus"
@@ -284,6 +285,10 @@ func collectNovaQuotaDetail(ch chan<- prometheus.Metric, metric *prometheus.Desc
 	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(q.Limit), "limit", projectName, projectID)
 }
 
+func collectNovaQuotaLimit(ch chan<- prometheus.Metric, metric *prometheus.Desc, limit int, projectName, projectID string) {
+	ch <- prometheus.MustNewConstMetric(metric, prometheus.GaugeValue, float64(limit), "limit", projectName, projectID)
+}
+
 func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- prometheus.Metric) error {
 	allProjects, err := GetProjects(ctx, exporter)
 	if err != nil {
@@ -305,22 +310,21 @@ func ListQuotas(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- 
 				return err
 			}
 
-			quotaSet = quotasets.QuotaDetailSet{
-				Cores:                    quotasets.QuotaDetail{Limit: qs.Cores},
-				Instances:                quotasets.QuotaDetail{Limit: qs.Instances},
-				KeyPairs:                 quotasets.QuotaDetail{Limit: qs.KeyPairs},
-				MetadataItems:            quotasets.QuotaDetail{Limit: qs.MetadataItems},
-				RAM:                      quotasets.QuotaDetail{Limit: qs.RAM},
-				ServerGroups:             quotasets.QuotaDetail{Limit: qs.ServerGroups},
-				ServerGroupMembers:       quotasets.QuotaDetail{Limit: qs.ServerGroupMembers},
-				FixedIPs:                 quotasets.QuotaDetail{Limit: qs.FixedIPs},
-				FloatingIPs:              quotasets.QuotaDetail{Limit: qs.FloatingIPs},
-				SecurityGroupRules:       quotasets.QuotaDetail{Limit: qs.SecurityGroupRules},
-				SecurityGroups:           quotasets.QuotaDetail{Limit: qs.SecurityGroups},
-				InjectedFileContentBytes: quotasets.QuotaDetail{Limit: qs.InjectedFileContentBytes},
-				InjectedFilePathBytes:    quotasets.QuotaDetail{Limit: qs.InjectedFilePathBytes},
-				InjectedFiles:            quotasets.QuotaDetail{Limit: qs.InjectedFiles},
-			}
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_cores"].Metric, qs.Cores, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_instances"].Metric, qs.Instances, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_key_pairs"].Metric, qs.KeyPairs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_metadata_items"].Metric, qs.MetadataItems, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_ram"].Metric, qs.RAM, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_server_groups"].Metric, qs.ServerGroups, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_server_group_members"].Metric, qs.ServerGroupMembers, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_fixed_ips"].Metric, qs.FixedIPs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_floating_ips"].Metric, qs.FloatingIPs, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_security_group_rules"].Metric, qs.SecurityGroupRules, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_security_groups"].Metric, qs.SecurityGroups, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_file_content_bytes"].Metric, qs.InjectedFileContentBytes, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_file_path_bytes"].Metric, qs.InjectedFilePathBytes, p.Name, p.ID)
+			collectNovaQuotaLimit(ch, exporter.Metrics["quota_injected_files"].Metric, qs.InjectedFiles, p.Name, p.ID)
+			continue
 		}
 
 		collectNovaQuotaDetail(ch, exporter.Metrics["quota_cores"].Metric, quotaSet.Cores, p.Name, p.ID)
@@ -481,10 +485,20 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 		return err
 	}
 
+	// Nova requires admin whenever tenant_id is passed, so the token's own project has to be queried without it
+	tokenProjectID := exporter.TenantID
+	if tokenProjectID == "" {
+		if r, ok := exporter.ClientV2.ProviderClient.GetAuthResult().(tokens.CreateResult); ok {
+			if project, err := r.ExtractProject(); err == nil && project != nil {
+				tokenProjectID = project.ID
+			}
+		}
+	}
+
 	for _, p := range allProjects {
 		// Limits are obtained from the nova API, so now we can just use this exporter's client
 		limitGetOpts := limits.GetOpts{TenantID: p.ID}
-		if p.ID == exporter.TenantID {
+		if p.ID == tokenProjectID {
 			limitGetOpts = limits.GetOpts{}
 		}
 
@@ -567,9 +581,16 @@ func ListUsage(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 func getSingleTenantUsage(ctx context.Context, client *gophercloud.ServiceClient, tenantID string) (*usage.TenantUsage, error) {
 	var singleUsage *usage.TenantUsage
 	err := usage.SingleTenant(client, tenantID, usage.SingleTenantOpts{}).EachPage(ctx, func(_ context.Context, page pagination.Page) (bool, error) {
-		var err error
-		singleUsage, err = usage.ExtractSingleTenant(page)
-		return false, err
+		pageUsage, err := usage.ExtractSingleTenant(page)
+		if err != nil {
+			return false, err
+		}
+		if singleUsage == nil {
+			singleUsage = pageUsage
+		} else {
+			singleUsage.ServerUsages = append(singleUsage.ServerUsages, pageUsage.ServerUsages...)
+		}
+		return true, nil
 	})
 	return singleUsage, err
 }

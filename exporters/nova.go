@@ -488,7 +488,7 @@ func ListComputeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch 
 	// Nova requires admin whenever tenant_id is passed, so the token's own project has to be queried without it
 	tokenProjectID := exporter.TenantID
 	if tokenProjectID == "" {
-		if r, ok := exporter.ClientV2.ProviderClient.GetAuthResult().(tokens.CreateResult); ok {
+		if r, ok := exporter.ClientV2.GetAuthResult().(tokens.CreateResult); ok {
 			if project, err := r.ExtractProject(); err == nil && project != nil {
 				tokenProjectID = project.ID
 			}

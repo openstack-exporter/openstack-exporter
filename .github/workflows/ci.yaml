@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-hadolint@1df92335c6c70880e301926d46148aeb27de1912 # v1.55.0
+      - uses: reviewdog/action-hadolint@a3bc84c51f4ddbcbc5b91d950d0b66c15c88b113 # v1.56.0
         with:
           fail_level: any
           filter_mode: nofilter
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-shellcheck@d0b8d5fd7fad6afdb6e1b6ce1778892be4d1f427 # v1.34.1
+      - uses: reviewdog/action-shellcheck@b4ffc0b2a69f857f82b74d1310cd3e62e932f9f7 # v1.35.0
         with:
           fail_level: any
           filter_mode: nofilter
@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-actionlint@5d802a8ebdcb24d712925118c3a4596f571d8fcd # v1.81.0
+      - uses: reviewdog/action-actionlint@78b296370c5c75abca79860e9baa9846e3286a29 # v1.84.0
         with:
           fail_level: any
           filter_mode: nofilter
@@ -43,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: reviewdog/action-markdownlint@f8e8c509d6e706db79bb39c1c506c968f1a66b82 # v0.32.0
+      - uses: reviewdog/action-markdownlint@55f2ecf4c813c1cfac36953c1c40a46ec5c28f70 # v0.33.0
         with:
           fail_level: any
           filter_mode: nofilter

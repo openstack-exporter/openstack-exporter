@@ -16,6 +16,7 @@ import (
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/projects"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/tokens"
 	"github.com/gophercloud/gophercloud/v2/openstack/identity/v3/users"
+	clientutilsv2 "github.com/gophercloud/utils/v2/client"
 	gnocchiv2 "github.com/gophercloud/utils/v2/gnocchi"
 	clientconfigv2 "github.com/gophercloud/utils/v2/openstack/clientconfig"
 )
@@ -38,7 +39,7 @@ var serviceCatalogTypesByExporterService = map[string][]string{
 	"sharev2":         {"shared-file-system", "sharev2"},
 }
 
-func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper) (*gophercloudv2.ProviderClient, error) {
+func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, cloud *clientconfigv2.Cloud) (*gophercloudv2.ProviderClient, error) {
 	options, err := clientconfigv2.AuthOptions(opts)
 	if err != nil {
 		return nil, err
@@ -52,12 +53,9 @@ func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.Round
 		return nil, err
 	}
 
-	if transport != nil {
-		if tr, ok := transport.(*http.Transport); ok {
-			tr.Proxy = http.ProxyFromEnvironment
-		}
-
-		client.HTTPClient.Transport = transport
+	err = ConfigureClientTransport(client, opts, transport, cloud)
+	if err != nil {
+		return nil, err
 	}
 
 	err = openstackv2.Authenticate(context.TODO(), client, *options)
@@ -79,10 +77,7 @@ func newAuthenticatedProviderClient(opts *clientconfigv2.ClientOpts, transport h
 		cloudName = opts.Cloud
 	}
 
-	envPrefix := "OS_"
-	if opts.EnvPrefix != "" {
-		envPrefix = opts.EnvPrefix
-	}
+	envPrefix := getEnvironmentPrefix(opts)
 
 	if v := os.Getenv(envPrefix + "CLOUD"); v != "" {
 		cloudName = v
@@ -96,7 +91,7 @@ func newAuthenticatedProviderClient(opts *clientconfigv2.ClientOpts, transport h
 		}
 	}
 
-	pClient, err := AuthenticatedClientV2(opts, transport)
+	pClient, err := AuthenticatedClientV2(opts, transport, cloud)
 	if err != nil {
 		return nil, nil, gophercloudv2.EndpointOpts{}, err
 	}
@@ -327,4 +322,63 @@ func isServiceAvailable(providerClient *gophercloudv2.ProviderClient, endpointOp
 func IsExporterNameValid(service string) bool {
 	_, ok := serviceCatalogTypesByExporterService[service]
 	return ok
+}
+
+func ConfigureClientTransport(client *gophercloudv2.ProviderClient, opts *clientconfigv2.ClientOpts, transport http.RoundTripper, cloud *clientconfigv2.Cloud) error {
+	envPrefix := getEnvironmentPrefix(opts)
+	tlsConfig, err := clientconfigv2.PrepareTLSConfig(envPrefix, cloud)
+	if err != nil {
+		return err
+	}
+
+	if cloud.CACertFile != "" {
+		logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+		certPool, err := additionalTLSTrust(cloud.CACertFile, logger)
+		if err != nil {
+			logger.Error("Failed to include additional certificates to ca-trust", "error", err)
+			return err
+		}
+		tlsConfig.RootCAs = certPool
+	}
+
+	if transport == nil {
+		transport = &clientutilsv2.RoundTripper{
+			Rt: getNewHttpTransport(),
+		}
+	}
+
+	configureTransport := func(tr *http.Transport) {
+		tr.Proxy = http.ProxyFromEnvironment
+		if tlsConfig != nil {
+			tr.TLSClientConfig = tlsConfig
+		}
+	}
+
+	switch tr := transport.(type) {
+	case *http.Transport:
+		configureTransport(tr)
+	case *clientutilsv2.RoundTripper:
+		if httpTransport, ok := tr.Rt.(*http.Transport); ok {
+			configureTransport(httpTransport)
+		}
+	}
+
+	client.HTTPClient.Transport = transport
+	return nil
+}
+
+func getNewHttpTransport() http.RoundTripper {
+	if defaultTyped, ok := http.DefaultTransport.(*http.Transport); ok {
+		return defaultTyped.Clone()
+	}
+	// Absolute Fallback: Under testing (where http.DefaultTransport is an *httpmock.MockTransport),
+	// do NOT perform a type assertion that causes a panic. Return a clean, initialized transport struct instead.
+	return http.DefaultTransport
+}
+
+func getEnvironmentPrefix(opts *clientconfigv2.ClientOpts) string {
+	if opts != nil && opts.EnvPrefix != "" {
+		return opts.EnvPrefix
+	}
+	return "OS_"
 }

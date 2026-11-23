@@ -30,7 +30,7 @@
             "network_id": "70c1db1f-b701-45bd-96e0-a313ee3430b3",
             "project_id": "",
             "revision_number": 1,
-            "security_groups": [],
+            "security_groups": ["sg-1"],
             "status": "ACTIVE",
             "tags": [
                 "tag1,tag2"

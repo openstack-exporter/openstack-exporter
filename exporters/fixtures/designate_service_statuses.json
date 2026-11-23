@@ -1,0 +1,16 @@
+{
+  "service_statuses": [
+    {
+      "id": "service-1",
+      "hostname": "dns-1",
+      "service_name": "central",
+      "status": "UP"
+    },
+    {
+      "id": "service-2",
+      "hostname": "dns-2",
+      "service_name": "worker",
+      "status": "DOWN"
+    }
+  ]
+}

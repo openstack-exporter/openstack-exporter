@@ -31,6 +31,16 @@ openstack_identity_project_info{description="",domain_id="default",enabled="true
 openstack_identity_project_info{description="",domain_id="default",enabled="true",id="5961c443439d4fcebe42643723755e9d",is_domain="false",name="invisible_to_admin",parent_id="",tags=""} 1
 openstack_identity_project_info{description="",domain_id="default",enabled="true",id="fdb8424c4e4f4c0ba32c52e2de3bd80e",is_domain="false",name="alt_demo",parent_id="",tags=""} 1
 openstack_identity_project_info{description="This is a demo project.",domain_id="default",enabled="true",id="0cbd49cbf76d405d9c86562e1d579bd3",is_domain="false",name="demo",parent_id="",tags=""} 1
+# HELP openstack_identity_project_enabled project_enabled
+# TYPE openstack_identity_project_enabled gauge
+openstack_identity_project_enabled{id="0c4e939acacf4376bdcd1129f1a054ad"} 1
+openstack_identity_project_enabled{id="0cbd49cbf76d405d9c86562e1d579bd3"} 1
+openstack_identity_project_enabled{id="2db68fed84324f29bb73130c6c2094fb"} 1
+openstack_identity_project_enabled{id="3d594eb0f04741069dbbb521635b21c7"} 1
+openstack_identity_project_enabled{id="43ebde53fc314b1c9ea2b8c5dc744927"} 1
+openstack_identity_project_enabled{id="4b1eb781a47440acb8af9850103e537f"} 1
+openstack_identity_project_enabled{id="5961c443439d4fcebe42643723755e9d"} 1
+openstack_identity_project_enabled{id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 1
 # HELP openstack_identity_projects projects
 # TYPE openstack_identity_projects gauge
 openstack_identity_projects 8
@@ -40,6 +50,10 @@ openstack_identity_regions 1
 # HELP openstack_identity_up up
 # TYPE openstack_identity_up gauge
 openstack_identity_up 1
+# HELP openstack_identity_user_info user_info
+# TYPE openstack_identity_user_info gauge
+openstack_identity_user_info{default_project_id="",domain_id="default",email="glance@localhost",enabled="true",id="2844b2a08be147a08ef58317d6471f1f",name="glance"} 1
+openstack_identity_user_info{default_project_id="263fd9",domain_id="1789d1",email="jsmith@example.com",enabled="true",id="9fe1d3",name="jsmith"} 1
 # HELP openstack_identity_users users
 # TYPE openstack_identity_users gauge
 openstack_identity_users 2

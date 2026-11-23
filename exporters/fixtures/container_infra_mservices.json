@@ -1,0 +1,12 @@
+{
+  "mservices": [
+    {
+      "id": 1,
+      "binary": "magnum-conductor",
+      "host": "magnum-manager",
+      "state": "up",
+      "report_count": 2179,
+      "disabled_reason": null
+    }
+  ]
+}

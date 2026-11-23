@@ -164,11 +164,13 @@ func TestNetworkingPortCreateDeleteUpdatesExporterMetrics(t *testing.T) {
 	network, deleteNetwork := funcs.MustCreateNetwork(t, networkClient)
 	port, deletePort := funcs.MustCreatePort(t, networkClient, network)
 
-	scrapeMetrics(t, "after port create").requireMetric(t, "openstack_neutron_port", labels{
+	metrics := scrapeMetrics(t, "after port create")
+	metrics.requireMetric(t, "openstack_neutron_port", labels{
 		"uuid":        port.ID,
 		"network_id":  network.ID,
 		"mac_address": port.MACAddress,
 	})
+	metrics.requirePresentLabels(t, "openstack_neutron_port", labels{"uuid": port.ID}, "security_groups")
 
 	deletePort()
 

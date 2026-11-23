@@ -1,0 +1,16 @@
+{
+  "segments": [
+    {
+      "uuid": "9e800031-6946-4b43-bf09-8b3d1cab792b",
+      "deleted": false,
+      "created_at": "2017-04-20T10:17:17.000000",
+      "description": "main segment",
+      "recovery_method": "auto",
+      "updated_at": null,
+      "service_type": "COMPUTE",
+      "deleted_at": null,
+      "id": 1,
+      "name": "segment1"
+    }
+  ]
+}

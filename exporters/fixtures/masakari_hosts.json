@@ -1,0 +1,32 @@
+{
+  "hosts": [
+    {
+      "reserved": false,
+      "uuid": "083a8474-22c0-407f-b89b-c569134c3bfd",
+      "deleted": false,
+      "on_maintenance": false,
+      "created_at": "2017-04-21T10:09:20.000000",
+      "control_attributes": "SSH",
+      "updated_at": null,
+      "name": "compute-01",
+      "deleted_at": null,
+      "type": "COMPUTE_HOST",
+      "id": 1,
+      "failover_segment_id": "9e800031-6946-4b43-bf09-8b3d1cab792b"
+    },
+    {
+      "reserved": true,
+      "uuid": "1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      "deleted": false,
+      "on_maintenance": true,
+      "created_at": "2017-04-21T10:10:20.000000",
+      "control_attributes": "SSH",
+      "updated_at": null,
+      "name": "compute-02",
+      "deleted_at": null,
+      "type": "COMPUTE_HOST",
+      "id": 2,
+      "failover_segment_id": "9e800031-6946-4b43-bf09-8b3d1cab792b"
+    }
+  ]
+}

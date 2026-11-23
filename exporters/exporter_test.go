@@ -62,7 +62,7 @@ var fixtures map[string]string = map[string]string{
 	"/compute/os-availability-zone":  "nova_os_availability_zones",
 	"/compute/os-security-groups":    "nova_os_security_groups",
 	"/compute/os-aggregates":         "nova_os_aggregates",
-	"/compute/limits?tenant_id=0c4e939acacf4376bdcd1129f1a054ad": "nova_os_limits",
+	"/compute/limits":                "nova_os_limits",
 	"/compute/limits?tenant_id=0cbd49cbf76d405d9c86562e1d579bd3": "nova_os_limits",
 	"/compute/limits?tenant_id=2db68fed84324f29bb73130c6c2094fb": "nova_os_limits",
 	"/compute/limits?tenant_id=3d594eb0f04741069dbbb521635b21c7": "nova_os_limits",

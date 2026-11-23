@@ -128,3 +128,45 @@ func (suite *CinderTestSuite) TestCinderExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderExpectedUp))
 	assert.NoError(suite.T(), err)
 }
+
+var cinderVolumesFallbackExpected = `
+# HELP openstack_cinder_volumes volumes
+# TYPE openstack_cinder_volumes gauge
+openstack_cinder_volumes 2
+`
+
+func (suite *CinderTestSuite) TestVolumesFallbackWithoutAllTenants() {
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/volumes/volumes/detail?all_tenants=true", ""),
+		suite.FixturePath("forbidden"),
+	)
+	suite.SetResponseFromFixture("GET", 200,
+		suite.MakeURL("/volumes/volumes/detail", ""),
+		suite.FixturePath("cinder_volumes"),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderVolumesFallbackExpected), "openstack_cinder_volumes")
+	assert.NoError(suite.T(), err)
+}
+
+var cinderLimitsForbiddenExpected = `
+# HELP openstack_cinder_limits_volume_max_gb limits_volume_max_gb
+# TYPE openstack_cinder_limits_volume_max_gb gauge
+openstack_cinder_limits_volume_max_gb{tenant="alt_demo",tenant_id="fdb8424c4e4f4c0ba32c52e2de3bd80e"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="demo",tenant_id="0cbd49cbf76d405d9c86562e1d579bd3"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="invisible_to_admin",tenant_id="5961c443439d4fcebe42643723755e9d"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="service",tenant_id="3d594eb0f04741069dbbb521635b21c7"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="swifttenanttest1",tenant_id="43ebde53fc314b1c9ea2b8c5dc744927"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="swifttenanttest2",tenant_id="2db68fed84324f29bb73130c6c2094fb"} 1000
+openstack_cinder_limits_volume_max_gb{tenant="swifttenanttest4",tenant_id="4b1eb781a47440acb8af9850103e537f"} 1000
+`
+
+func (suite *CinderTestSuite) TestLimitsForbiddenSkipped() {
+	suite.SetResponseFromFixture("GET", 403,
+		suite.MakeURL("/volumes/os-quota-sets/0c4e939acacf4376bdcd1129f1a054ad?usage=true", ""),
+		suite.FixturePath("forbidden"),
+	)
+
+	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(cinderLimitsForbiddenExpected), "openstack_cinder_limits_volume_max_gb")
+	assert.NoError(suite.T(), err)
+}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"reflect"
 	"slices"
 	"strings"
@@ -336,6 +337,12 @@ func ListComputeSecGroups(ctx context.Context, exporter *BaseOpenStackExporter, 
 
 	allPagesSecurityGroups, err := secgroups.List(exporter.ClientV2).AllPages(ctx)
 	if err != nil {
+		// Nova removed the legacy os-security-groups endpoint. Neutron still
+		// provides security-group metrics, so do not fail the whole exporter
+		// when a modern Nova deployment returns 404 for this optional metric.
+		if gophercloud.ResponseCodeIs(err, http.StatusNotFound) {
+			return nil
+		}
 		return err
 	}
 

@@ -18,7 +18,7 @@ func TestMasakariIntegration(t *testing.T) {
 
 	_, cleanup, err := startOpenStackExporter([]string{"instance-ha"})
 	if err != nil {
-		t.Skipf("Masakari exporter is not available yet: %v", err)
+		t.Fatalf("Failed to start Masakari exporter: %v", err)
 	}
 	defer cleanup()
 
@@ -46,10 +46,9 @@ func TestMasakariIntegration(t *testing.T) {
 
 	t.Run("openstack_masakari_core_metrics_present", func(t *testing.T) {
 		for _, metric := range []string{
-			"openstack_masakari_segment",
-			"openstack_masakari_host",
-			"openstack_masakari_host_on_maintenance",
-			"openstack_masakari_host_reserved",
+			"openstack_masakari_segments",
+			"openstack_masakari_notifications",
+			"openstack_masakari_collection_success",
 		} {
 			if _, ok := metricFamilies[metric]; !ok {
 				failWithBody(t, body, "Expected Masakari metric %q not found", metric)
@@ -57,7 +56,23 @@ func TestMasakariIntegration(t *testing.T) {
 		}
 	})
 
+	t.Run("masakari_collectors_succeeded", func(t *testing.T) {
+		// up follows the other exporters: one successful collector is enough.
+		// Check each group so a partial scrape cannot pass this integration test.
+		for _, collector := range []string{"inventory", "notifications", "vmoves"} {
+			sample, ok := findMetric(metricFamilies, "openstack_masakari_collection_success", map[string]string{"collector": collector})
+			if !ok || sample.value != 1 {
+				failWithBody(t, body, "Masakari collector %q did not succeed", collector)
+			}
+		}
+	})
+
 	t.Run("masakari_host_labels_present", func(t *testing.T) {
+		// A fresh DevStack contains no failover segments or hosts. Resource
+		// gauges are emitted only for existing inventory, unlike count metrics.
+		if len(metricFamilies["openstack_masakari_host"]) == 0 {
+			t.Skip("No Masakari hosts available for label validation")
+		}
 		for _, sample := range metricFamilies["openstack_masakari_host"] {
 			if sample.labels["id"] != "" &&
 				sample.labels["uuid"] != "" &&
@@ -66,9 +81,14 @@ func TestMasakariIntegration(t *testing.T) {
 				sample.labels["failover_segment_name"] != "" &&
 				sample.labels["type"] != "" &&
 				sample.labels["control_attributes"] != "" {
-				return
+				for _, metric := range []string{"openstack_masakari_host_on_maintenance", "openstack_masakari_host_reserved"} {
+					if _, ok := findMetric(metricFamilies, metric, map[string]string{"uuid": sample.labels["uuid"]}); !ok {
+						failWithBody(t, body, "Missing host metric %q for %s", metric, sample.labels["uuid"])
+					}
+				}
+				continue
 			}
+			failWithBody(t, body, "Masakari host metric lacks expected labels: %v", sample.labels)
 		}
-		failWithBody(t, body, "No openstack_masakari_host metric contained all expected labels")
 	})
 }

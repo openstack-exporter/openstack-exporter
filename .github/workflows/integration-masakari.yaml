@@ -3,6 +3,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   integration-masakari:
     strategy:
@@ -23,6 +26,8 @@ jobs:
           branch: ${{ matrix.openstack_version }}
           conf_overrides: |
             enable_plugin masakari https://opendev.org/openstack/masakari ${{ matrix.openstack_version }}
+            # Only the API is needed for read-only exporter tests.
+            disable_service masakari-engine masakari-monitors masakari-processmonitor masakari-instancemonitor masakari-hostmonitor masakari-introspectiveinstancemonitor
           enabled_services: "openstack-cli-server"
       - name: Setup Go
         uses: actions/setup-go@v7

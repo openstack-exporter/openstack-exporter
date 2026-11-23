@@ -72,6 +72,9 @@ var (
 var defaultNovaMetrics = []Metric{
 	{Name: "flavors", Fn: ListFlavors},
 	{Name: "flavor", Labels: []string{"id", "name", "vcpus", "ram", "disk", "is_public"}},
+	{Name: "flavor_vcpus", Labels: []string{"id", "name", "is_public"}},
+	{Name: "flavor_ram", Labels: []string{"id", "name", "is_public"}},
+	{Name: "flavor_disk", Labels: []string{"id", "name", "is_public"}},
 	{Name: "availability_zones", Fn: ListAZs},
 	{Name: "security_groups", Fn: ListComputeSecGroups},
 	{Name: "total_vms", Fn: ListAllServers},
@@ -269,8 +272,24 @@ func ListFlavors(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<-
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavors"].Metric,
 		prometheus.GaugeValue, float64(len(allFlavors)))
 	for _, f := range allFlavors {
-		ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor"].Metric,
-			prometheus.GaugeValue, 1, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
+
+		if !exporter.MetricIsDisabled("flavor") {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor"].Metric,
+				prometheus.GaugeValue, 1, f.ID, f.Name, fmt.Sprintf("%v", f.VCPUs), fmt.Sprintf("%v", f.RAM), fmt.Sprintf("%v", f.Disk), fmt.Sprintf("%v", f.IsPublic))
+		}
+
+		if !exporter.MetricIsDisabled("flavor_vcpus") {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor_vcpus"].Metric,
+				prometheus.GaugeValue, float64(f.VCPUs), f.ID, f.Name, fmt.Sprintf("%v", f.IsPublic))
+		}
+		if !exporter.MetricIsDisabled("flavor_ram") {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor_ram"].Metric,
+				prometheus.GaugeValue, float64(f.RAM), f.ID, f.Name, fmt.Sprintf("%v", f.IsPublic))
+		}
+		if !exporter.MetricIsDisabled("flavor_disk") {
+			ch <- prometheus.MustNewConstMetric(exporter.Metrics["flavor_disk"].Metric,
+				prometheus.GaugeValue, float64(f.Disk), f.ID, f.Name, fmt.Sprintf("%v", f.IsPublic))
+		}
 	}
 
 	return nil

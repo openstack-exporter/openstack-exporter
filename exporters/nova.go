@@ -61,7 +61,7 @@ type NovaExporter struct {
 
 var (
 	defaultNovaServerStatusLabels = []string{"id", "status", "name", "tenant_id", "user_id", "address_ipv4",
-		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "instance_libvirt"}
+		"address_ipv6", "host_id", "hypervisor_hostname", "uuid", "availability_zone", "flavor_id", "flavor_name", "instance_libvirt"}
 
 	defaultNovaHypervisorLabels = []string{"hostname", "availability_zone", "aggregates"}
 	defaultNovaRunningVMLabels  = []string{"hostname", "availability_zone", "aggregates", "tenant_id"}
@@ -353,7 +353,6 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	type ServerWithExt = servers.Server
 
 	var allServers []ServerWithExt
-	var flavorIDMapper flavorIDMapper
 	serverListOption := getServerListOptions(exporter.TenantID)
 
 	allPagesServers, err := servers.List(exporter.ClientV2, serverListOption).AllPages(ctx)
@@ -366,26 +365,13 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 		return err
 	}
 
-	// check if flavor.id present, if not - we probably got response like for 2.46+
-	var mapperRequired bool
-	for _, server := range allServers {
-		if _, ok := server.Flavor["id"]; !ok {
-			mapperRequired = true
-			break
-		}
-	}
-
-	mvAtLeast247, _ := utils.IsMicroversionAtLeast(exporter.ClientV2.Microversion, "2.47")
-	if mvAtLeast247 || mapperRequired {
-		// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
-		// ***
-		// If micro-version is greater than 2.46,
-		// we need to retrieve all flavors once again and search for flavor_id by name,
-		// as flavor_id are only available in server's detail data up to that version.
-		flavorIDMapper, err = newFlavorIDMapper(ctx, exporter.ClientV2)
-		if err != nil {
-			return err
-		}
+	// https://docs.openstack.org/api-ref/compute/#list-servers-detailed
+	// ***
+	// Up to micro-version 2.46 the server's detail data has only the flavor ID,
+	// from 2.47 only the flavor name, so the other one comes from the flavor list.
+	flavorMapper, err := newFlavorMapper(ctx, exporter.ClientV2)
+	if err != nil {
+		return err
 	}
 
 	ch <- prometheus.MustNewConstMetric(exporter.Metrics["total_vms"].Metric,
@@ -413,20 +399,12 @@ func ListAllServers(ctx context.Context, exporter *BaseOpenStackExporter, ch cha
 	// Server status metrics
 	if !exporter.MetricIsDisabled("server_status") {
 		for _, server := range allServers {
-			labelValues := func() []string {
-				if flavorIDMapper == nil {
-					return []string{
-						server.ID, server.Status, server.Name, server.TenantID,
-						server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-						server.AvailabilityZone, fmt.Sprintf("%v", server.Flavor["id"]), server.InstanceName,
-					}
-				}
-				return []string{
-					server.ID, server.Status, server.Name, server.TenantID,
-					server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
-					server.AvailabilityZone, flavorIDMapper.Search(server.Flavor["original_name"]), server.InstanceName,
-				}
-			}()
+			flavorID, flavorName := flavorMapper.Resolve(server.Flavor)
+			labelValues := []string{
+				server.ID, server.Status, server.Name, server.TenantID,
+				server.UserID, server.AccessIPv4, server.AccessIPv6, server.HostID, server.HypervisorHostname, server.ID,
+				server.AvailabilityZone, flavorID, flavorName, server.InstanceName,
+			}
 			metadataValues := exporter.NovaMetadataMapping.Extract(server.Metadata)
 
 			ch <- prometheus.MustNewConstMetric(exporter.Metrics["server_status"].Metric,
@@ -531,10 +509,13 @@ func aggregatesLabel(h string, hostToAggrMap map[string][]string) string {
 	return ""
 }
 
-// flavorIDMapper helper storage to map from Flavor Name to ID
-type flavorIDMapper map[string]string
+// flavorMapper helper storage to map between Flavor Name and ID
+type flavorMapper struct {
+	idByName map[string]string
+	nameByID map[string]string
+}
 
-func newFlavorIDMapper(ctx context.Context, cli *gophercloud.ServiceClient) (flavorIDMapper, error) {
+func newFlavorMapper(ctx context.Context, cli *gophercloud.ServiceClient) (*flavorMapper, error) {
 	allPagesFlavors, err := flavors.ListDetail(cli, flavors.ListOpts{AccessType: "None"}).AllPages(ctx)
 	if err != nil {
 		return nil, err
@@ -545,20 +526,27 @@ func newFlavorIDMapper(ctx context.Context, cli *gophercloud.ServiceClient) (fla
 		return nil, err
 	}
 
-	m := make(flavorIDMapper, len(allFlavors))
+	m := &flavorMapper{
+		idByName: make(map[string]string, len(allFlavors)),
+		nameByID: make(map[string]string, len(allFlavors)),
+	}
 	for _, f := range allFlavors {
-		m[f.Name] = f.ID
+		// flavor name is unique, making it suitable as a key
+		m.idByName[f.Name] = f.ID
+		m.nameByID[f.ID] = f.Name
 	}
 
 	return m, nil
 }
 
-func (s flavorIDMapper) Search(flavorName any) string {
-	// flavor name is unique, making it suitable as the key for searching
-	key, ok := flavorName.(string)
-	if !ok {
-		return ""
+// Resolve returns the ID and the name of a server's flavor.
+// The half that Nova did not return is empty for a flavor that is no longer in the flavor list.
+func (m *flavorMapper) Resolve(flavor map[string]any) (id, name string) {
+	if v, ok := flavor["id"]; ok {
+		id = fmt.Sprintf("%v", v)
+		return id, m.nameByID[id]
 	}
 
-	return s[key]
+	name, _ = flavor["original_name"].(string)
+	return m.idByName[name], name
 }

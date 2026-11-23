@@ -1,9 +1,14 @@
 package exporters
 
 import (
+	"context"
+	"net/http"
 	"strings"
 
+	"github.com/jarcoal/httpmock"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -377,4 +382,44 @@ openstack_neutron_vpn_siteconnections 1
 func (suite *NeutronTestSuite) TestNeutronExporter() {
 	err := testutil.CollectAndCompare(*suite.Exporter, strings.NewReader(neutronExpectedUp))
 	assert.NoError(suite.T(), err)
+}
+
+func (suite *NeutronTestSuite) TestPortsProjectFilter() {
+	exporter := (*suite.Exporter).(*NeutronExporter)
+	exporter.TenantID = "selected-project"
+	requests := 0
+	url := suite.MakeURL("/neutron/v2.0/ports", "")
+	httpmock.RegisterResponder("GET", url+"?project_id=selected-project", func(r *http.Request) (*http.Response, error) {
+		requests++
+		response, err := httpmock.NewJsonResponse(http.StatusOK, map[string]any{
+			"ports":       []map[string]string{{"id": "first"}},
+			"ports_links": []map[string]string{{"rel": "next", "href": url + "?project_id=selected-project&marker=first"}},
+		})
+		response.Request = r
+		return response, err
+	})
+	httpmock.RegisterResponder("GET", url+"?project_id=selected-project&marker=first", func(r *http.Request) (*http.Response, error) {
+		requests++
+		response, err := httpmock.NewJsonResponse(http.StatusOK, map[string]any{
+			"ports": []map[string]string{{"id": "second"}},
+		})
+		response.Request = r
+		return response, err
+	})
+	ch := make(chan prometheus.Metric, 10)
+	suite.Require().NoError(ListPorts(context.Background(), &exporter.BaseOpenStackExporter, ch))
+	close(ch)
+	suite.Equal(2, requests)
+	portSamples := 0
+	for metric := range ch {
+		if metric.Desc() == exporter.Metrics["ports"].Metric {
+			var sample dto.Metric
+			suite.Require().NoError(metric.Write(&sample))
+			suite.Equal(float64(2), sample.GetGauge().GetValue())
+		}
+		if metric.Desc() == exporter.Metrics["port"].Metric {
+			portSamples++
+		}
+	}
+	suite.Equal(2, portSamples)
 }

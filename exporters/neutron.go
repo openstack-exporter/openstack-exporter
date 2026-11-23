@@ -328,7 +328,7 @@ func ListPorts(ctx context.Context, exporter *BaseOpenStackExporter, ch chan<- p
 
 	var allPorts []PortBinding
 
-	allPagesPorts, err := ports.List(exporter.ClientV2, ports.ListOpts{}).AllPages(ctx)
+	allPagesPorts, err := ports.List(exporter.ClientV2, ports.ListOpts{ProjectID: exporter.TenantID}).AllPages(ctx)
 	if err != nil {
 		return err
 	}

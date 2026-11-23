@@ -1,0 +1,8 @@
+{
+  "resource_provider_generation": 20,
+  "traits": [
+    "HW_CPU_X86_VMX",
+    "CUSTOM_HW_FPGA_CLASS3",
+    "CUSTOM_HW_FPGA_CLASS1"
+  ]
+}

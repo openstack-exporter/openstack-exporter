@@ -49,8 +49,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), designateRecordsetLimit int, logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, designateRecordsetLimit, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -76,6 +76,7 @@ type ExporterConfig struct {
 	TenantID                 string
 	NovaMetadataMapping      *utils.LabelMappingFlag
 	DnsConcurrentCount       int
+	DesignateRecordsetLimit  int
 }
 
 type BaseOpenStackExporter struct {
@@ -228,7 +229,7 @@ func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
 	return exporter.DnsConcurrentCount
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), designateRecordsetLimit int, logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport http.RoundTripper
@@ -265,6 +266,7 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 		TenantID:                 tenantID,
 		NovaMetadataMapping:      novaMetadataMapping,
 		DnsConcurrentCount:       dnsConcurrentCount,
+		DesignateRecordsetLimit:  designateRecordsetLimit,
 	}
 
 	switch name {

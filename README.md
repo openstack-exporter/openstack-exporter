@@ -126,6 +126,11 @@ Flags:
       --nova.metadata-extra-labels=LABEL=KEY,KEY ...
                                  Map provided server metadata keys to labels in
                                  openstack_nova_server_status metric
+      --dns.recordset-limit=1000
+                                 Page size for listing Designate recordsets
+                                 (all pages are collected)
+      --dns-concurrent-count=10  Deprecated: unused with DNS recordsets listed
+                                 across all zones
       --[no-]disable-service.network
                                  Disable the network service exporter in strict mode
       --[no-]disable-service.compute

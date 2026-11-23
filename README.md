@@ -126,6 +126,8 @@ Flags:
       --nova.metadata-extra-labels=LABEL=KEY,KEY ...
                                  Map provided server metadata keys to labels in
                                  openstack_nova_server_status metric
+      --placement-provider-trait-regex=CUSTOM_
+                                 Only report placement resource providers traits matching a regex (default to all traits starting with CUSTOM_)
       --[no-]disable-service.network
                                  Disable the network service exporter in strict mode
       --[no-]disable-service.compute
@@ -362,6 +364,7 @@ listener_stats_bytes_out | loadbalancer
 listener_stats_active_connections | loadbalancer
 listener_stats_total_connections | loadbalancer
 listener_stats_request_errors | loadbalancer
+resource_provider_trait | placement
 
 #### Deprecated Metrics
 
@@ -539,6 +542,7 @@ openstack_placement_resource_allocation_ratio| hostname="compute-01",resourcetyp
 openstack_placement_resource_generation| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |20 (float)| Placement resource provider generation for this resource type
 openstack_placement_resource_reserved| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |8 (float)| Reserved resources
 openstack_placement_resource_total| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |80 (float)| Total resources
+openstack_placement_resource_provider_trait| hostname="compute-01", trait="TRAIT_NAME"                                                                                                                                                                                                                                                             |1.0 (float)| Resource trait informational metric, one metric per hostname + trait
 openstack_placement_resource_usage| hostname="compute-01",resourcetype="DISK_GB\|PCPU\|VCPU\|..."                                                                                                                                                                                                                                                           |40 (float)| Used resources
 openstack_placement_up| region="RegionOne"                                                                                                                                                                                                                                                                                                            |1.0 (float)| Service status (1=up, 0=down)
 openstack_sharev2_share_gb| availability_zone="az1",id="4be93e2e-ffff-ffff-ffff-603e3ec2a5d6",name="share-test",project_id="ffff8fa0ca1a468db8ad00970c1effff",share_proto="NFS",share_type="az1",share_type_name="",status="available"                                                                                                                        |1.0 (float)| Share size in GB

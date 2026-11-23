@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -49,8 +50,8 @@ type OpenStackExporter interface {
 	MetricIsDisabled(name string) bool
 }
 
-func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
-	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, uuidGenFunc, logger)
+func EnableExporter(service, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, placementProviderTraitRegex *regexp.Regexp, uuidGenFunc func() (string, error), logger *slog.Logger) (*OpenStackExporter, error) {
+	exporter, err := NewExporter(service, prefix, cloud, disabledMetrics, endpointType, collectTime, disableSlowMetrics, disableDeprecatedMetrics, disableCinderAgentUUID, domainID, tenantID, novaMetadataMapping, dnsConcurrentCount, placementProviderTraitRegex, uuidGenFunc, logger)
 	if err != nil {
 		return nil, err
 	}
@@ -63,19 +64,20 @@ type PrometheusMetric struct {
 }
 
 type ExporterConfig struct {
-	ClientV2                 *gophercloudv2.ServiceClient
-	ServiceName              string
-	Prefix                   string
-	DisabledMetrics          []string
-	CollectTime              bool
-	UUIDGenFunc              func() (string, error)
-	DisableSlowMetrics       bool
-	DisableDeprecatedMetrics bool
-	DisableCinderAgentUUID   bool
-	DomainID                 string
-	TenantID                 string
-	NovaMetadataMapping      *utils.LabelMappingFlag
-	DnsConcurrentCount       int
+	ClientV2                    *gophercloudv2.ServiceClient
+	ServiceName                 string
+	Prefix                      string
+	DisabledMetrics             []string
+	CollectTime                 bool
+	UUIDGenFunc                 func() (string, error)
+	DisableSlowMetrics          bool
+	DisableDeprecatedMetrics    bool
+	DisableCinderAgentUUID      bool
+	DomainID                    string
+	TenantID                    string
+	NovaMetadataMapping         *utils.LabelMappingFlag
+	PlacementProviderTraitRegex *regexp.Regexp
+	DnsConcurrentCount          int
 }
 
 type BaseOpenStackExporter struct {
@@ -228,7 +230,7 @@ func (exporter *BaseOpenStackExporter) GetDnsConcurrencyCount() int {
 	return exporter.DnsConcurrentCount
 }
 
-func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
+func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointType string, collectTime bool, disableSlowMetrics bool, disableDeprecatedMetrics bool, disableCinderAgentUUID bool, domainID string, tenantID string, novaMetadataMapping *utils.LabelMappingFlag, dnsConcurrentCount int, placementProviderTraitRegex *regexp.Regexp, uuidGenFunc func() (string, error), logger *slog.Logger) (OpenStackExporter, error) {
 	var exporter OpenStackExporter
 	var err error
 	var transport http.RoundTripper
@@ -252,19 +254,20 @@ func NewExporter(name, prefix, cloud string, disabledMetrics []string, endpointT
 	}
 
 	exporterConfig := ExporterConfig{
-		ClientV2:                 clientV2,
-		ServiceName:              name,
-		Prefix:                   prefix,
-		DisabledMetrics:          disabledMetrics,
-		CollectTime:              collectTime,
-		UUIDGenFunc:              uuidGenFunc,
-		DisableSlowMetrics:       disableSlowMetrics,
-		DisableDeprecatedMetrics: disableDeprecatedMetrics,
-		DisableCinderAgentUUID:   disableCinderAgentUUID,
-		DomainID:                 domainID,
-		TenantID:                 tenantID,
-		NovaMetadataMapping:      novaMetadataMapping,
-		DnsConcurrentCount:       dnsConcurrentCount,
+		ClientV2:                    clientV2,
+		ServiceName:                 name,
+		Prefix:                      prefix,
+		DisabledMetrics:             disabledMetrics,
+		CollectTime:                 collectTime,
+		UUIDGenFunc:                 uuidGenFunc,
+		DisableSlowMetrics:          disableSlowMetrics,
+		DisableDeprecatedMetrics:    disableDeprecatedMetrics,
+		DisableCinderAgentUUID:      disableCinderAgentUUID,
+		DomainID:                    domainID,
+		TenantID:                    tenantID,
+		NovaMetadataMapping:         novaMetadataMapping,
+		DnsConcurrentCount:          dnsConcurrentCount,
+		PlacementProviderTraitRegex: placementProviderTraitRegex,
 	}
 
 	switch name {

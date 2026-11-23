@@ -73,13 +73,6 @@ jobs:
             IRONIC_ENABLED_DEPLOY_INTERFACES=direct,fake
             SWIFT_ENABLE_TEMPURLS=True
             SWIFT_TEMPURL_KEY=secretkey
-            # NOTE(Sharpz7): GitHub runners can't reach download.cirros-cloud.net, where
-            # Ironic's devstack plugin downloads cirros. DevStack skips images already in
-            # devstack/files, so fetch them from GitHub first. Remove once
-            # https://review.opendev.org/c/openstack/ironic/+/1016987 merges.
-            CIRROS_VERSION=0.6.3
-            # openrc reads this file too, without TOP_DIR and with errexit set.
-            if [[ -n "\${TOP_DIR:-}" ]]; then for f in cirros-0.6.3-x86_64-uec.tar.gz cirros-0.6.3-x86_64-disk.img; do [[ -s \$TOP_DIR/files/\$f ]] || curl -fsSL --retry 3 -o \$TOP_DIR/files/\$f https://github.com/cirros-dev/cirros/releases/download/0.6.3/\$f || true; done; fi
           enabled_services: "ir-api,ir-cond,s-account,s-container,s-object,s-proxy,q-svc,q-agt,q-dhcp,q-l3,q-meta,-cinder,-c-sch,-c-api,-c-vol,-c-bak,-ovn,-ovn-controller,-ovn-northd,-q-ovn-metadata-agent,openstack-cli-server"
 
       - name: Checkout go

@@ -115,7 +115,7 @@ var fixtures map[string]string = map[string]string{
 	"/ironic/v1/nodes/detail?limit=1000&marker=0129d2fc-0e5c-4b5b-a73b-01844d913957&sort_dir=asc&sort_key=id": "ironic_nodes_empty",
 	"/volumes":  "cinder_api_discovery",
 	"/volumes/": "cinder_api_discovery",
-	"/volumes/volumes/detail?all_tenants=true":                           "cinder_volumes",
+	"/volumes/volumes/detail?all_tenants=true&limit=100":                 "cinder_volumes",
 	"/volumes/snapshots/detail":                                          "cinder_snapshots",
 	"/volumes/backups/detail":                                            "cinder_backups",
 	"/volumes/os-services":                                               "cinder_os_services",

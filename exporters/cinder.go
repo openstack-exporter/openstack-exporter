@@ -23,6 +23,10 @@ type CinderExporter struct {
 // in backup listings, available since Pike (2017).
 const backupProjectIDMicroversion = "3.18"
 
+// Keep a Cinder detail-list response bounded. Both volume collectors use this
+// option and AllPages follows the next links until the complete list is read.
+const cinderVolumePageSize = 100
+
 var knownVolumeStatuses = map[string]int{
 	"creating":          0,
 	"available":         1,
@@ -348,9 +352,9 @@ func ListVolumeLimits(ctx context.Context, exporter *BaseOpenStackExporter, ch c
 
 func getVolumeListOptions(tenantID string) volumes.ListOpts {
 	if tenantID == "" {
-		return volumes.ListOpts{AllTenants: true}
+		return volumes.ListOpts{AllTenants: true, Limit: cinderVolumePageSize}
 	}
-	return volumes.ListOpts{TenantID: tenantID}
+	return volumes.ListOpts{TenantID: tenantID, Limit: cinderVolumePageSize}
 }
 
 func getSnapshotListOptions(tenantID string) snapshots.ListOpts {

@@ -177,11 +177,13 @@ func newPlacementBenchmarkFixture(b *testing.B, parallel bool) *placementBenchma
 	}
 
 	config := &exporters.ExporterConfig{
-		ClientV2:        client,
-		ServiceName:     placementBenchmarkService,
-		Prefix:          "openstack",
-		CollectTime:     true,
-		DisabledMetrics: []string{},
+		ExporterOptions: exporters.ExporterOptions{
+			Prefix:          "openstack",
+			CollectTime:     true,
+			DisabledMetrics: []string{},
+		},
+		ClientV2:    client,
+		ServiceName: placementBenchmarkService,
 	}
 	setPlacementBenchmarkBoolField(config, "CompletePlacementInParallel", parallel)
 	setPlacementBenchmarkBoolField(config, "CollectPlacementTraits", false)

@@ -73,6 +73,13 @@ func newEmptyNovaMetadataMapping() *utils.LabelMappingFlag {
 // enabledServices controls which OpenStack services' exporters are started.
 // For example: []string{"baremetal"} in the baremetal integration test.
 func startOpenStackExporter(enabledServices []string) (string, func(), error) {
+	return startOpenStackExporterForCloud("devstack-system-admin", enabledServices)
+}
+
+// startOpenStackExporterForCloud is startOpenStackExporter with the clouds.yaml
+// entry chosen by the caller. Barbican only accepts project-scoped tokens, so
+// its test uses devstack-admin instead of the system-scoped default.
+func startOpenStackExporterForCloud(cloud string, enabledServices []string) (string, func(), error) {
 	metricsPath := "/metrics"
 	listenAddress := ":9180"
 	prefix := "openstack"
@@ -82,7 +89,6 @@ func startOpenStackExporter(enabledServices []string) (string, func(), error) {
 	disableSlowMetrics := false
 	disableDeprecatedMetrics := false
 	disableCinderAgentUUID := false
-	cloud := "devstack-system-admin" // Must exist in CI clouds.yaml
 	domainID := ""
 	tenantID := ""
 	dnsConcurrentCount := 10

@@ -1,0 +1,44 @@
+{
+  "orders": [
+    {
+      "created": "2026-03-06T14:01:10.209331",
+      "creator_id": "3a7e1e0db4574e3f8b9a1c2d5e6f7a8b",
+      "meta": {
+        "algorithm": "aes",
+        "bit_length": 256,
+        "expiration": null,
+        "mode": "cbc",
+        "name": "volume-key",
+        "payload_content_type": "application/octet-stream"
+      },
+      "order_ref": "http://test.cloud/key-manager/v1/orders/7c0e2b4d-6f8a-4c1e-b3d5-9a7c0e2b4d6f",
+      "secret_ref": "http://test.cloud/key-manager/v1/secrets/4f6a8c0e-2b4d-4f6a-8c0e-2b4d6f8a0c2e",
+      "status": "ACTIVE",
+      "sub_status": "Unknown",
+      "sub_status_message": "Unknown",
+      "type": "key",
+      "updated": "2026-03-06T14:01:10.682914"
+    },
+    {
+      "created": "2026-03-06T14:05:41.773018",
+      "creator_id": "3a7e1e0db4574e3f8b9a1c2d5e6f7a8b",
+      "error_reason": "Process TypeOrder failure seen - please contact site administrator.",
+      "error_status_code": "500",
+      "meta": {
+        "algorithm": "aes",
+        "bit_length": 512,
+        "expiration": null,
+        "mode": "cbc",
+        "name": "bad-key",
+        "payload_content_type": "application/octet-stream"
+      },
+      "order_ref": "http://test.cloud/key-manager/v1/orders/1a3c5e7f-9b2d-4a6c-8e0f-3b5d7f9a1c3e",
+      "status": "ERROR",
+      "sub_status": "Unknown",
+      "sub_status_message": "Unknown",
+      "type": "key",
+      "updated": "2026-03-06T14:05:42.010376"
+    }
+  ],
+  "total": 2
+}

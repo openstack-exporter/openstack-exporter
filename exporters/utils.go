@@ -37,6 +37,7 @@ var serviceCatalogTypesByExporterService = map[string][]string{
 	"orchestration":   {"orchestration"},
 	"placement":       {"placement"},
 	"sharev2":         {"shared-file-system", "sharev2"},
+	"key-manager":     {"key-manager"},
 }
 
 func AuthenticatedClientV2(opts *clientconfigv2.ClientOpts, transport http.RoundTripper, cloud *clientconfigv2.Cloud) (*gophercloudv2.ProviderClient, error) {
@@ -165,6 +166,8 @@ func NewServiceClientV2(service string, opts *clientconfigv2.ClientOpts, transpo
 		}
 	case "image":
 		return openstackv2.NewImageV2(pClient, eo)
+	case "key-manager":
+		return openstackv2.NewKeyManagerV1(pClient, eo)
 	case "load-balancer":
 		return openstackv2.NewLoadBalancerV2(pClient, eo)
 	case "network":
